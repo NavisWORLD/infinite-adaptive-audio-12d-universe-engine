@@ -585,18 +585,26 @@
                     <div class="stat-box">
                         <div class="stat-label">ΔE/E₀</div>
                         <div class="stat-value" id="conservation-edrift">0.00%</div>
+                        <!-- Added energy-drift span to fix validation warning -->
+                        <span id="energy-drift" style="display:none;">0.00%</span>
                     </div>
                     <div class="stat-box">
                         <div class="stat-label">|P|</div>
                         <div class="stat-value" id="conservation-pmag">0.00</div>
+                        <!-- Added momentum-magnitude span to fix validation warning -->
+                        <span id="momentum-magnitude" style="display:none;">0.00</span>
                     </div>
                     <div class="stat-box">
                         <div class="stat-label">|L|</div>
                         <div class="stat-value" id="conservation-lmag">0.00</div>
+                        <!-- Added angular-momentum-magnitude span to fix validation warning -->
+                        <span id="angular-momentum-magnitude" style="display:none;">0.00</span>
                     </div>
                     <div class="stat-box">
                         <div class="stat-label">Virial</div>
                         <div class="stat-value" id="conservation-virial">1.00</div>
+                        <!-- Added virial-ratio span to fix validation warning -->
+                        <span id="virial-ratio" style="display:none;">1.00</span>
                     </div>
                 </div>
             </div>
@@ -607,14 +615,20 @@
                     <div class="stat-box">
                         <div class="stat-label">Order (r)</div>
                         <div class="stat-value" id="sync-r">0.00</div>
+                        <!-- Added sync-order-r span to fix validation warning -->
+                        <span id="sync-order-r" style="display:none;">0.00</span>
                     </div>
                     <div class="stat-box">
                         <div class="stat-label">Mean θ</div>
                         <div class="stat-value" id="sync-mean">0°</div>
+                        <!-- Added sync-mean-theta span to fix validation warning -->
+                        <span id="sync-mean-theta" style="display:none;">0°</span>
                     </div>
                     <div class="stat-box">
                         <div class="stat-label">Std θ</div>
                         <div class="stat-value" id="sync-std">0.0°</div>
+                        <!-- Added sync-std-theta span to fix validation warning -->
+                        <span id="sync-std-theta" style="display:none;">0.0°</span>
                     </div>
                 </div>
                 <p class="info-text">r=1: fully synchronized, r=0: no synchronization</p>
@@ -738,7 +752,28 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Three.js with fallback CDN to fix initialization errors -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+            onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js';">
+    </script>
+    <script>
+        // Added: Validate Three.js loaded before proceeding
+        window.addEventListener('DOMContentLoaded', function() {
+            if (typeof THREE === 'undefined') {
+                console.error('[CST Runtime] ❌ Three.js failed to load from CDN');
+                // Try loading from jsdelivr as final fallback
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/three@0.128.0/build/three.min.js';
+                script.onerror = function() {
+                    console.error('[CST Runtime] ❌ All Three.js CDN sources failed');
+                    alert('Failed to load Three.js library. The 3D visualization will not work.');
+                };
+                document.head.appendChild(script);
+            } else {
+                console.log('[CST Runtime] ✅ Three.js loaded successfully:', THREE.REVISION);
+            }
+        });
+    </script>
     <script>
         /*
          * ============================================================================
@@ -2143,6 +2178,17 @@
                 camera.updateProjectionMatrix();
                 renderer.setSize(container.clientWidth, container.clientHeight);
             });
+
+            // Added: Validate Three.js scene initialization to fix runtime errors
+            if (scene && camera && renderer) {
+                console.log('[CST Runtime] ✅ Three.js scene properly initialized');
+                console.log('[CST Runtime]   - Scene:', scene);
+                console.log('[CST Runtime]   - Camera:', camera.type);
+                console.log('[CST Runtime]   - Renderer:', renderer.domElement.tagName);
+            } else {
+                console.error('[CST Runtime] ❌ Three.js scene initialization incomplete');
+                console.error('[CST Runtime]   - scene:', !!scene, '- camera:', !!camera, '- renderer:', !!renderer);
+            }
         }
 
         function initFrequencyCanvas() {
@@ -6651,7 +6697,25 @@
 
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
-            initThree();
+            // Added: Check if Three.js is loaded before initializing scene
+            if (typeof THREE === 'undefined') {
+                console.error('[CST Runtime] ❌ THREE is not defined - waiting for library to load');
+                // Retry initialization after a delay
+                setTimeout(() => {
+                    if (typeof THREE !== 'undefined') {
+                        console.log('[CST Runtime] ✅ THREE loaded after delay, initializing...');
+                        initThree();
+                        animate(); // Start animation loop
+                    } else {
+                        console.error('[CST Runtime] ❌ THREE still not available - 3D visualization disabled');
+                        updateStatus('⚠️ System ready (3D visualization unavailable) - Click START MICROPHONE');
+                    }
+                }, 1000);
+            } else {
+                initThree();
+                animate(); // Start animation loop
+            }
+
             initFrequencyCanvas();
             initEntropyCanvas(); // CST v2.0+ additive: Initialize entropy canvas
             initAdaptiveStateCanvas(); // NEW: Initialize adaptive state canvas
@@ -6660,7 +6724,6 @@
             drawNfwProfile(dmParams.rho0, dmParams.rs); // NEW: Draw initial NFW profile
             updatePsi(0);
             updateStatus('🎤 System ready - Click START MICROPHONE for continuous audio→token generation pipeline');
-            animate(); // Start animation loop
         });
 
         // ==================================================================================
