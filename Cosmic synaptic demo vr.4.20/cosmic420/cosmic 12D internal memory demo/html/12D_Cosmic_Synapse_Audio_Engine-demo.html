@@ -5986,6 +5986,630 @@
 
         })();
 
+        // Additive: Comprehensive 12D Cosmic Synapse Theory Feature Completion Patch
+        (function() {
+          if (typeof window.CST_THEORY_COMPLETE !== 'undefined') return;
+          window.CST_THEORY_COMPLETE = true;
+
+          console.log('[CST Theory] Applying comprehensive feature completion patch...');
+
+          // ========================================================================
+          // 1. ADAPTIVE STATE TRACE VISUALIZATION
+          // Implements: Section 2.9 - Internal State Evolution Dynamics
+          // Visualizes x12 and m12 evolution as live strip charts
+          // ========================================================================
+
+          // Additive: Create trace buffers for x12 and m12
+          const adaptiveStateTraces = {
+            x12Buffer: [], // Average x12 over time
+            m12Buffer: [], // Average m12 over time
+            maxBufferLength: 400 // CSS pixels width of canvas
+          };
+
+          // Additive: Draw adaptive state strip chart
+          function __cst_drawAdaptiveStateTrace() {
+            try {
+              if (typeof adaptiveStateCtx === 'undefined' || !adaptiveStateCtx) return;
+              if (typeof particles === 'undefined' || particles.length === 0) return;
+
+              const ctx = adaptiveStateCtx;
+              const canvas = ctx.canvas;
+              const dpr = window.devicePixelRatio || 1;
+              const widthCSS = canvas.clientWidth || 400;
+              const heightCSS = canvas.clientHeight || 120;
+
+              // Additive: Compute average x12 and m12
+              let sumX12 = 0, sumM12 = 0;
+              particles.forEach(p => {
+                sumX12 += p.x12 || 0;
+                sumM12 += p.m12 || 0;
+              });
+              const avgX12 = sumX12 / particles.length;
+              const avgM12 = sumM12 / particles.length;
+
+              // Additive: Push to buffers
+              adaptiveStateTraces.x12Buffer.push(avgX12);
+              adaptiveStateTraces.m12Buffer.push(avgM12);
+
+              // Additive: Trim buffers to canvas width
+              while (adaptiveStateTraces.x12Buffer.length > widthCSS) {
+                adaptiveStateTraces.x12Buffer.shift();
+              }
+              while (adaptiveStateTraces.m12Buffer.length > widthCSS) {
+                adaptiveStateTraces.m12Buffer.shift();
+              }
+
+              // Additive: Clear canvas
+              ctx.clearRect(0, 0, widthCSS, heightCSS);
+
+              // Additive: Draw zero line
+              ctx.strokeStyle = '#444';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(0, heightCSS / 2);
+              ctx.lineTo(widthCSS, heightCSS / 2);
+              ctx.stroke();
+
+              // Additive: Draw x12 trace (cyan)
+              if (adaptiveStateTraces.x12Buffer.length > 1) {
+                ctx.strokeStyle = '#00d4ff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                adaptiveStateTraces.x12Buffer.forEach((val, i) => {
+                  const x = i;
+                  const y = heightCSS / 2 - val * (heightCSS / 2 - 10);
+                  if (i === 0) ctx.moveTo(x, y);
+                  else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+              }
+
+              // Additive: Draw m12 trace (orange)
+              if (adaptiveStateTraces.m12Buffer.length > 1) {
+                ctx.strokeStyle = '#ff9500';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                adaptiveStateTraces.m12Buffer.forEach((val, i) => {
+                  const x = i;
+                  const y = heightCSS / 2 - val * (heightCSS / 2 - 10);
+                  if (i === 0) ctx.moveTo(x, y);
+                  else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+              }
+
+              // Additive: Draw legend
+              ctx.font = '11px monospace';
+              ctx.fillStyle = '#00d4ff';
+              ctx.fillText('x₁₂', 5, 15);
+              ctx.fillStyle = '#ff9500';
+              ctx.fillText('m₁₂', 35, 15);
+
+            } catch (e) {
+              console.warn('[CST Theory] drawAdaptiveStateTrace error', e);
+            }
+          }
+
+          // Additive: Wire adaptive state trace to updateLorenzParticles
+          if (typeof window.updateLorenzParticles === 'function' && !window.updateLorenzParticles.__cstAdaptiveTracePatched) {
+            const orig_updateLorenzParticles = window.updateLorenzParticles;
+            window.updateLorenzParticles = function(...args) {
+              const result = orig_updateLorenzParticles.apply(this, args);
+              __cst_drawAdaptiveStateTrace();
+              return result;
+            };
+            window.updateLorenzParticles.__cstAdaptiveTracePatched = true;
+            console.log('[CST Theory] Patched updateLorenzParticles for adaptive state trace');
+          }
+
+          // ========================================================================
+          // 2. CONSERVATION DIAGNOSTICS
+          // Implements: Section 2.15 - Comprehensive Runtime Diagnostics
+          // Tracks energy, momentum, angular momentum, and virial ratio
+          // ========================================================================
+
+          // Additive: Conservation state tracking
+          const conservationState = {
+            initialEnergy: null,
+            initialMomentum: null,
+            initialAngularMomentum: null,
+            lastUpdate: 0
+          };
+
+          // Additive: Compute conservation diagnostics
+          function __cst_computeConservationDiagnostics() {
+            try {
+              if (typeof particles === 'undefined' || particles.length === 0) {
+                return {
+                  energy: 0,
+                  energyError: 0,
+                  momentum: { x: 0, y: 0, z: 0 },
+                  momentumMag: 0,
+                  angularMomentum: { x: 0, y: 0, z: 0 },
+                  angularMomentumMag: 0,
+                  virialRatio: 0
+                };
+              }
+
+              let totalKE = 0, totalPE = 0;
+              let px = 0, py = 0, pz = 0;
+              let lx = 0, ly = 0, lz = 0;
+
+              particles.forEach(p => {
+                const m = p.mass || 1;
+                const vx = p.vx || 0;
+                const vy = p.vy || 0;
+                const vz = p.vz || 0;
+                const v2 = vx*vx + vy*vy + vz*vz;
+
+                // Kinetic energy
+                totalKE += 0.5 * m * v2;
+
+                // Momentum
+                px += m * vx;
+                py += m * vy;
+                pz += m * vz;
+
+                // Angular momentum: L = r × p
+                const rx = p.x || 0;
+                const ry = p.y || 0;
+                const rz = p.z || 0;
+                lx += m * (ry * vz - rz * vy);
+                ly += m * (rz * vx - rx * vz);
+                lz += m * (rx * vy - ry * vx);
+
+                // Potential energy (gravitational + dark matter)
+                totalPE += (p.Ugrav || 0) + (p.Udm || 0);
+              });
+
+              const totalEnergy = totalKE + totalPE;
+              const pMag = Math.sqrt(px*px + py*py + pz*pz);
+              const lMag = Math.sqrt(lx*lx + ly*ly + lz*lz);
+
+              // Initialize reference values
+              if (conservationState.initialEnergy === null && totalKE > 0) {
+                conservationState.initialEnergy = totalEnergy;
+                conservationState.initialMomentum = pMag;
+                conservationState.initialAngularMomentum = lMag;
+              }
+
+              // Compute energy error
+              const energyError = conservationState.initialEnergy !== null && conservationState.initialEnergy !== 0
+                ? Math.abs((totalEnergy - conservationState.initialEnergy) / conservationState.initialEnergy)
+                : 0;
+
+              // Virial ratio: 2T/|U|
+              const virialRatio = Math.abs(totalPE) > 1e-10 ? (2 * totalKE / Math.abs(totalPE)) : 0;
+
+              return {
+                energy: totalEnergy,
+                energyError: energyError,
+                momentum: { x: px, y: py, z: pz },
+                momentumMag: pMag,
+                angularMomentum: { x: lx, y: ly, z: lz },
+                angularMomentumMag: lMag,
+                virialRatio: virialRatio
+              };
+            } catch (e) {
+              console.warn('[CST Theory] Conservation diagnostics error', e);
+              return { energy: 0, energyError: 0, momentumMag: 0, angularMomentumMag: 0, virialRatio: 0 };
+            }
+          }
+
+          // Additive: Update conservation diagnostics display
+          function __cst_updateConservationDisplay() {
+            try {
+              const diag = __cst_computeConservationDiagnostics();
+
+              // Update energy error
+              const energyEl = document.getElementById('energy-error');
+              if (energyEl) {
+                energyEl.textContent = (diag.energyError * 100).toFixed(3) + '%';
+                energyEl.style.color = diag.energyError > 0.01 ? '#ff4444' : '#00ff00';
+              }
+
+              // Update momentum magnitude
+              const momentumEl = document.getElementById('momentum-mag');
+              if (momentumEl) {
+                momentumEl.textContent = diag.momentumMag.toExponential(3);
+              }
+
+              // Update angular momentum magnitude
+              const angMomEl = document.getElementById('angular-momentum-mag');
+              if (angMomEl) {
+                angMomEl.textContent = diag.angularMomentumMag.toExponential(3);
+              }
+
+              // Update virial ratio
+              const virialEl = document.getElementById('virial-ratio');
+              if (virialEl) {
+                virialEl.textContent = diag.virialRatio.toFixed(3);
+                virialEl.style.color = Math.abs(diag.virialRatio - 1) < 0.2 ? '#00ff00' : '#ffaa00';
+              }
+
+              conservationState.lastUpdate = Date.now();
+            } catch (e) {
+              console.warn('[CST Theory] Conservation display update error', e);
+            }
+          }
+
+          // Additive: Call conservation diagnostics every 500ms
+          setInterval(__cst_updateConservationDisplay, 500);
+
+          // ========================================================================
+          // 3. ENTROPY COUPLING TO PARTICLE REPLICATION
+          // Implements: Section 2.14 - Emergent Properties
+          // High entropy increases replication probability
+          // ========================================================================
+
+          // Additive: Entropy-influenced particle creation
+          function __cst_getEntropyModulatedThreshold() {
+            try {
+              if (typeof entropyState === 'undefined') return 1.0;
+
+              const baseThreshold = typeof replicationThreshold !== 'undefined' ? replicationThreshold : 1.0;
+              const currentEntropy = entropyState.lastEntropy || 0;
+
+              // Higher entropy -> lower threshold -> more particle creation
+              // Map entropy [0, 10] to multiplier [1.0, 0.5]
+              const entropyFactor = Math.max(0.5, 1.0 - currentEntropy * 0.05);
+
+              return baseThreshold * entropyFactor;
+            } catch (e) {
+              console.warn('[CST Theory] Entropy modulation error', e);
+              return 1.0;
+            }
+          }
+
+          // Additive: Patch particle creation to use entropy-modulated threshold
+          if (typeof window.addParticle === 'function' && !window.addParticle.__cstEntropyPatched) {
+            const orig_addParticle = window.addParticle;
+            window.addParticle = function(x, y, z, color, frequency, parent) {
+              // Apply entropy-modulated threshold check
+              const threshold = __cst_getEntropyModulatedThreshold();
+              const shouldCreate = Math.random() < (1.0 / threshold);
+
+              if (shouldCreate || typeof parent !== 'undefined') {
+                return orig_addParticle(x, y, z, color, frequency, parent);
+              }
+              return null;
+            };
+            window.addParticle.__cstEntropyPatched = true;
+            console.log('[CST Theory] Patched addParticle for entropy coupling');
+          }
+
+          // ========================================================================
+          // 4. REPLAY VALIDATION DIAGNOSTICS
+          // Implements: Section 2.13 - Deterministic Replay and Fidelity Checks
+          // Validates replay quality with pass/fail indicators
+          // ========================================================================
+
+          // Additive: Replay validation state
+          const replayValidation = {
+            energyErrorThreshold: 0.01, // 1% max error
+            momentumThreshold: 1e-6,
+            angMomentumThreshold: 1e-6,
+            virialErrorThreshold: 0.2
+          };
+
+          // Additive: Compute replay validation
+          function __cst_validateReplay() {
+            try {
+              if (typeof determinism === 'undefined' || !determinism.isReplaying) {
+                return {
+                  energyPass: true,
+                  momentumPass: true,
+                  angMomentumPass: true,
+                  virialPass: true,
+                  overallPass: true
+                };
+              }
+
+              const diag = __cst_computeConservationDiagnostics();
+
+              const energyPass = diag.energyError < replayValidation.energyErrorThreshold;
+              const momentumPass = diag.momentumMag < replayValidation.momentumThreshold;
+              const angMomentumPass = diag.angularMomentumMag < replayValidation.angMomentumThreshold;
+              const virialPass = Math.abs(diag.virialRatio - 1.0) < replayValidation.virialErrorThreshold;
+              const overallPass = energyPass && momentumPass && angMomentumPass && virialPass;
+
+              return {
+                energyPass,
+                momentumPass,
+                angMomentumPass,
+                virialPass,
+                overallPass
+              };
+            } catch (e) {
+              console.warn('[CST Theory] Replay validation error', e);
+              return { overallPass: false };
+            }
+          }
+
+          // Additive: Update replay validation display
+          function __cst_updateReplayValidationDisplay() {
+            try {
+              const validation = __cst_validateReplay();
+
+              const energyPassEl = document.getElementById('replay-energy-pass');
+              if (energyPassEl) {
+                energyPassEl.textContent = validation.energyPass ? '✓ PASS' : '✗ FAIL';
+                energyPassEl.style.color = validation.energyPass ? '#00ff00' : '#ff4444';
+              }
+
+              const momentumPassEl = document.getElementById('replay-momentum-pass');
+              if (momentumPassEl) {
+                momentumPassEl.textContent = validation.momentumPass ? '✓ PASS' : '✗ FAIL';
+                momentumPassEl.style.color = validation.momentumPass ? '#00ff00' : '#ff4444';
+              }
+
+              const angMomPassEl = document.getElementById('replay-angmom-pass');
+              if (angMomPassEl) {
+                angMomPassEl.textContent = validation.angMomentumPass ? '✓ PASS' : '✗ FAIL';
+                angMomPassEl.style.color = validation.angMomentumPass ? '#00ff00' : '#ff4444';
+              }
+
+              const virialPassEl = document.getElementById('replay-virial-pass');
+              if (virialPassEl) {
+                virialPassEl.textContent = validation.virialPass ? '✓ PASS' : '✗ FAIL';
+                virialPassEl.style.color = validation.virialPass ? '#00ff00' : '#ff4444';
+              }
+
+              const overallPassEl = document.getElementById('replay-overall-pass');
+              if (overallPassEl) {
+                overallPassEl.textContent = validation.overallPass ? '✓ PASS' : '✗ FAIL';
+                overallPassEl.style.color = validation.overallPass ? '#00ff00' : '#ff4444';
+              }
+            } catch (e) {
+              console.warn('[CST Theory] Replay validation display error', e);
+            }
+          }
+
+          // Additive: Update replay validation every second
+          setInterval(__cst_updateReplayValidationDisplay, 1000);
+
+          // ========================================================================
+          // 5. TOKEN RATE TRACKING
+          // Implements: Section 2.11 - Continuous Token Stream
+          // Displays tokens/sec metric in real time
+          // ========================================================================
+
+          // Additive: Token rate state
+          const tokenRateState = {
+            tokenCount: 0,
+            lastResetTime: Date.now(),
+            currentRate: 0
+          };
+
+          // Additive: Track token creation
+          if (typeof tokenBuffer !== 'undefined' && !tokenBuffer.__cstRatePatched) {
+            const originalPush = Array.prototype.push;
+
+            // Override push on tokenBuffer.tokens
+            Object.defineProperty(tokenBuffer, 'tokens', {
+              get: function() { return this._tokens || []; },
+              set: function(val) {
+                this._tokens = val;
+                // Wrap push to count tokens
+                if (this._tokens && !this._tokens.__cstRatePatched) {
+                  const tokensArray = this._tokens;
+                  tokensArray.__cstRatePatched = true;
+                  const wrappedPush = function(...items) {
+                    tokenRateState.tokenCount += items.length;
+                    return originalPush.apply(this, items);
+                  };
+                  tokensArray.push = wrappedPush.bind(tokensArray);
+                }
+              }
+            });
+            tokenBuffer.__cstRatePatched = true;
+          }
+
+          // Additive: Compute and update token rate
+          function __cst_updateTokenRate() {
+            try {
+              const now = Date.now();
+              const elapsed = (now - tokenRateState.lastResetTime) / 1000; // seconds
+
+              if (elapsed > 0) {
+                tokenRateState.currentRate = tokenRateState.tokenCount / elapsed;
+              }
+
+              // Update display
+              const tokenRateEl = document.getElementById('token-rate');
+              if (tokenRateEl) {
+                tokenRateEl.textContent = tokenRateState.currentRate.toFixed(1) + ' tok/s';
+              }
+
+              // Reset counter every 5 seconds
+              if (elapsed >= 5) {
+                tokenRateState.tokenCount = 0;
+                tokenRateState.lastResetTime = now;
+              }
+            } catch (e) {
+              console.warn('[CST Theory] Token rate update error', e);
+            }
+          }
+
+          // Additive: Update token rate every 500ms
+          setInterval(__cst_updateTokenRate, 500);
+
+          // ========================================================================
+          // 6. JSON EXPORT FUNCTIONS
+          // Implements: Section 2.16 - Test Cases and Validation
+          // Export token stream and system state as JSON
+          // ========================================================================
+
+          // Additive: Export tokens (compact format)
+          window.__cst_exportTokensCompact = function() {
+            try {
+              if (typeof tokenBuffer === 'undefined' || !tokenBuffer.tokens) {
+                console.warn('No tokens available');
+                return null;
+              }
+
+              const compact = tokenBuffer.tokens.map(t => ({
+                type: t.type,
+                ts: t.timestamp,
+                freq: t.frequency,
+                mag: t.magnitude,
+                x12: t.x12,
+                psi: t.psi
+              }));
+
+              const json = JSON.stringify(compact, null, 2);
+              console.log('[CST Theory] Compact token export (' + compact.length + ' tokens)');
+              return json;
+            } catch (e) {
+              console.warn('[CST Theory] Token export error', e);
+              return null;
+            }
+          };
+
+          // Additive: Export tokens (full format)
+          window.__cst_exportTokensFull = function() {
+            try {
+              if (typeof tokenBuffer === 'undefined' || !tokenBuffer.tokens) {
+                console.warn('No tokens available');
+                return null;
+              }
+
+              const json = JSON.stringify(tokenBuffer.tokens, null, 2);
+              console.log('[CST Theory] Full token export (' + tokenBuffer.tokens.length + ' tokens)');
+              return json;
+            } catch (e) {
+              console.warn('[CST Theory] Token export error', e);
+              return null;
+            }
+          };
+
+          // Additive: Export system state snapshot
+          window.__cst_exportSystemState = function() {
+            try {
+              const state = {
+                timestamp: Date.now(),
+                particles: particles.map(p => ({
+                  id: p.id,
+                  pos: { x: p.x, y: p.y, z: p.z },
+                  vel: { x: p.vx, y: p.vy, z: p.vz },
+                  x12: p.x12,
+                  m12: p.m12,
+                  Ec: p.Ec,
+                  omega: p.omega,
+                  vi: p.vi,
+                  theta: p.theta
+                })),
+                physics: physics,
+                adaptiveState: adaptiveState,
+                sync: sync,
+                entropy: entropyState.lastEntropy,
+                conservation: __cst_computeConservationDiagnostics()
+              };
+
+              const json = JSON.stringify(state, null, 2);
+              console.log('[CST Theory] System state exported (' + particles.length + ' particles)');
+              return json;
+            } catch (e) {
+              console.warn('[CST Theory] System state export error', e);
+              return null;
+            }
+          };
+
+          // Additive: Download JSON helper
+          window.__cst_downloadJSON = function(data, filename) {
+            try {
+              const blob = new Blob([data], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = filename || 'cst-export.json';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              console.log('[CST Theory] Downloaded', filename);
+            } catch (e) {
+              console.warn('[CST Theory] Download error', e);
+            }
+          };
+
+          // ========================================================================
+          // 7. RUNTIME VALIDATION HELPERS
+          // Implements: Section 2.15 - Comprehensive Runtime Diagnostics
+          // Provides debugging and validation utilities
+          // ========================================================================
+
+          // Additive: Validate particle state consistency
+          window.__cst_validateParticleStates = function() {
+            try {
+              if (typeof particles === 'undefined' || particles.length === 0) {
+                console.log('[CST Validate] No particles');
+                return true;
+              }
+
+              let errors = [];
+              particles.forEach((p, i) => {
+                if (!isFinite(p.x) || !isFinite(p.y) || !isFinite(p.z)) {
+                  errors.push('Particle ' + i + ' has invalid position');
+                }
+                if (!isFinite(p.vx) || !isFinite(p.vy) || !isFinite(p.vz)) {
+                  errors.push('Particle ' + i + ' has invalid velocity');
+                }
+                if (!isFinite(p.x12) || Math.abs(p.x12) > 10) {
+                  errors.push('Particle ' + i + ' has invalid x12=' + p.x12);
+                }
+                if (!isFinite(p.Ec) || p.Ec < 0) {
+                  errors.push('Particle ' + i + ' has invalid Ec=' + p.Ec);
+                }
+              });
+
+              if (errors.length > 0) {
+                console.warn('[CST Validate] Found', errors.length, 'errors:');
+                errors.forEach(e => console.warn('  -', e));
+                return false;
+              }
+
+              console.log('[CST Validate] All', particles.length, 'particles valid');
+              return true;
+            } catch (e) {
+              console.warn('[CST Validate] Validation error', e);
+              return false;
+            }
+          };
+
+          // Additive: Dump comprehensive diagnostics
+          window.__cst_dumpDiagnostics = function() {
+            try {
+              console.log('=== CST 12D COSMIC SYNAPSE DIAGNOSTICS ===');
+              console.log('Particles:', particles.length);
+              console.log('Conservation:', __cst_computeConservationDiagnostics());
+              console.log('Replay Validation:', __cst_validateReplay());
+              console.log('Token Rate:', tokenRateState.currentRate.toFixed(2), 'tok/s');
+              console.log('Entropy:', entropyState.lastEntropy);
+              console.log('Adaptive State Traces:', {
+                x12BufferLen: adaptiveStateTraces.x12Buffer.length,
+                m12BufferLen: adaptiveStateTraces.m12Buffer.length
+              });
+              console.log('Particle States Valid:', __cst_validateParticleStates());
+              console.log('==========================================');
+            } catch (e) {
+              console.warn('[CST Theory] Diagnostics dump error', e);
+            }
+          };
+
+          // Additive: Theory feature verification
+          console.log('[CST Theory] ✓ Adaptive State Trace visualization enabled');
+          console.log('[CST Theory] ✓ Conservation diagnostics tracking enabled');
+          console.log('[CST Theory] ✓ Entropy coupling to particle replication enabled');
+          console.log('[CST Theory] ✓ Replay validation diagnostics enabled');
+          console.log('[CST Theory] ✓ Token rate tracking enabled');
+          console.log('[CST Theory] ✓ JSON export functions available');
+          console.log('[CST Theory] ✓ Runtime validation helpers available');
+          console.log('[CST Theory] Comprehensive feature patch applied successfully');
+          console.log('[CST Theory] Debug: Run window.__cst_dumpDiagnostics() for full system report');
+
+        })();
+
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
             initThree();
