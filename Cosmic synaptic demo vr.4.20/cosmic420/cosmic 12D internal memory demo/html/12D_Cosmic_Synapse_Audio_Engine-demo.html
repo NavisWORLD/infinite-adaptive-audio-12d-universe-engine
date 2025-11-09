@@ -585,18 +585,29 @@
                     <div class="stat-box">
                         <div class="stat-label">ΔE/E₀</div>
                         <div class="stat-value" id="conservation-edrift">0.00%</div>
+                        <!-- Added for CST validation compatibility - mirrors conservation-edrift -->
+                        <span id="energy-drift" style="display: none;">0.00%</span>
+                        <span id="energy-error" style="display: none;">0.00%</span>
                     </div>
                     <div class="stat-box">
                         <div class="stat-label">|P|</div>
                         <div class="stat-value" id="conservation-pmag">0.00</div>
+                        <!-- Added for CST validation compatibility - mirrors conservation-pmag -->
+                        <span id="momentum-magnitude" style="display: none;">0.00</span>
+                        <span id="momentum-mag" style="display: none;">0.00</span>
                     </div>
                     <div class="stat-box">
                         <div class="stat-label">|L|</div>
                         <div class="stat-value" id="conservation-lmag">0.00</div>
+                        <!-- Added for CST validation compatibility - mirrors conservation-lmag -->
+                        <span id="angular-momentum-magnitude" style="display: none;">0.00</span>
+                        <span id="angular-momentum-mag" style="display: none;">0.00</span>
                     </div>
                     <div class="stat-box">
                         <div class="stat-label">Virial</div>
                         <div class="stat-value" id="conservation-virial">1.00</div>
+                        <!-- Added for CST validation compatibility - mirrors conservation-virial -->
+                        <span id="virial-ratio" style="display: none;">1.00</span>
                     </div>
                 </div>
             </div>
@@ -607,14 +618,20 @@
                     <div class="stat-box">
                         <div class="stat-label">Order (r)</div>
                         <div class="stat-value" id="sync-r">0.00</div>
+                        <!-- Added for CST validation compatibility - mirrors sync-r -->
+                        <span id="sync-order-r" style="display: none;">0.00</span>
                     </div>
                     <div class="stat-box">
                         <div class="stat-label">Mean θ</div>
                         <div class="stat-value" id="sync-mean">0°</div>
+                        <!-- Added for CST validation compatibility - mirrors sync-mean -->
+                        <span id="sync-mean-theta" style="display: none;">0°</span>
                     </div>
                     <div class="stat-box">
                         <div class="stat-label">Std θ</div>
                         <div class="stat-value" id="sync-std">0.0°</div>
+                        <!-- Added for CST validation compatibility - mirrors sync-std -->
+                        <span id="sync-std-theta" style="display: none;">0.0°</span>
                     </div>
                 </div>
                 <p class="info-text">r=1: fully synchronized, r=0: no synchronization</p>
@@ -738,7 +755,16 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- CST v2.0+ additive: Three.js with CDN fallback mechanism -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+            onerror="console.warn('[CST] Primary CDN blocked, loading Three.js from fallback...');
+                     var script = document.createElement('script');
+                     script.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js';
+                     script.onerror = function() {
+                         console.error('[CST] ❌ All Three.js CDNs failed. Please download locally.');
+                         document.getElementById('system-status').textContent = 'Three.js loading failed - check console';
+                     };
+                     document.head.appendChild(script);"></script>
     <script>
         /*
          * ============================================================================
@@ -2112,15 +2138,23 @@
         }
 
         function initThree() {
+            // CST v2.0+ additive: Check if THREE.js loaded successfully
+            if (typeof THREE === 'undefined') {
+                console.error('[CST] ❌ THREE.js not loaded. Scene initialization failed.');
+                const statusEl = document.getElementById('system-status');
+                if (statusEl) statusEl.textContent = 'THREE.js not loaded - check CDN access or use local copy';
+                return false;
+            }
+
             const container = document.getElementById('canvas-container');
-            
+
             scene = new THREE.Scene();
             scene.fog = new THREE.FogExp2(0x0a0a1a, 0.002);
-            
+
             camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
             camera.position.set(50, 30, 50);
             camera.lookAt(0, 0, 0);
-            
+
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(container.clientWidth, container.clientHeight);
             renderer.setClearColor(0x0a0a1a, 0.5);
@@ -3573,21 +3607,48 @@
         // 5) Conservation diagnostics animation
         function updateConservationDiagnostics() {
             if (particles.length === 0) return;
-            
+
             const consStats = computeConservationStats(particles);
             const virial = checkVirial(particles);
-            
+
+            // Compute common values
+            const energyDriftPercent = (consStats.drift.E * 100).toFixed(2) + '%';
+            const momentumMag = Math.sqrt(consStats.P.x**2 + consStats.P.y**2 + consStats.P.z**2);
+            const angularMomentumMag = Math.sqrt(consStats.L.x**2 + consStats.L.y**2 + consStats.L.z**2);
+            const virialText = virial.ratio.toFixed(3) + (virial.ok ? ' ✓' : ' ✗');
+
+            // Update original IDs
             const eTotalEl = document.getElementById('conservation-etotal');
             const eDriftEl = document.getElementById('conservation-edrift');
             const pMagEl = document.getElementById('conservation-pmag');
             const lMagEl = document.getElementById('conservation-lmag');
             const virialEl = document.getElementById('conservation-virial');
-            
+
             if (eTotalEl) eTotalEl.textContent = consStats.Etotal.toExponential(2);
-            if (eDriftEl) eDriftEl.textContent = (consStats.drift.E * 100).toFixed(2) + '%';
-            if (pMagEl) pMagEl.textContent = Math.sqrt(consStats.P.x**2 + consStats.P.y**2 + consStats.P.z**2).toExponential(2);
-            if (lMagEl) lMagEl.textContent = Math.sqrt(consStats.L.x**2 + consStats.L.y**2 + consStats.L.z**2).toExponential(2);
-            if (virialEl) virialEl.textContent = virial.ratio.toFixed(3) + (virial.ok ? ' ✓' : ' ✗');
+            if (eDriftEl) eDriftEl.textContent = energyDriftPercent;
+            if (pMagEl) pMagEl.textContent = momentumMag.toExponential(2);
+            if (lMagEl) lMagEl.textContent = angularMomentumMag.toExponential(2);
+            if (virialEl) virialEl.textContent = virialText;
+
+            // CST v2.0+ additive: Update validation-compatible IDs (for runCST_Diagnostics)
+            const energyDriftEl = document.getElementById('energy-drift');
+            const energyErrorEl = document.getElementById('energy-error');
+            const momentumMagnitudeEl = document.getElementById('momentum-magnitude');
+            const momentumMagEl = document.getElementById('momentum-mag');
+            const angularMomentumMagnitudeEl = document.getElementById('angular-momentum-magnitude');
+            const angularMomentumMagEl = document.getElementById('angular-momentum-mag');
+            const virialRatioEl = document.getElementById('virial-ratio');
+
+            if (energyDriftEl) energyDriftEl.textContent = energyDriftPercent;
+            if (energyErrorEl) energyErrorEl.textContent = energyDriftPercent;
+            if (momentumMagnitudeEl) momentumMagnitudeEl.textContent = momentumMag.toExponential(2);
+            if (momentumMagEl) momentumMagEl.textContent = momentumMag.toExponential(2);
+            if (angularMomentumMagnitudeEl) angularMomentumMagnitudeEl.textContent = angularMomentumMag.toExponential(2);
+            if (angularMomentumMagEl) angularMomentumMagEl.textContent = angularMomentumMag.toExponential(2);
+            if (virialRatioEl) {
+                virialRatioEl.textContent = virial.ratio.toFixed(3);
+                virialRatioEl.style.color = virial.ok ? '#00ff00' : '#ffaa00';
+            }
         }
         
         // 6) Replay and determinism feedback
@@ -3607,16 +3668,27 @@
         // Standalone synchronization metrics update function
         function updateSynchronizationMetrics() {
             if (particles.length === 0) return;
-            
+
             const syncMetric = computeSynchronizationMetric(particles);
+            const thetaStd = computeThetaStd(particles);
+
+            // Update original IDs
             const syncREl = document.getElementById('sync-r');
             const syncMeanEl = document.getElementById('sync-mean');
             const syncStdEl = document.getElementById('sync-std');
-            
+
             if (syncREl) syncREl.textContent = syncMetric.r.toFixed(3);
             if (syncMeanEl) syncMeanEl.textContent = (syncMetric.meanTheta * 180 / Math.PI).toFixed(1) + '°';
-            const thetaStd = computeThetaStd(particles);
             if (syncStdEl) syncStdEl.textContent = (thetaStd * 180 / Math.PI).toFixed(1) + '°';
+
+            // CST v2.0+ additive: Update validation-compatible IDs (for runCST_Diagnostics)
+            const syncOrderREl = document.getElementById('sync-order-r');
+            const syncMeanThetaEl = document.getElementById('sync-mean-theta');
+            const syncStdThetaEl = document.getElementById('sync-std-theta');
+
+            if (syncOrderREl) syncOrderREl.textContent = syncMetric.r.toFixed(3);
+            if (syncMeanThetaEl) syncMeanThetaEl.textContent = (syncMetric.meanTheta * 180 / Math.PI).toFixed(1) + '°';
+            if (syncStdThetaEl) syncStdThetaEl.textContent = (thetaStd * 180 / Math.PI).toFixed(1) + '°';
         }
         
         // Standalone ψ breakdown update function
