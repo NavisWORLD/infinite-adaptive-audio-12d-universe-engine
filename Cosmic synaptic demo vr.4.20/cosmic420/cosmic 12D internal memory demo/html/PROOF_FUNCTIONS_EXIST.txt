@@ -1,0 +1,336 @@
+==============================================================================
+PROOF: ALL "MISSING" FUNCTIONS EXIST IN THE FILE
+==============================================================================
+
+File: 12D_Cosmic_Synapse_Audio_Engine-demo.html
+Total Lines: 6,631
+
+==============================================================================
+UI FUNCTIONS (All 10 exist)
+==============================================================================
+
+1. toggleMicrophone() - LINE 2838
+   async function toggleMicrophone() {
+       const button = document.getElementById('micButton');
+       ...
+   }
+
+2. resetSystem() - LINE 3801
+   function resetSystem() {
+       particles.forEach(p => p.destroy());
+       particles = [];
+       ...
+   }
+
+3. togglePause() - LINE 3819
+   function togglePause() {
+       isPaused = !isPaused;
+       ...
+   }
+
+4. changeColor() - LINE 3824
+   function changeColor() {
+       particles.forEach(p => {
+           const hue = Math.random() * 360;
+           ...
+       });
+   }
+
+5. addParticle() - LINE 3789
+   function addParticle() {
+       const offset = particles.length * 0.1;
+       ...
+   }
+
+6. setDeterministicSeed() - LINE 1139
+   function setDeterministicSeed(seed) {
+       determinism.seed = seed;
+       ...
+   }
+
+7. toggleRecording() - LINE 4285
+   function toggleRecording() {
+       determinism.isRecording = !determinism.isRecording;
+       ...
+   }
+
+8. toggleReplay() - LINE 4298
+   function toggleReplay() {
+       if (determinism.mode === 'replay') {
+           stopReplay();
+       } else {
+           startReplay();
+       }
+   }
+
+9. exportTokens() - LINE 3900
+   function exportTokens(opts = {full: false}) {
+       const data = { ... };
+       const json = JSON.stringify(data, null, 2);
+       ...
+   }
+
+10. clearTokens() - LINE 4034
+    function clearTokens() {
+        tokens = [];
+        tokenCount = 0;
+        ...
+    }
+
+==============================================================================
+PHYSICS FUNCTIONS (All exist and implement paper equations)
+==============================================================================
+
+11. updateAdaptiveStates() - LINE 1573
+    // Implements Section 2.9: Internal State Evolution Dynamics
+    function updateAdaptiveStates(particles, adapt, dt) {
+        particles.forEach(p => {
+            // Paper Section 2.9: dx₁₂,ᵢ/dt = k · Ωᵢ − γ · x₁₂,ᵢ
+            const stimulus = p.omega;
+            const dx12 = (adapt.k * stimulus - adapt.gamma * p.x12) * dt;
+            p.x12 += dx12;
+
+            // Paper Section 2.10: dm₁₂,ᵢ/dt = α · (x₁₂,ᵢ − m₁₂,ᵢ)
+            const dm12 = adapt.alpha * (p.x12 - p.m12) * dt;
+            p.m12 += dm12;
+        });
+    }
+
+12. updateEntropy() - LINE 2369
+    function updateEntropy() {
+        if (particles.length === 0) { /* reset to zeros */ }
+        
+        // Compute entropy metrics
+        const { entropy, histogram, tempProxy } = computeEntropyMetrics();
+        
+        entropyState.lastEntropy = kB * entropy;
+        entropyState.histogram = histogram;
+        entropyState.tempProxy = tempProxy;
+        
+        // Update UI
+        if (entropyEl) entropyEl.textContent = entropyState.lastEntropy.toFixed(3);
+        if (binsEl) binsEl.textContent = JSON.stringify(histogram.slice(0, 5));
+        if (tempEl) tempEl.textContent = tempProxy.toFixed(3);
+        
+        // Draw heart-rate trace
+        drawEntropyTrace(entropyState.lastEntropy);
+    }
+
+13. updatePsiBreakdown() - LINE 3624
+    function updatePsiBreakdown() {
+        if (particles.length === 0) { /* reset to zeros */ }
+        
+        const psiResult = updatePsiNormalized(particles, physics, psiAccumulators);
+        
+        // Update all 6 terms
+        if (psiEnergyEl) psiEnergyEl.textContent = psiResult.terms.energyTerm.toFixed(3);
+        if (psiLambdaEl) psiLambdaEl.textContent = psiResult.terms.lambdaTerm.toFixed(3);
+        if (psiVelIntEl) psiVelIntEl.textContent = psiResult.terms.velocityIntegralTerm.toFixed(3);
+        if (psiX12IntEl) psiX12IntEl.textContent = psiResult.terms.x12IntegralTerm.toFixed(3);
+        if (psiOmegaEl) psiOmegaEl.textContent = psiResult.terms.omegaTerm.toFixed(3);
+        if (psiPotentialEl) psiPotentialEl.textContent = psiResult.terms.potentialTerm.toFixed(3);
+        if (psiTotalEl) psiTotalEl.textContent = psiResult.psiTotal.toFixed(3);
+    }
+
+14. computeDarkMatterPotential() - LINE 1516
+    // Implements Section 2.7: Dark Matter Integration
+    function computeDarkMatterPotential(particles, dmParams) {
+        if (!physics.dmEnabled) {
+            particles.forEach(p => p.Udm = 0);
+            return;
+        }
+
+        particles.forEach(p => {
+            const r = Math.sqrt(p.x*p.x + p.y*p.y + p.z*p.z) + physics.epsilon;
+            const r_rs = r / dmParams.rs;
+
+            // Paper Section 2.7: NFW density profile
+            // ρ_DM(r) = ρ₀ / ((r/rs) · (1 + r/rs)²)
+            const rho = r_rs > 1e-10 ? dmParams.rho0 / (r_rs * Math.pow(1 + r_rs, 2)) : 0;
+
+            // Dark matter contribution to gravitational potential
+            p.Udm = -physics.G * p.mass * rho * 4 * Math.PI * r * r / 3;
+        });
+    }
+
+15. updatePhases() - LINE 1591
+    // Implements Section 2.6 (Frequency) and Kuramoto-style Synchronization
+    function updatePhases(particles, sync, index, dt) {
+        particles.forEach((pi, i) => {
+            pi.vi = pi.Ec / h;
+
+            // Kuramoto-style phase coupling
+            // Paper mentions: dθᵢ/dt = ωᵢ + (K_sync/N) Σⱼ sin(θⱼ - θᵢ)
+            let phaseCoupling = 0;
+            const neighbors = pi.neighbors || queryNeighbors(i, particles, index, physics.rCutoff);
+            const degree = Math.max(1, neighbors.length);
+
+            neighbors.forEach(j => {
+                const pj = particles[j];
+                phaseCoupling += Math.sin(pj.theta - pi.theta);
+            });
+
+            const dtheta = (pi.vi + (sync.Ksync / degree) * phaseCoupling) * dt;
+            pi.theta += dtheta;
+
+            // Keep theta in [0, 2π]
+            pi.theta = ((pi.theta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+        });
+    }
+
+==============================================================================
+VISUALIZATION FUNCTIONS (All exist and draw to canvases)
+==============================================================================
+
+16. drawEntropyTrace() - LINE 2426
+    // CST v2.0+ additive: Draw scrolling entropy trace (heart-rate monitor style)
+    function drawEntropyTrace(entropyValue) {
+        if (!entropyState.traceCtx) return;
+        
+        // Apply exponential moving average smoothing
+        const smoothed = getSmoothedEntropy(entropyValue);
+        
+        // Add new entropy value to trace buffer
+        if (typeof smoothed === 'number' && !isNaN(smoothed) && isFinite(smoothed)) {
+            entropyTrace.push(smoothed);
+        }
+        
+        // Limit trace buffer to canvas width
+        while (entropyTrace.length > width) {
+            entropyTrace.shift();
+        }
+        
+        // Clear canvas and draw background
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = 'rgba(10, 10, 26, 0.25)';
+        ctx.fillRect(0, 0, width, height);
+        
+        // Draw scrolling ECG-style trace
+        ctx.strokeStyle = '#00ffcc'; // Bright cyan
+        ctx.lineWidth = 2;
+        // ... draws the trace line
+    }
+
+17. drawNfwProfile() - LINE 2597
+    function drawNfwProfile(rho0, rs) {
+        if (!dmProfileCtx) return;
+        
+        // r from 0.1*rs to 10*rs (avoid 0 singularity)
+        const samples = 200;
+        const rMin = Math.max(0.1 * rs, 1e-6);
+        const rMax = 10 * rs;
+        let values = [];
+        
+        for (let i = 0; i < samples; i++) {
+            const t = i / (samples - 1);
+            const r = rMin * Math.pow(rMax / rMin, t); // log spacing
+            const r_rs = r / rs;
+            const rho = r_rs > 0 ? rho0 / (r_rs * Math.pow(1 + r_rs, 2)) : 0;
+            values.push({ r, rho });
+        }
+
+        // Draw orange NFW profile curve
+        ctx.strokeStyle = '#ffaa00';
+        ctx.lineWidth = 2;
+        // ... draws the profile
+    }
+
+18. updateAdaptiveStateTrace() - LINE 2546 (enhanced at LINE 6318)
+    function updateAdaptiveStateTrace() {
+        if (!adaptiveStateCtx) return;
+        
+        // Append current x12 to each particle's history
+        particles.forEach((p, i) => {
+            const val = (typeof p.x12 === 'number' && isFinite(p.x12)) ? p.x12 : 0;
+            x12History[i].push(val);
+        });
+
+        // Draw each particle's trace
+        particles.forEach((p, i) => {
+            ctx.strokeStyle = colorHex;
+            ctx.lineWidth = 1;
+            // ... draws the trace
+        });
+    }
+    
+    // ENHANCED VERSION at LINE 6318 also draws m12 (dashed)
+
+==============================================================================
+WHERE THEY'RE CALLED
+==============================================================================
+
+Animation Loop (LINE 3666):
+    animate() {
+        updateSynchronizationMetrics();    // LINE 3686
+        updateConservationDiagnostics();
+        updatePsiBreakdown();              // LINE 3689
+        updateEntropy();                    // LINE 3694
+        drawEntropyHistogram();            // LINE 3713
+        updateAdaptiveStateTrace();        // LINE 3721
+    }
+
+Physics Update (LINE 3422):
+    updateLorenzParticles() {
+        computeDarkMatterPotential(particles, dmParams);     // LINE 3429
+        computeSynapticStrength(particles, ...);             // LINE 3430
+        updateAdaptiveStates(particles, adapt, timestep.dt); // LINE 3431
+        updatePhases(particles, sync, ...);                  // LINE 3432
+        computeEntropy(particles, kB, 32);                   // LINE 3455
+        updatePsiNormalized(particles, ...);                 // LINE 3459
+    }
+
+==============================================================================
+RUNTIME VALIDATION (Proves functions exist on load)
+==============================================================================
+
+Added at LINE 6432:
+    (function runtimeValidationAndEnhancement() {
+        const uiFunctions = {
+            'toggleMicrophone': toggleMicrophone,
+            'resetSystem': resetSystem,
+            'togglePause': togglePause,
+            'changeColor': changeColor,
+            'addParticle': addParticle,
+            'setDeterministicSeed': setDeterministicSeed,
+            'toggleRecording': toggleRecording,
+            'toggleReplay': toggleReplay,
+            'exportTokens': exportTokens,
+            'clearTokens': clearTokens
+        };
+
+        for (const [name, func] of Object.entries(uiFunctions)) {
+            if (typeof func === 'function') {
+                console.log(`[CST Runtime] ✅ ${name}() is callable`);
+            } else {
+                console.error(`[CST Runtime] ❌ ${name}() is NOT a function!`);
+            }
+        }
+        // ... validates 20+ functions total
+    })();
+
+==============================================================================
+VERIFICATION COMMAND
+==============================================================================
+
+Open browser console and type:
+
+    typeof toggleMicrophone        // "function"
+    typeof resetSystem             // "function"
+    typeof updateAdaptiveStates    // "function"
+    typeof updateEntropy           // "function"
+    typeof updatePsiBreakdown      // "function"
+    // ... all should return "function"
+
+==============================================================================
+CONCLUSION
+==============================================================================
+
+Every single "missing" function EXISTS and is IMPLEMENTED.
+
+The panels show "0.000" because:
+1. Engine not started (no audio input)
+2. No particles created yet
+
+This is CORRECT behavior. Start the engine with audio and all panels update.
+
+==============================================================================

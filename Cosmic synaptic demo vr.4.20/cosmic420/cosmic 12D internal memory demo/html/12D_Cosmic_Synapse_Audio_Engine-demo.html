@@ -7053,6 +7053,186 @@
             }
         })();
 
+        // ==================================================================================
+        // RUNTIME VALIDATION & ERROR HANDLING ENHANCEMENT
+        // Ensures all functions work correctly and provides debugging information
+        // ==================================================================================
+
+        (function runtimeValidationAndEnhancement() {
+            console.log('[CST Runtime] Starting comprehensive runtime validation...');
+
+            // Validate all UI button functions are callable
+            const uiFunctions = {
+                'toggleMicrophone': toggleMicrophone,
+                'resetSystem': resetSystem,
+                'togglePause': togglePause,
+                'changeColor': changeColor,
+                'addParticle': addParticle,
+                'setDeterministicSeed': setDeterministicSeed,
+                'toggleRecording': toggleRecording,
+                'toggleReplay': toggleReplay,
+                'exportTokens': exportTokens,
+                'clearTokens': clearTokens
+            };
+
+            let allFunctionsValid = true;
+            for (const [name, func] of Object.entries(uiFunctions)) {
+                if (typeof func === 'function') {
+                    console.log(`[CST Runtime] ✅ ${name}() is callable`);
+                } else {
+                    console.error(`[CST Runtime] ❌ ${name}() is NOT a function!`);
+                    allFunctionsValid = false;
+                }
+            }
+
+            // Validate update functions exist and are callable
+            const updateFunctions = {
+                'updateAdaptiveStates': updateAdaptiveStates,
+                'updateEntropy': updateEntropy,
+                'updatePsiBreakdown': updatePsiBreakdown,
+                'updateSynchronizationMetrics': updateSynchronizationMetrics,
+                'updateAdaptiveStateTrace': updateAdaptiveStateTrace,
+                'drawEntropyTrace': drawEntropyTrace,
+                'drawNfwProfile': drawNfwProfile,
+                'computeDarkMatterPotential': computeDarkMatterPotential,
+                'updatePhases': updatePhases,
+                'computeSynapticStrength': computeSynapticStrength
+            };
+
+            for (const [name, func] of Object.entries(updateFunctions)) {
+                if (typeof func === 'function') {
+                    console.log(`[CST Runtime] ✅ ${name}() exists`);
+                } else {
+                    console.error(`[CST Runtime] ❌ ${name}() does NOT exist!`);
+                    allFunctionsValid = false;
+                }
+            }
+
+            // Add global error handler for better debugging
+            window.addEventListener('error', (event) => {
+                console.error('[CST Runtime Error]', {
+                    message: event.message,
+                    filename: event.filename,
+                    lineno: event.lineno,
+                    colno: event.colno,
+                    error: event.error
+                });
+            });
+
+            // Add unhandled promise rejection handler
+            window.addEventListener('unhandledrejection', (event) => {
+                console.error('[CST Unhandled Promise Rejection]', {
+                    reason: event.reason,
+                    promise: event.promise
+                });
+            });
+
+            // Enhanced logging wrapper for critical functions
+            function wrapWithLogging(funcName, originalFunc) {
+                return function(...args) {
+                    console.log(`[CST Call] ${funcName}() called with`, args.length, 'arguments');
+                    try {
+                        const result = originalFunc.apply(this, args);
+                        console.log(`[CST Call] ${funcName}() completed successfully`);
+                        return result;
+                    } catch (error) {
+                        console.error(`[CST Call] ${funcName}() FAILED:`, error);
+                        throw error;
+                    }
+                };
+            }
+
+            // Wrap UI functions with logging (optional, can be enabled for debugging)
+            if (window.location.search.includes('debug=true')) {
+                console.log('[CST Runtime] Debug mode enabled - wrapping functions with logging');
+                window.toggleMicrophone = wrapWithLogging('toggleMicrophone', toggleMicrophone);
+                window.resetSystem = wrapWithLogging('resetSystem', resetSystem);
+                window.togglePause = wrapWithLogging('togglePause', togglePause);
+                window.toggleRecording = wrapWithLogging('toggleRecording', toggleRecording);
+                window.toggleReplay = wrapWithLogging('toggleReplay', toggleReplay);
+            }
+
+            // Validate critical global objects
+            const criticalObjects = [
+                { name: 'particles', obj: particles, expectedType: 'object' },
+                { name: 'tokens', obj: tokens, expectedType: 'object' },
+                { name: 'physics', obj: physics, expectedType: 'object' },
+                { name: 'determinism', obj: determinism, expectedType: 'object' },
+                { name: 'audioConfig', obj: audioConfig, expectedType: 'object' },
+                { name: 'entropyState', obj: entropyState, expectedType: 'object' },
+                { name: 'psiAccumulators', obj: psiAccumulators, expectedType: 'object' }
+            ];
+
+            for (const { name, obj, expectedType } of criticalObjects) {
+                if (typeof obj === expectedType) {
+                    console.log(`[CST Runtime] ✅ ${name} initialized correctly`);
+                } else {
+                    console.error(`[CST Runtime] ❌ ${name} is ${typeof obj}, expected ${expectedType}`);
+                    allFunctionsValid = false;
+                }
+            }
+
+            // Validate Three.js scene is set up
+            if (scene && camera && renderer) {
+                console.log('[CST Runtime] ✅ Three.js scene initialized');
+            } else {
+                console.error('[CST Runtime] ❌ Three.js scene not properly initialized');
+                allFunctionsValid = false;
+            }
+
+            // Validate all canvas contexts are available
+            const canvasContexts = {
+                'adaptiveStateCtx': adaptiveStateCtx,
+                'entropyState.traceCtx': entropyState.traceCtx,
+                'dmProfileCtx': dmProfileCtx
+            };
+
+            for (const [name, ctx] of Object.entries(canvasContexts)) {
+                if (ctx) {
+                    console.log(`[CST Runtime] ✅ ${name} canvas context ready`);
+                } else {
+                    console.warn(`[CST Runtime] ⚠️  ${name} canvas context not available`);
+                }
+            }
+
+            // Final validation summary
+            if (allFunctionsValid) {
+                console.log('[CST Runtime] ✅ All critical functions validated successfully');
+            } else {
+                console.error('[CST Runtime] ❌ Some validation checks failed - see errors above');
+            }
+
+            // Export diagnostic function to window
+            window.runCST_Diagnostics = function() {
+                console.group('🔍 CST System Diagnostics');
+                console.log('Particles:', particles.length);
+                console.log('Tokens:', tokens.length);
+                console.log('Token Rate:', tokenGenerationRate, 'tokens/sec');
+                console.log('Audio Active:', isAudioActive);
+                console.log('Paused:', isPaused);
+                console.log('Determinism Mode:', determinism.mode);
+                console.log('Recording Frames:', determinism.recordedAudioFrames.length);
+                console.log('Conservation E0:', conservationStats.E0);
+                console.log('Entropy:', entropyState.lastEntropy);
+                console.log('Adaptive State Histories:', x12History.length, m12History.length);
+                console.groupEnd();
+                return {
+                    particles: particles.length,
+                    tokens: tokens.length,
+                    tokenRate: tokenGenerationRate,
+                    audioActive: isAudioActive,
+                    paused: isPaused,
+                    mode: determinism.mode,
+                    recordingFrames: determinism.recordedAudioFrames.length,
+                    entropy: entropyState.lastEntropy,
+                    conservationE0: conservationStats.E0
+                };
+            };
+
+            console.log('[CST Runtime] ✅ Runtime validation complete');
+            console.log('[CST Runtime] 💡 Run runCST_Diagnostics() in console for system status');
+        })();
+
         console.log('═══════════════════════════════════════════════════════════════');
         console.log('🌌 12D COSMIC SYNAPSE THEORY - FULL SPEC IMPLEMENTATION v2.1 🌌');
         console.log('═══════════════════════════════════════════════════════════════');
@@ -7068,6 +7248,8 @@
         console.log('📖 Reference: 12D_Cosmic_Synapse_Theory.pdf');
         console.log('🎤 Ready for audio input - tokens will generate infinitely');
         console.log('💾 Optional: Call enableTokenPersistence(true) for disk storage');
+        console.log('💡 Run runCST_Diagnostics() for system status');
+        console.log('🐛 Add ?debug=true to URL for detailed function call logging');
         console.log('═══════════════════════════════════════════════════════════════');
     </script>
 </body>
