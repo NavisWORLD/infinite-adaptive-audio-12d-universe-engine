@@ -4688,6 +4688,572 @@
             });
         })();
 
+        // === 12D CST: Additive completion stubs (guarded) ===
+
+        // Additive: Deterministic replay API (guarded)
+        if (typeof startReplay === 'undefined') {
+          function startReplay() {
+            const frames = determinism.recordedAudioFrames;
+            if (!frames || frames.length === 0) {
+              alert('No recorded frames available. Start recording first.');
+              return;
+            }
+            determinism.mode = 'replay';
+            let localIndex = 0;
+
+            applyDeterministicInit(determinism.seed || 12345);
+            isAudioActive = false;
+
+            const baseTs = frames[0].timestamp || 0;
+            const tick = () => {
+              if (localIndex >= frames.length) {
+                stopReplay();
+                return;
+              }
+              const prev = localIndex > 0 ? frames[localIndex - 1] : null;
+              stepReplayFrame(frames[localIndex], prev, baseTs);
+              localIndex++;
+              const nextDelay = localIndex < frames.length
+                ? Math.max(50, Math.min(250, ((frames[localIndex].timestamp || 0) - (frames[localIndex - 1].timestamp || 0)) * 1000 || audioConfig.cadence))
+                : audioConfig.cadence;
+              replayTimer = setTimeout(tick, nextDelay);
+            };
+
+            tick();
+            updateStatus(`Replay mode enabled - ${frames.length} frames`);
+            reflectDeterminismUI();
+          }
+          // Additive: mark guard
+          startReplay.__additive = true;
+        }
+
+        if (typeof stopReplay === 'undefined') {
+          function stopReplay() {
+            determinism.mode = 'live';
+            if (typeof replayTimer !== 'undefined' && replayTimer) {
+              clearTimeout(replayTimer);
+              replayTimer = null;
+            }
+            updateStatus('Replay mode disabled - back to live mode');
+            reflectDeterminismUI();
+          }
+          stopReplay.__additive = true;
+        }
+
+        if (typeof stepReplayFrame === 'undefined') {
+          function stepReplayFrame(frame, prevFrame, baseTs) {
+            audioEnergy = frame.rmsEnergy || frame.rms || 0;
+            spectralCentroid = frame.spectralCentroid || 0;
+            frequencyData = (frame.frequencyData || []).map(({ frequency, magnitude }) => ({ frequency, magnitude }));
+
+            // Deterministic token generation path
+            generateTokens(frequencyData, audioEnergy, spectralCentroid);
+
+            // Update frequency visualization explicitly
+            const freqs = frequencyData.map(d => d.frequency);
+            const mags  = frequencyData.map(d => d.magnitude);
+            updateFrequencyViz(freqs, mags);
+
+            // Chaos display
+            const chaos = calculateAudioChaos();
+            const chaosEl = document.getElementById('audio-chaos');
+            if (chaosEl) chaosEl.textContent = chaos.toFixed(3);
+          }
+          stepReplayFrame.__additive = true;
+        }
+
+        if (typeof applyDeterministicInit === 'undefined') {
+          function applyDeterministicInit(seed) {
+            setDeterministicSeed(seed);
+            deterministicIdCounter = 0;
+            // Re-seed deterministic RNG
+            deterministicRandom = seed;
+
+            // Deterministic placement/colors for reproducible visuals
+            for (let i = 0; i < particles.length; i++) {
+              const p = particles[i];
+              const jitter = (getRandom() * 2 - 1) * 0.05;
+              p.x = 0.1 + i * 0.1 + jitter;
+              p.y = i * 0.1 + jitter;
+              p.z = i * 0.1 - jitter;
+
+              const baseHue = 180 + Math.floor(getRandom() * 360);
+              const color = new THREE.Color(`hsl(${baseHue}, 100%, 50%)`);
+              p.line.material.color.setHex(color.getHex());
+              p.sphere.material.color.setHex(color.getHex());
+            }
+
+            // Reset integrals and conservation for clean replay
+            if (typeof resetIntegralsAndConservation === 'function') {
+              resetIntegralsAndConservation();
+            }
+          }
+          applyDeterministicInit.__additive = true;
+        }
+
+        // Additive: Adaptive state trace (guarded)
+        if (typeof initAdaptiveStateCanvas === 'undefined') {
+          function initAdaptiveStateCanvas() {
+            const canvas = document.getElementById('adaptiveStateCanvas');
+            if (!canvas) return;
+            adaptiveStateCtx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth || 400;
+            canvas.height = 120;
+
+            window.addEventListener('resize', () => {
+              if (!adaptiveStateCtx) return;
+              const c = adaptiveStateCtx.canvas;
+              c.width = c.offsetWidth || 400;
+              c.height = 120;
+            });
+          }
+          initAdaptiveStateCanvas.__additive = true;
+        }
+
+        if (typeof updateAdaptiveStateTrace === 'undefined') {
+          function updateAdaptiveStateTrace() {
+            if (!adaptiveStateCtx) return;
+            const ctx = adaptiveStateCtx;
+            const c = ctx.canvas;
+            const width = c.width || 400;
+            const height = c.height || 120;
+
+            while (x12History.length < particles.length) x12History.push([]);
+            if (x12History.length > particles.length) x12History.length = particles.length;
+
+            particles.forEach((p, i) => {
+              const val = (typeof p.x12 === 'number' && isFinite(p.x12)) ? p.x12 : 0;
+              x12History[i].push(val);
+              while (x12History[i].length > width) x12History[i].shift();
+            });
+
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = 'rgba(10, 10, 26, 0.25)';
+            ctx.fillRect(0, 0, width, height);
+
+            const baseline = height / 2;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.beginPath();
+            ctx.moveTo(0, baseline);
+            ctx.lineTo(width, baseline);
+            ctx.stroke();
+
+            particles.forEach((p, i) => {
+              const colorHex = '#' + p.color.toString(16).padStart(6, '0');
+              ctx.strokeStyle = colorHex;
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              let first = true;
+              const hist = x12History[i];
+              for (let x = 0; x < hist.length; x++) {
+                const y = baseline - (hist[x] * (height * 0.45));
+                const clampedY = Math.max(0, Math.min(height, y));
+                if (first) { ctx.moveTo(x, clampedY); first = false; } else { ctx.lineTo(x, clampedY); }
+              }
+              ctx.stroke();
+            });
+          }
+          updateAdaptiveStateTrace.__additive = true;
+        }
+
+        // Additive: NFW profile (guarded)
+        if (typeof initDmProfileCanvas === 'undefined') {
+          function initDmProfileCanvas() {
+            const canvas = document.getElementById('dmProfileCanvas');
+            if (!canvas) return;
+            dmProfileCtx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth || 400;
+            canvas.height = 120;
+            window.addEventListener('resize', () => {
+              if (!dmProfileCtx) return;
+              const c = dmProfileCtx.canvas;
+              c.width = c.offsetWidth || 400;
+              c.height = 120;
+            });
+          }
+          initDmProfileCanvas.__additive = true;
+        }
+
+        if (typeof drawNfwProfile === 'undefined') {
+          function drawNfwProfile(rho0, rs) {
+            if (!dmProfileCtx) return;
+            const ctx = dmProfileCtx;
+            const c = ctx.canvas;
+            const width = c.width || 400;
+            const height = c.height || 120;
+
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = 'rgba(10,10,26,0.25)';
+            ctx.fillRect(0, 0, width, height);
+
+            const samples = 200;
+            const rMin = Math.max(0.1 * rs, 1e-6);
+            const rMax = 10 * rs;
+            const values = [];
+            for (let i = 0; i < samples; i++) {
+              const t = i / (samples - 1);
+              const r = rMin * Math.pow(rMax / rMin, t);
+              const r_rs = r / rs;
+              const rho = r_rs > 0 ? rho0 / (r_rs * Math.pow(1 + r_rs, 2)) : 0;
+              values.push({ r, rho });
+            }
+
+            const rhoMax = Math.max(...values.map(v => v.rho), 1e-12);
+            ctx.strokeStyle = '#ffaa00';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            values.forEach((v, i) => {
+              const x = (i / (samples - 1)) * width;
+              const y = height - (Math.log(v.rho + 1) / Math.log(rhoMax + 1)) * height;
+              if (i === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+          }
+          drawNfwProfile.__additive = true;
+        }
+
+        // Additive: Entropy canvas + heart-rate trace (guarded)
+        if (typeof initEntropyCanvas === 'undefined') {
+          function initEntropyCanvas() {
+            const canvas = document.getElementById('entropyCanvas');
+            if (canvas) {
+              entropyState.ctx = canvas.getContext('2d');
+              canvas.width = canvas.offsetWidth || 400;
+              canvas.height = 100;
+
+              window.addEventListener('resize', () => {
+                if (canvas) {
+                  canvas.width = canvas.offsetWidth || 400;
+                  canvas.height = 100;
+                  if (entropyState.histogram) {
+                    drawEntropyHistogram(entropyState.histogram);
+                  }
+                }
+              });
+            }
+
+            const traceCanvas = document.getElementById('entropyTraceCanvas');
+            if (traceCanvas) {
+              entropyState.traceCtx = traceCanvas.getContext('2d');
+              traceCanvas.width = traceCanvas.offsetWidth || 400;
+              traceCanvas.height = 60;
+
+              window.addEventListener('resize', () => {
+                if (traceCanvas) {
+                  const oldWidth = traceCanvas.width;
+                  traceCanvas.width = traceCanvas.offsetWidth || 400;
+                  traceCanvas.height = 60;
+
+                  const newWidth = traceCanvas.width;
+                  if (newWidth !== oldWidth && entropyTrace.length > 0) {
+                    if (entropyTrace.length > newWidth) {
+                      entropyTrace.splice(0, entropyTrace.length - newWidth);
+                    }
+                    if (entropyState.lastEntropy !== undefined) {
+                      drawEntropyTrace(entropyState.lastEntropy);
+                    }
+                  }
+                }
+              });
+            }
+          }
+          initEntropyCanvas.__additive = true;
+        }
+
+        if (typeof computeEntropyMetrics === 'undefined') {
+          function computeEntropyMetrics() {
+            const bins = 32;
+            const histogram = new Array(bins).fill(0);
+            let totalSpeed = 0;
+
+            if (particles.length === 0) {
+              return { entropy: 0, histogram, tempProxy: 0 };
+            }
+
+            const speeds = particles.map(p => {
+              const speed = Math.sqrt(p.velocity.x*p.velocity.x + p.velocity.y*p.velocity.y + p.velocity.z*p.velocity.z);
+              totalSpeed += speed;
+              return speed;
+            });
+
+            const maxSpeed = speeds.length > 0 ? Math.max(...speeds, 1) : 1;
+
+            speeds.forEach(speed => {
+              const bin = Math.min(bins - 1, Math.floor((speed / maxSpeed) * bins));
+              histogram[bin]++;
+            });
+
+            const total = particles.length || 1;
+            const probs = histogram.map(c => c / total);
+            let S = 0;
+            probs.forEach(p => { if (p > 0) S -= p * Math.log(p); });
+
+            const tempProxy = totalSpeed / total;
+            return { entropy: S, histogram, tempProxy };
+          }
+          computeEntropyMetrics.__additive = true;
+        }
+
+        if (typeof updateEntropy === 'undefined') {
+          function updateEntropy() {
+            if (particles.length === 0) {
+              entropyState.histogram = new Array(entropyState.bins).fill(0);
+              entropyState.lastEntropy = 0;
+              entropyState.tempProxy = 0;
+              entropyTrace.length = 0;
+
+              const entropyEl = document.getElementById('entropy-global');
+              const binsEl = document.getElementById('entropy-bins');
+              const tempEl = document.getElementById('entropy-temperature');
+
+              if (entropyEl) entropyEl.textContent = '0.000';
+              if (binsEl) binsEl.textContent = '[]';
+              if (tempEl) tempEl.textContent = '0.000';
+
+              if (entropyState.traceCtx) {
+                const ctx = entropyState.traceCtx;
+                const canvas = ctx.canvas;
+                const width = canvas.width || 400;
+                const height = canvas.height || 60;
+                ctx.clearRect(0, 0, width, height);
+                ctx.fillStyle = 'rgba(10, 10, 26, 0.25)';
+                ctx.fillRect(0, 0, width, height);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, height / 2);
+                ctx.lineTo(width, height / 2);
+                ctx.stroke();
+              }
+              return;
+            }
+
+            const { entropy, histogram, tempProxy } = computeEntropyMetrics();
+            entropyState.lastEntropy = kB * entropy;
+            entropyState.histogram = histogram;
+            entropyState.tempProxy = tempProxy;
+
+            const entropyEl = document.getElementById('entropy-global');
+            const binsEl = document.getElementById('entropy-bins');
+            const tempEl = document.getElementById('entropy-temperature');
+
+            if (entropyEl) entropyEl.textContent = entropyState.lastEntropy.toFixed(3);
+            if (binsEl) binsEl.textContent = JSON.stringify(histogram.slice(0, 5));
+            if (tempEl) tempEl.textContent = tempProxy.toFixed(3);
+
+            drawEntropyTrace(entropyState.lastEntropy);
+          }
+          updateEntropy.__additive = true;
+        }
+
+        if (typeof drawEntropyTrace === 'undefined') {
+          function drawEntropyTrace(entropyValue) {
+            if (!entropyState.traceCtx) return;
+
+            const ctx = entropyState.traceCtx;
+            const canvas = ctx.canvas;
+            const width = canvas.width || 400;
+            const height = canvas.height || 60;
+
+            // EMA smoothing
+            if (typeof entropyEma === 'undefined' || entropyEma === null || !isFinite(entropyEma)) {
+              entropyEma = entropyValue;
+            } else {
+              const alpha = (entropyTraceConfig && typeof entropyTraceConfig.emaAlpha === 'number') ? entropyTraceConfig.emaAlpha : 0.3;
+              entropyEma = alpha * entropyValue + (1 - alpha) * entropyEma;
+            }
+
+            const smoothed = entropyEma;
+            if (typeof smoothed === 'number' && isFinite(smoothed)) {
+              entropyTrace.push(smoothed);
+            }
+            while (entropyTrace.length > width) entropyTrace.shift();
+
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = 'rgba(10, 10, 26, 0.25)';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, height / 2);
+            ctx.lineTo(width, height / 2);
+            ctx.stroke();
+
+            if (entropyTrace.length > 1) {
+              const valid = entropyTrace.filter(v => typeof v === 'number' && isFinite(v));
+              const min = valid.length ? Math.min(...valid) : 0;
+              const max = valid.length ? Math.max(...valid) : 1;
+              const range = Math.max(max - min, 1e-6);
+              const traceHeight = height * 0.8;
+              const baseline = height / 2;
+
+              ctx.beginPath();
+              ctx.strokeStyle = '#00ffcc';
+              ctx.lineWidth = 2;
+              let first = true;
+              for (let i = 0; i < entropyTrace.length; i++) {
+                const val = entropyTrace[i];
+                if (typeof val !== 'number' || !isFinite(val)) continue;
+                const norm = (val - min) / range;
+                const y = baseline + (traceHeight / 2) - (norm * traceHeight);
+                const clampedY = Math.max(0, Math.min(height, y));
+                if (first) { ctx.moveTo(i, clampedY); first = false; } else { ctx.lineTo(i, clampedY); }
+              }
+              ctx.stroke();
+            } else if (entropyTrace.length === 1) {
+              ctx.fillStyle = '#00ffcc';
+              ctx.beginPath();
+              ctx.arc(0, height / 2, 2, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+          drawEntropyTrace.__additive = true;
+        }
+
+        if (typeof drawEntropyHistogram === 'undefined') {
+          function drawEntropyHistogram(histogram) {
+            if (!entropyState.ctx) return;
+
+            const ctx = entropyState.ctx;
+            const canvas = ctx.canvas;
+            const width = canvas.width;
+            const height = canvas.height;
+
+            const hist = histogram || entropyState.histogram || new Array(entropyState.bins).fill(0);
+
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = 'rgba(10, 10, 26, 0.25)';
+            ctx.fillRect(0, 0, width, height);
+
+            const barW = width / entropyState.bins;
+            const maxCount = Math.max(...hist, 1);
+
+            for (let i = 0; i < entropyState.bins; i++) {
+              const barH = (hist[i] / maxCount) * height;
+              const hue = (i / entropyState.bins) * 360;
+              ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+              ctx.fillRect(i * barW, height - barH, barW - 1, barH);
+            }
+          }
+          drawEntropyHistogram.__additive = true;
+        }
+
+        // Additive: Replay validation updater (guarded)
+        if (typeof updateReplayValidation === 'undefined') {
+          function updateReplayValidation(consStats, virial) {
+            if (determinism.mode !== 'replay') return;
+            const edriftEl = document.getElementById('replay-edrift');
+            const pmagEl = document.getElementById('replay-pmag');
+            const lmagEl = document.getElementById('replay-lmag');
+            const virialEl = document.getElementById('replay-virial');
+            if (!edriftEl || !pmagEl || !lmagEl || !virialEl) return;
+
+            edriftEl.textContent = (consStats.drift.E * 100).toFixed(2) + '%';
+            const Pmag = Math.sqrt(consStats.P.x**2 + consStats.P.y**2 + consStats.P.z**2);
+            const Lmag = Math.sqrt(consStats.L.x**2 + consStats.L.y**2 + consStats.L.z**2);
+            pmagEl.textContent = Pmag.toExponential(2);
+            lmagEl.textContent = Lmag.toExponential(2);
+            virialEl.textContent = virial.ratio.toFixed(3) + (virial.ok ? ' ✓' : ' ✗');
+          }
+          updateReplayValidation.__additive = true;
+        }
+
+        // Additive: Token hygiene and buffered flush (guarded)
+        if (typeof addToken === 'undefined') {
+          function addToken(tokenObj) {
+            if (!tokenObj || typeof tokenObj !== 'object') return;
+            const now = Date.now();
+            if (tokenRateWindow && Array.isArray(tokenRateWindow.timestamps)) {
+              tokenRateWindow.timestamps.push(now);
+            }
+            tokenBuffer.tokens.push(tokenObj);
+
+            const indicator = document.getElementById('tokenIndicator');
+            if (indicator) {
+              indicator.classList.add('active');
+              setTimeout(() => { indicator.classList.remove('active'); }, 100);
+            }
+          }
+          addToken.__additive = true;
+        }
+
+        if (typeof flushTokenBuffer === 'undefined') {
+          function flushTokenBuffer() {
+            if (!tokenBuffer.tokens || tokenBuffer.tokens.length === 0) return;
+            tokenBuffer.tokens.forEach(token => {
+              tokens.push(token);
+              tokenCount++;
+            });
+
+            if (typeof updateTokenDisplay === 'function') {
+              updateTokenDisplay();
+            }
+
+            const countEl = document.getElementById('token-count');
+            const countStatusEl = document.getElementById('token-count-status');
+            const replEl = document.getElementById('replication-count');
+            if (countEl) countEl.textContent = tokens.length;
+            if (countStatusEl) countStatusEl.textContent = tokens.length;
+            if (replEl) replEl.textContent = replicationCount;
+
+            tokenBuffer.tokens = [];
+          }
+          flushTokenBuffer.__additive = true;
+        }
+
+        if (typeof startTokenBufferFlush === 'undefined') {
+          function startTokenBufferFlush() {
+            if (tokenBuffer.flushInterval) clearInterval(tokenBuffer.flushInterval);
+            tokenBuffer.flushInterval = setInterval(flushTokenBuffer, tokenBuffer.flushRate || 50);
+
+            if (tokenRateUpdateInterval) clearInterval(tokenRateUpdateInterval);
+            tokenRateUpdateInterval = setInterval(() => {
+              if (typeof updateTokenRate === 'function') updateTokenRate();
+            }, 500);
+          }
+          startTokenBufferFlush.__additive = true;
+        }
+
+        if (typeof stopTokenBufferFlush === 'undefined') {
+          function stopTokenBufferFlush() {
+            if (tokenBuffer.flushInterval) {
+              clearInterval(tokenBuffer.flushInterval);
+              tokenBuffer.flushInterval = null;
+            }
+            if (tokenRateUpdateInterval) {
+              clearInterval(tokenRateUpdateInterval);
+              tokenRateUpdateInterval = null;
+            }
+            if (typeof flushTokenBuffer === 'function') flushTokenBuffer();
+          }
+          stopTokenBufferFlush.__additive = true;
+        }
+
+        // Additive: Projection mode immediate reproject (guarded patch)
+        (function patchProjectionMode() {
+          const el = document.getElementById('projection-mode');
+          if (!el || el.__patchedProjection) return;
+          el.addEventListener('change', (e) => {
+            projectionConfig.mode = e.target.value;
+            const statusEl = document.getElementById('projection-status');
+            if (statusEl) statusEl.textContent = projectionConfig.mode;
+            projectionConfig.randomR = null; // forces regen for random embedding
+            particles.forEach(p => p.update11DProjection());
+            updateStatus(`Projection mode changed to: ${projectionConfig.mode}`);
+          });
+          el.__patchedProjection = true;
+        })();
+
+        // Additive: Wire init if not already
+        document.addEventListener('DOMContentLoaded', () => {
+          if (typeof initAdaptiveStateCanvas === 'function') initAdaptiveStateCanvas();
+          if (typeof initEntropyCanvas === 'function') initEntropyCanvas();
+          if (typeof initDmProfileCanvas === 'function') initDmProfileCanvas();
+          if (typeof drawNfwProfile === 'function') drawNfwProfile(dmParams.rho0, dmParams.rs);
+        });
+
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
             initThree();
