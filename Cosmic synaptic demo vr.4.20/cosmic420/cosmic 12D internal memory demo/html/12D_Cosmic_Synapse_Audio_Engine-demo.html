@@ -5254,6 +5254,306 @@
           if (typeof drawNfwProfile === 'function') drawNfwProfile(dmParams.rho0, dmParams.rs);
         });
 
+        // Additive: CST Runtime, Determinism, dt and Token Buffer Fixes (guarded)
+        // Insert this block near the end of the <script> before final DOMContentLoaded init.
+        // All definitions are guarded to avoid redefinition.
+
+        if (typeof __CST_ADDITIVE_PATCH_1_2__ === 'undefined') {
+          // Additive: mark applied
+          window.__CST_ADDITIVE_PATCH_1_2__ = true;
+
+          // Additive: deterministic local PRNG state (does NOT mutate determinism.seed)
+          window.__cst_detRandomState = window.__cst_detRandomState ?? null;
+          function __cst_resetDeterministicRandomState(seed) {
+            window.__cst_detRandomState = (typeof seed === 'number') ? (seed >>> 0) : null;
+          }
+
+          // Additive: safe getRandom that uses local state in replay without mutating determinism.seed
+          if (typeof window.getRandom !== 'function' || !window.getRandom.__cstPatched) {
+            const orig_getRandom = typeof window.getRandom === 'function' ? window.getRandom : null;
+            window.getRandom = function __cst_getRandom() {
+              try {
+                if (typeof determinism !== 'undefined' && determinism && determinism.mode === 'replay' && typeof determinism.seed === 'number') {
+                  if (window.__cst_detRandomState === null) window.__cst_detRandomState = determinism.seed >>> 0;
+                  window.__cst_detRandomState = (window.__cst_detRandomState * 1103515245 + 12345) & 0x7fffffff;
+                  return window.__cst_detRandomState / 0x7fffffff;
+                }
+              } catch (e) {
+                console.warn('CST getRandom patch error', e);
+              }
+              return orig_getRandom ? orig_getRandom() : Math.random();
+            };
+            window.getRandom.__cstPatched = true;
+          }
+
+          // Additive: stable generateUUID for replay using local PRNG state without mutating determinism.seed
+          if (typeof window.generateUUID === 'function' && !window.generateUUID.__cstPatched) {
+            const orig_generateUUID = window.generateUUID;
+            window.generateUUID = function __cst_generateUUID() {
+              try {
+                if (typeof determinism !== 'undefined' && determinism && determinism.mode === 'replay' && typeof determinism.seed === 'number') {
+                  // use local state copy
+                  if (window.__cst_detRandomState === null) window.__cst_detRandomState = determinism.seed >>> 0;
+                  window.__cst_detRandomState = (window.__cst_detRandomState * 1103515245 + 12345) & 0x7fffffff;
+                  const s = window.__cst_detRandomState;
+                  // produce hex nibble stream deterministically
+                  let ptr = s;
+                  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    ptr = (ptr * 1103515245 + 12345) & 0x7fffffff;
+                    const r = ptr % 16;
+                    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                  });
+                }
+              } catch (e) {
+                console.warn('CST generateUUID patch error', e);
+              }
+              return orig_generateUUID ? orig_generateUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+              });
+            };
+            window.generateUUID.__cstPatched = true;
+          }
+
+          // Additive: nextDeterministicId - guarded replacement that avoids mutating seed
+          if (typeof window.nextDeterministicId === 'function' && !window.nextDeterministicId.__cstPatched) {
+            const orig_nextDeterministicId = window.nextDeterministicId;
+            window.nextDeterministicId = function __cst_nextDeterministicId() {
+              try {
+                if (typeof determinism !== 'undefined' && determinism && determinism.mode === 'replay') {
+                  window.deterministicIdCounter = (typeof window.deterministicIdCounter === 'number') ? window.deterministicIdCounter + 1 : 1;
+                  return `replay-${determinism.seed || 0}-${window.deterministicIdCounter}`;
+                }
+              } catch (e) {
+                console.warn('CST nextDeterministicId patch error', e);
+              }
+              return orig_nextDeterministicId ? orig_nextDeterministicId() : (generateUUID ? generateUUID() : 'id-' + Date.now());
+            };
+            window.nextDeterministicId.__cstPatched = true;
+          }
+
+          // Additive: patch LorenzParticle.update to ensure energy uses timestep.dt (guarded)
+          if (typeof LorenzParticle === 'function' && LorenzParticle.prototype && !LorenzParticle.prototype.update.__cstPatchedDt) {
+            const orig_update = LorenzParticle.prototype.update;
+            LorenzParticle.prototype.update = function __cst_update_dt_patch(audioModulation, gravAcceleration) {
+              // Call original update to compute dx,dy,dz etc.
+              const ret = orig_update.call(this, audioModulation, gravAcceleration);
+              try {
+                // Recompute/validate energy using timestep.dt (safe fallback)
+                const dx = (ret && typeof ret.dx === 'number') ? ret.dx : 0;
+                const dy = (ret && typeof ret.dy === 'number') ? ret.dy : 0;
+                const dz = (ret && typeof ret.dz === 'number') ? ret.dz : 0;
+                const dt = (typeof timestep !== 'undefined' && timestep && typeof timestep.dt === 'number' && isFinite(timestep.dt) && timestep.dt > 0) ? timestep.dt : 0.001;
+                const velocityMagnitude = Math.sqrt(dx*dx + dy*dy + dz*dz) / dt;
+                // Use mass fallback
+                const m = (typeof this.mass === 'number' && isFinite(this.mass) && this.mass > 0) ? this.mass : 1;
+                this.energy = 0.5 * m * velocityMagnitude * velocityMagnitude;
+              } catch (e) {
+                console.warn('CST LorenzParticle.update energy patch failed', e);
+              }
+              return ret;
+            };
+            LorenzParticle.prototype.update.__cstPatchedDt = true;
+          }
+
+          // Additive: patch computeAdaptiveDt consumer expectation to be robust (no replacement, but safeguard)
+          if (typeof computeAdaptiveDt === 'function' && !computeAdaptiveDt.__cstPatched) {
+            const orig_computeAdaptiveDt = computeAdaptiveDt;
+            computeAdaptiveDt = function __cst_computeAdaptiveDt(particlesArg, physicsArg, timestepConfig) {
+              try {
+                return orig_computeAdaptiveDt.call(this, particlesArg, physicsArg, timestepConfig);
+              } catch (e) {
+                console.warn('CST computeAdaptiveDt fallback', e);
+                return (timestepConfig && typeof timestepConfig.dtMax === 'number') ? Math.max(0.001, Math.min(0.01, timestepConfig.dtMax)) : 0.005;
+              }
+            };
+            computeAdaptiveDt.__cstPatched = true;
+          }
+
+          // Additive: restartAudioProcessingLoop robust implementation (guarded)
+          if (typeof restartAudioProcessingLoop === 'function' && !restartAudioProcessingLoop.__cstPatched) {
+            restartAudioProcessingLoop = (function(orig) {
+              return function __cst_restartAudioProcessingLoop() {
+                try {
+                  if (audioProcessingInterval) { clearInterval(audioProcessingInterval); audioProcessingInterval = null; }
+                  if (isAudioActive && typeof processAudio === 'function') {
+                    try { processAudio(); } catch (e) { console.error('processAudio immediate call error', e); }
+                    audioProcessingInterval = setInterval(() => {
+                      try { processAudio(); } catch (e) { console.error('processAudio interval error', e); }
+                    }, Math.max(1, audioConfig.cadence || 100));
+                  }
+                } catch (e) {
+                  console.error('CST restartAudioProcessingLoop error', e);
+                }
+              };
+            })(restartAudioProcessingLoop);
+            restartAudioProcessingLoop.__cstPatched = true;
+          }
+
+          // Additive: restartReplayLoop robust implementation (guarded)
+          if (typeof restartReplayLoop === 'function' && !restartReplayLoop.__cstPatched) {
+            restartReplayLoop = (function(orig) {
+              return function __cst_restartReplayLoop() {
+                try {
+                  if (determinism.replayInterval) { clearInterval(determinism.replayInterval); determinism.replayInterval = null; }
+                  if (determinism.mode === 'replay' && Array.isArray(determinism.recordedAudioFrames) && determinism.recordedAudioFrames.length > 0) {
+                    try { processReplayAudio(); } catch (e) { console.error('processReplayAudio immediate call error', e); }
+                    determinism.replayInterval = setInterval(() => {
+                      try { processReplayAudio(); } catch (e) { console.error('processReplayAudio interval error', e); }
+                    }, Math.max(1, audioConfig.cadence || 100));
+                  }
+                } catch (e) {
+                  console.error('CST restartReplayLoop error', e);
+                }
+              };
+            })(restartReplayLoop);
+            restartReplayLoop.__cstPatched = true;
+          }
+
+          // Additive: robust flushTokenBuffer with bounds and try/finally (guarded)
+          if (typeof flushTokenBuffer === 'function' && !flushTokenBuffer.__cstPatched) {
+            const orig_flushTokenBuffer = flushTokenBuffer;
+            flushTokenBuffer = function __cst_flushTokenBuffer() {
+              try {
+                if (!tokenBuffer || !Array.isArray(tokenBuffer.tokens) || tokenBuffer.tokens.length === 0) return;
+                // Cap pending buffer to avoid runaway memory
+                const MAX_PENDING = 500;
+                if (tokenBuffer.tokens.length > MAX_PENDING) {
+                  tokenBuffer.tokens.splice(0, tokenBuffer.tokens.length - MAX_PENDING);
+                }
+                // Append buffered tokens to main tokens array
+                tokenBuffer.tokens.forEach(t => {
+                  tokens.push(t);
+                  tokenCount++;
+                });
+                // Cap total tokens stored in memory/UI
+                const MAX_TOTAL_TOKENS = 5000;
+                if (tokens.length > MAX_TOTAL_TOKENS) {
+                  tokens.splice(0, tokens.length - MAX_TOTAL_TOKENS);
+                }
+                // Safe UI update
+                if (typeof updateTokenDisplay === 'function') {
+                  try { updateTokenDisplay(); } catch (e) { console.error('updateTokenDisplay error', e); }
+                }
+                const countEl = document.getElementById('token-count');
+                const countStatusEl = document.getElementById('token-count-status');
+                const replEl = document.getElementById('replication-count');
+                if (countEl) countEl.textContent = tokens.length;
+                if (countStatusEl) countStatusEl.textContent = tokens.length;
+                if (replEl) replEl.textContent = replicationCount;
+              } catch (e) {
+                console.error('CST flushTokenBuffer error', e);
+              } finally {
+                // Always clear buffer to avoid reprocessing stale entries
+                if (tokenBuffer) tokenBuffer.tokens = [];
+              }
+            };
+            flushTokenBuffer.__cstPatched = true;
+          }
+
+          // Additive: startTokenBufferFlush robust start/stop (guarded)
+          if (typeof startTokenBufferFlush === 'function' && !startTokenBufferFlush.__cstPatched) {
+            startTokenBufferFlush = (function(orig) {
+              return function __cst_startTokenBufferFlush() {
+                try {
+                  if (tokenBuffer.flushInterval) clearInterval(tokenBuffer.flushInterval);
+                  tokenBuffer.flushInterval = setInterval(() => {
+                    try { flushTokenBuffer(); } catch (e) { console.error('flushTokenBuffer interval error', e); }
+                  }, tokenBuffer.flushRate || 50);
+                  if (tokenRateUpdateInterval) clearInterval(tokenRateUpdateInterval);
+                  tokenRateUpdateInterval = setInterval(() => {
+                    try { updateTokenRate(); } catch (e) { console.error('updateTokenRate error', e); }
+                  }, 500);
+                } catch (e) {
+                  console.error('CST startTokenBufferFlush error', e);
+                }
+              };
+            })(startTokenBufferFlush);
+            startTokenBufferFlush.__cstPatched = true;
+          }
+
+          if (typeof stopTokenBufferFlush === 'function' && !stopTokenBufferFlush.__cstPatched) {
+            stopTokenBufferFlush = (function(orig) {
+              return function __cst_stopTokenBufferFlush() {
+                try {
+                  if (tokenBuffer.flushInterval) { clearInterval(tokenBuffer.flushInterval); tokenBuffer.flushInterval = null; }
+                  if (tokenRateUpdateInterval) { clearInterval(tokenRateUpdateInterval); tokenRateUpdateInterval = null; }
+                  // flush one final time safely
+                  try { flushTokenBuffer(); } catch (e) { console.error('final flushTokenBuffer error', e); }
+                } catch (e) {
+                  console.error('CST stopTokenBufferFlush error', e);
+                }
+              };
+            })(stopTokenBufferFlush);
+            stopTokenBufferFlush.__cstPatched = true;
+          }
+
+          // Additive: reset deterministic states when setting seed or starting replay processing
+          if (typeof setDeterministicSeed === 'function' && !setDeterministicSeed.__cstPatched) {
+            const orig_setDeterministicSeed = setDeterministicSeed;
+            setDeterministicSeed = function __cst_setDeterministicSeed(seed) {
+              try {
+                if (typeof orig_setDeterministicSeed === 'function') orig_setDeterministicSeed(seed);
+              } catch (e) {
+                console.warn('orig setDeterministicSeed error', e);
+              }
+              try {
+                __cst_resetDeterministicRandomState(seed);
+                window.deterministicIdCounter = 0;
+                window.deterministicRandom = seed;
+              } catch (e) {
+                console.warn('CST setDeterministicSeed patch error', e);
+              }
+            };
+            setDeterministicSeed.__cstPatched = true;
+          }
+
+          if (typeof startReplayProcessing === 'function' && !startReplayProcessing.__cstPatched) {
+            const orig_startReplayProcessing = startReplayProcessing;
+            startReplayProcessing = function __cst_startReplayProcessing() {
+              try {
+                __cst_resetDeterministicRandomState(determinism.seed || projectionConfig.randomSeed || 12345);
+                window.deterministicIdCounter = 0;
+                window.deterministicRandom = determinism.seed || projectionConfig.randomSeed || 12345;
+              } catch (e) {
+                console.warn('CST startReplayProcessing init error', e);
+              }
+              return typeof orig_startReplayProcessing === 'function' ? orig_startReplayProcessing() : void 0;
+            };
+            startReplayProcessing.__cstPatched = true;
+          }
+
+          // Additive: ensure token buffer flush starts on DOMContentLoaded
+          document.addEventListener('DOMContentLoaded', () => {
+            try {
+              if (!tokenBuffer.flushInterval) startTokenBufferFlush();
+            } catch (e) {
+              console.warn('CST DOMContentLoaded startTokenBufferFlush error', e);
+            }
+          });
+
+          // Additive: cleanup on unload to avoid zombie intervals
+          window.addEventListener('beforeunload', () => {
+            try {
+              if (audioProcessingInterval) { clearInterval(audioProcessingInterval); audioProcessingInterval = null; }
+              if (tokenBuffer && tokenBuffer.flushInterval) { clearInterval(tokenBuffer.flushInterval); tokenBuffer.flushInterval = null; }
+              if (tokenRateUpdateInterval) { clearInterval(tokenRateUpdateInterval); tokenRateUpdateInterval = null; }
+              if (determinism && determinism.replayInterval) { clearInterval(determinism.replayInterval); determinism.replayInterval = null; }
+              // Pause animation/rendering loop
+              isPaused = true;
+              // Attempt clean stops
+              if (typeof stopAudio === 'function') try { stopAudio(); } catch (e) { /* ignore */ }
+              if (typeof stopTokenBufferFlush === 'function') try { stopTokenBufferFlush(); } catch (e) { /* ignore */ }
+              if (typeof stopReplayProcessing === 'function') try { stopReplayProcessing(); } catch (e) { /* ignore */ }
+            } catch (e) {
+              console.warn('CST beforeunload cleanup error', e);
+            }
+          });
+
+        } // end guarded patch
+
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
             initThree();
