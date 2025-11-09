@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Genesis X – World Model (Final Synthesis)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&family=Roboto+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --panel: rgba(14,17,26,.92); --border: rgba(124,156,255,.10); --bg: #07080c; --text: #e7e9f2; --muted: #9aa4b2; --acc: #7c9cff; }
+        html,body { height:100%; margin:0; background:var(--bg); color:var(--text); font-family: 'Inter', system-ui, sans-serif; overflow:hidden; }
+        canvas { display:block; position:fixed; inset:0; }
+        .ui-panel { position:fixed; z-index:10; background:var(--panel); border:1px solid var(--border); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.35); backdrop-filter:blur(8px); }
+        .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:linear-gradient(180deg, #1a1d2a 0%, #131726 100%); color:var(--text); cursor:pointer; user-select:none; transition: all 0.2s ease; }
+        .btn:hover { background:linear-gradient(180deg, #2e3247 0%, #21263b 100%); border-color:rgba(255,255,255,0.15); }
+        .btn.primary { border-color:rgba(124,156,255,0.45); box-shadow:0 0 0 3px rgba(124,156,255,0.09); background: linear-gradient(180deg, #3a57b1 0%, #293d7e 100%); }
+        .group { margin:12px 0; padding:10px; border-radius:10px; background:rgba(11,13,20,.5); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.05); }
+        h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
+        h3 { margin:0 0 8px; font-size:13px; color:#d3dbef; font-weight: 500; }
+        label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+        .row { display:grid; grid-template-columns:1fr 70px; gap:8px; align-items:center; margin:8px 0; }
+        .val { text-align:right; color:#cfd6e6; font-variant-numeric:tabular-nums; font-size:12px; }
+        .small { font-size:12px; color:var(--muted); }
+        input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:999px; outline: none;}
+        input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;background:var(--acc);border:2px solid var(--panel);border-radius:50%; cursor: pointer;}
+        #crosshair { position:fixed; left:50%; top:50%; width:18px; height:18px; margin-left:-9px; margin-top:-9px; border-radius:50%; box-shadow:0 0 0 2px rgba(255,255,255,0.22); pointer-events:none; opacity:0; transition:opacity .2s ease; }
+        #blocker { position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.8); display:flex; justify-content:center; align-items:center; flex-direction:column; text-align:center; transition: opacity 0.5s ease; }
+        .panel { right:12px; bottom:12px; max-width: 420px; padding:12px; }
+        .grid{display:grid; grid-template-columns:auto 1fr; column-gap:10px; row-gap:6px; font-family: 'Roboto Mono', monospace; font-size:12px}
+        .k{color:#9db8ff} .v{color:#cfe8ff; text-align:right}
+        .close-x{position:absolute; right:8px; top:6px; border:0; background:transparent; color:#9db8ff; font-weight:700; cursor:pointer}
+        .hidden{display:none}
+        #ui-main-panel { max-height: calc(100vh - 24px); overflow-y: auto; transition: opacity 0.3s, transform 0.3s; }
+        .is-hidden { opacity: 0; pointer-events: none; transform: scale(0.95); }
+    </style>
+    <script type="importmap">
+        { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+    </script>
+</head>
+<body>
+    <div id="ui-main-panel" class="ui-panel top-3 left-3 w-[340px] p-4">
+        <h1>Genesis X — Final Synthesis</h1>
+        <div class="group">
+          <h3>Session</h3>
+          <div class="flex gap-2"><button id="btnStart" class="btn primary">Initiate</button><label class="small flex items-center gap-2"><input id="toggleAudio" type="checkbox" /> Use Audio</label></div>
+          <div id="audioStatus" class="small mt-2">Mic: Off</div>
+        </div>
+        <div class="group">
+            <h3>View Mode</h3>
+            <div class="flex gap-2"><button id="btnOrbit" class="btn primary">Orbit</button><button id="btnShip" class="btn">Spaceship</button><button id="btnSurface" class="btn">Surface</button></div>
+             <p class="small mt-2"><b>Ship/Surface:</b> WASD/QE+Mouse. Shift=Boost. R/F=Roll.</p>
+        </div>
+         <div class="group">
+            <h3>Unified Master Formula (Ψ)</h3>
+            <div class="row"><label>Energy Scaling (Ec)</label><div id="ecVal" class="val">1.2</div><input id="ec" type="range" min="0.2" max="4.0" step="0.1" value="1.2" class="col-span-2"/></div>
+            <div class="row"><label>Chaos Factor (λ)</label><div id="lambdaVal" class="val">0.25</div><input id="lambda" type="range" min="0.0" max="1.0" step="0.01" value="0.25" class="col-span-2"/></div>
+            <div class="row"><label>Motion Damping (ζ)</label><div id="liVal" class="val">0.985</div><input id="li" type="range" min="0.9" max="1.0" step="0.001" value="0.985" class="col-span-2"/></div>
+            <div class="row"><label>Spectral Hue (Ω)</label><div id="omegaVal" class="val">0.62</div><input id="omega" type="range" min="0.0" max="1.0" step="0.01" value="0.62" class="col-span-2"/></div>
+            <div class="row"><label>Gravitational Strength (U)</label><div id="ugravVal" class="val">0.55</div><input id="ugrav" type="range" min="0.0" max="2.0" step="0.01" value="0.55" class="col-span-2"/></div>
+        </div>
+        <div class="group">
+          <h3>Sentient AI</h3>
+          <div class="flex gap-2 flex-wrap"><button id="btnSpawnStar" class="btn">Spawn Star</button><button id="btnSpawnPlanet" class="btn">Spawn Planet</button><button id="btnSpawnBlackHole" class="btn">Black Hole</button></div>
+          <div id="aiStatus" class="small mt-2 p-2 bg-black/20 rounded">AI: Idle</div>
+        </div>
+         <div class="group">
+            <h3>Advanced</h3>
+            <div class="flex gap-2"><button id="btnPsiHUD" class="btn">CST ψ Overlay</button></div>
+        </div>
+    </div>
+     <button id="toggle-ui-btn" class="ui-panel top-3 right-3 p-2 btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+    </button>
+    <div id="hud" class="ui-panel top-16 right-3 text-sm font-mono p-3">
+        <div>LOD: <b id="hudLOD">Galaxy</b></div>
+        <div>chaos (λ or Σ): <b id="hudChaos">0.25</b></div>
+        <div>Σ(psd): <b id="hudPSD">0.000</b></div>
+        <div>objects: <b id="hudObjects">0</b></div>
+        <div>FPS: <b id="hudFps">--</b></div>
+        <div id="surface-hud" class="hidden mt-2 pt-2 border-t border-white/10">
+             <div>Ocean Roughness: <b id="hudOcean">--</b></div>
+            <div>Cloud Coverage: <b id="hudCloud">--</b></div>
+            <div>Vegetation: <b id="hudVeg">--</b></div>
+        </div>
+    </div>
+    <div id="psiPanel" class="ui-panel panel hidden">
+        <button class="close-x" id="psiClose">×</button>
+        <h3>CST ψ — Live Terms</h3>
+        <div class="grid">
+            <div class="k">c²·φ·E_c</div><div class="v" id="vEc">–</div><div class="k">λ (audio)</div><div class="v" id="vLam">–</div>
+            <div class="k">Ω·E_c</div><div class="v" id="vOm">–</div>
+            <div class="k">U_grav</div><div class="v" id="vGrav">–</div>
+            <div class="k">Σρ_sd</div><div class="v" id="vRho">–</div>
+            <div class="k">ψ (sum)</div><div class="v" id="vPsi">–</div>
+        </div>
+    </div>
+    <div id="crosshair"></div>
+    <div id="blocker">
+        <div class="max-w-xl p-4">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-100 mb-2">Genesis X</h1>
+            <h2 class="text-xl md:text-2xl font-light text-slate-400 mb-6">Final Synthesis Engine</h2>
+            <button id="start-button" class="btn primary text-lg py-3 px-8">Initiate</button>
+        </div>
+    </div>
+    <canvas id="canvas"></canvas>
+    
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { Sky } from 'three/addons/objects/Sky.js';
+
+        const $ = id => document.getElementById(id);
+        function cyrb128(str) { let h1=1779033703,h2=3144134277,h3=1013904242,h4=2773480762; for(let i=0,k;i<str.length;i++){ k=str.charCodeAt(i); h1=h2^Math.imul(h1^k,597399067); h2=h3^Math.imul(h2^k,2869860233); h3=h4^Math.imul(h3^k,951274213); h4=h1^Math.imul(h4^k,2716044179); } h1=Math.imul(h3^(h1>>>18),597399067);h2=Math.imul(h4^(h2>>>22),2869860233);h3=Math.imul(h1^(h3>>>17),951274213);h4=Math.imul(h2^(h4>>>19),2716044179); return [(h1^h2^h3^h4)>>>0,(h2^h1)>>>0,(h3^h1)>>>0,(h4^h1)>>>0];}
+        function sfc32(a,b,c,d){return()=>{a>>>=0;b>>>=0;c>>>=0;d>>>=0;var t=(a+b)|0;a=b^b>>>9;b=c+(c<<3)|0;c=(c<<21|c>>>11);d=d+1|0;t=t+d|0;c=c+t|0;return(t>>>0)/4294967296;}}
+        
+        // Simple noise function for terrain generation
+        function createNoise2D(prng) {
+            const perm = Array.from({length: 256}, (_, i) => i);
+            for (let i = 255; i > 0; i--) {
+                const j = Math.floor(prng() * (i + 1));
+                [perm[i], perm[j]] = [perm[j], perm[i]];
+            }
+            const p = new Uint8Array(512);
+            for(let i=0; i<256; i++) p[i] = p[i+256] = perm[i];
+
+            function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+            function lerp(t, a, b) { return a + t * (b - a); }
+            function grad(hash, x, y) {
+                const h = hash & 15;
+                const u = h < 8 ? x : y;
+                const v = h < 4 ? y : h === 12 || h === 14 ? x : 0;
+                return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+            }
+
+            return function(x, y) {
+                const X = Math.floor(x) & 255;
+                const Y = Math.floor(y) & 255;
+                x -= Math.floor(x);
+                y -= Math.floor(y);
+                const u = fade(x);
+                const v = fade(y);
+                const a = p[X] + Y, b = p[X + 1] + Y;
+                return lerp(v, lerp(u, grad(p[a], x, y), grad(p[b], x - 1, y)),
+                               lerp(u, grad(p[a + 1], x, y - 1), grad(p[b + 1], x - 1, y - 1)));
+            };
+        }
+
+        function unifiedFormula(prng, audioLevel = 0){
+            const a = audioLevel;
+            const lux = 0.6; const hum = 0.35; const wind = 0.2; const temp = 21;
+            return {
+                starCount: Math.floor(THREE.MathUtils.lerp(8000, 90000, THREE.MathUtils.clamp(0.25*lux + 0.75*a, 0, 1))),
+                nebulaDensity: THREE.MathUtils.clamp(0.15 + hum*0.7 + a*0.3, 0, 1.2),
+                sourceGlow: THREE.MathUtils.clamp(0.8 + lux*0.8 + a*1.2, 0.2, 2.2),
+                oceanRoughness: THREE.MathUtils.clamp(0.05 + wind*0.7 + a*0.35, 0.02, 1.2),
+                cloudCoverage: THREE.MathUtils.clamp(0.2 + hum*0.65 + a*0.25, 0, 1),
+                vegetation: THREE.MathUtils.clamp(0.8*hum * (1 - Math.abs(temp-22)/22), 0, 1),
+            };
+        }
+       
+        class EventBus { constructor(){this.map=new Map}on(n,h){this.map.has(n)||this.map.set(n,new Set);this.map.get(n).add(h)}emit(n,p){const s=this.map.get(n);if(s)for(const h of s)h(p)}}
+        
+        class UIManager {
+             constructor(eventBus) {
+                this.eventBus = eventBus;
+                this.initEventListeners();
+            }
+            initEventListeners() {
+                $('start-button').addEventListener('click', () => {
+                    $('blocker').style.opacity = '0';
+                    setTimeout(()=>$('blocker').style.display='none', 500);
+                    this.eventBus.emit('ui:start');
+                });
+                $('btnStart').addEventListener('click', () => this.eventBus.emit('ui:regenerate'));
+                $('btnSpawnStar').addEventListener('click', () => this.eventBus.emit('ui:spawnStar'));
+                $('btnSpawnPlanet').addEventListener('click', () => this.eventBus.emit('ui:spawnPlanet'));
+                $('btnSpawnBlackHole').addEventListener('click', () => this.eventBus.emit('ui:spawnBlackHole'));
+                $('toggleAudio').addEventListener('change', e => this.eventBus.emit('ui:toggleAudio', e.target.checked));
+                $('btnOrbit').addEventListener('click', () => this.eventBus.emit('ui:setMode', 'orbit'));
+                $('btnShip').addEventListener('click', () => this.eventBus.emit('ui:setMode', 'ship'));
+                $('btnSurface').addEventListener('click', () => this.eventBus.emit('ui:setMode', 'surface'));
+                $('toggle-ui-btn').addEventListener('click', () => {
+                    $('ui-main-panel').classList.toggle('is-hidden');
+                });
+                this.eventBus.on('ai:intention', msg => {
+                    const el = $('aiStatus');
+                    if (el) el.textContent = msg;
+                });
+            }
+        }
+        
+        class SensoryInputManager {
+            constructor(eventBus) {
+                this.bus = eventBus;
+                this.audio = new AudioManager(this.bus);
+            }
+        }
+        
+        class AudioManager {
+            constructor(bus){ this.bus=bus; this.ctx=null; this.an=null; this.freq=null; this.active=false; this.psd=0; this.level=0;
+                this.bus.on('ui:toggleAudio', (e)=>e ? this.enable() : this.disable()); 
+                this.bus.on('engine:update', ()=>this.tick());
+            }
+            async enable(){
+                if(this.active) return;
+                try{
+                    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+                    this.ctx=new (window.AudioContext||window.webkitAudioContext)();
+                    const src=this.ctx.createMediaStreamSource(stream); this.an=this.ctx.createAnalyser(); this.an.fftSize=2048; this.an.smoothingTimeConstant=0.6;
+                    src.connect(this.an); this.freq=new Uint8Array(this.an.frequencyBinCount);
+                    await this.ctx.resume?.(); this.active=true; $('audioStatus').textContent='Mic: On';
+                }catch(e){ console.error(e); $('audioStatus').textContent='Mic: Error'; }
+            }
+            disable() { if(this.ctx) this.ctx.close(); this.active=false; this.level = 0; this.psd = 0; $('audioStatus').textContent='Mic: Off'; }
+            tick(){
+                if(!this.active) return;
+                this.an.getByteFrequencyData(this.freq);
+                const n=this.freq.length; let sum=0,sumSq=0, m=0;
+                for(let i=0;i<n;i++){ const v=this.freq[i]/255; sum+=v; sumSq+=v*v; m=Math.max(m,this.freq[i]);}
+                const mean=sum/n; const variance=Math.max(0,sumSq/n-mean*mean);
+                this.psd = this.psd*0.75 + (Math.min(2.0, Math.sqrt(variance)*2.3))*0.25;
+                this.level = this.level*0.92 + (m/255)*0.08;
+                this.bus.emit('audio:spectral', { psd:this.psd, level: this.level });
+            }
+        }
+
+        class Renderer {
+             constructor(bus){
+                this.bus=bus;
+                this.scene=new THREE.Scene();
+                this.camera=new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 10, 1e7);
+                this.renderer=new THREE.WebGLRenderer({canvas:$('canvas'), antialias:true, powerPreference:'high-performance', logarithmicDepthBuffer:true});
+                this.renderer.setSize(innerWidth, innerHeight); this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+                this.renderer.outputColorSpace=THREE.SRGBColorSpace; this.renderer.toneMapping=THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure=1.05;
+                this.composer=new EffectComposer(this.renderer);
+                this.composer.addPass(new RenderPass(this.scene,this.camera));
+                this.bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight), 0.9, 0.8, 0.9); this.composer.addPass(this.bloom);
+                this.bus.on('engine:update', ({dt})=>this.render(dt));
+                window.addEventListener('resize', ()=>this.onResize());
+            }
+            render(dt){ this.composer.render(); }
+            onResize(){
+                this.camera.aspect=innerWidth/innerHeight; this.camera.updateProjectionMatrix();
+                this.renderer.setSize(innerWidth,innerHeight); this.composer.setSize(innerWidth,innerHeight);
+            }
+        }
+        
+        class Player {
+            constructor(bus, camera, domElement) {
+                this.bus = bus; this.camera = camera;
+                this.mode = 'orbit';
+                this.orbit = new OrbitControls(camera, domElement);
+                this.orbit.enableDamping = true;
+                this.pointer = new PointerLockControls(camera, domElement);
+                this.velocity = new THREE.Vector3(); this.keys = {};
+                this.pointer.addEventListener('lock', () => $('crosshair').style.opacity = 1);
+                this.pointer.addEventListener('unlock', () => $('crosshair').style.opacity = 0);
+                domElement.addEventListener('click', () => { if (this.mode === 'ship' || this.mode === 'surface') this.pointer.lock(); });
+                window.addEventListener('keydown', e => this.keys[e.code] = true);
+                window.addEventListener('keyup', e => this.keys[e.code] = false);
+                bus.on('ui:setMode', m => this.setMode(m));
+                bus.on('engine:update', ({dt}) => this.update(dt));
+            }
+            setMode(mode) {
+                this.mode = mode;
+                this.orbit.enabled = mode === 'orbit';
+                const isFlight = mode === 'ship' || mode === 'surface';
+                if (isFlight && !this.pointer.isLocked) {
+                    try { this.pointer.lock(); } catch(e) { console.warn("Pointer lock failed", e)}
+                }
+                else if (!isFlight && this.pointer.isLocked) { 
+                    try { this.pointer.unlock(); } catch(e) {}
+                }
+            }
+            update(dt) {
+                if (this.mode === 'orbit') {
+                    this.orbit.update();
+                } else if (this.mode === 'ship' || this.mode === 'surface') {
+                    if (!this.pointer.isLocked) return;
+                    const speed = (this.mode === 'surface') ? 80 : 220;
+                    const thrust = (this.keys['ShiftLeft'] ? 2.5 : 1) * speed;
+                    const acc = new THREE.Vector3();
+                    if (this.keys['KeyW']) acc.z -= 1; if (this.keys['KeyS']) acc.z += 1;
+                    if (this.keys['KeyA']) acc.x -= 1; if (this.keys['KeyD']) acc.x += 1;
+                    if (this.keys['KeyE']) acc.y += 1; if (this.keys['KeyQ']) acc.y -= 1;
+                    
+                    this.velocity.lerp(acc.applyQuaternion(this.camera.quaternion).multiplyScalar(thrust), 0.1);
+                    
+                    if (this.keys['KeyR']) this.camera.rotation.z += 0.02;
+                    if (this.keys['KeyF']) this.camera.rotation.z -= 0.02;
+
+                    this.camera.position.add(this.velocity.clone().multiplyScalar(dt));
+                }
+            }
+        }
+
+        class Cosmos {
+            constructor(bus, scene){
+                this.bus=bus; this.scene=scene; this.prng=sfc32(1,2,3,4);
+                this.params={ ec:1.2, lambda:0.25, li:0.985, omega:0.62, ugrav:0.55 };
+                this.psd=0; this.audioActive=false; this.attractors=[];
+                this.points=null; this.count=0; this.shader = null;
+                bus.on('ui:params', p=>{ Object.assign(this.params, p||{}); this.applyAppearance(); });
+                bus.on('audio:spectral', d=>{ this.psd=d.psd; });
+                bus.on('ui:toggleAudio', enabled => this.audioActive = enabled);
+                bus.on('create:attractor', a=>{ if(a&&a.position) this.attractors.push(a); });
+                bus.on('engine:update', ({dt,now})=>this.update(dt,now));
+            }
+            resize(N){
+                if(this.points) {this.scene.remove(this.points); this.points.geometry.dispose(); this.points.material.dispose();}
+                N=Math.max(2000,Math.min(120000,N)); this.count=N;
+                const pos=new Float32Array(N*3); const col=new Float32Array(N*3); this.vel=new Float32Array(N*3);
+                const inner=300, outer=1800;
+                for(let i=0;i<N;i++){ const i3=i*3; const r=inner + (outer-inner)*Math.cbrt(this.prng()); const th=this.prng()*Math.PI*2; const ph=Math.acos(this.prng()*2-1);
+                    pos[i3]=r*Math.sin(ph)*Math.cos(th); pos[i3+1]=r*Math.cos(ph); pos[i3+2]=r*Math.sin(ph)*Math.sin(th);
+                    const c=new THREE.Color().setHSL(this.params.omega, .7, .6); col[i3]=c.r; col[i3+1]=c.g; col[i3+2]=c.b;
+                }
+                const geo=new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos,3)); geo.setAttribute('color', new THREE.BufferAttribute(col,3));
+                
+                const mat = new THREE.ShaderMaterial({
+                    uniforms:{ u_time:{value:0}, u_lambda:{value:0}, u_size:{value:this.params.ec * 1.4} },
+                    vertexShader:`uniform float u_size; varying float vRand; varying vec3 vColor; attribute vec3 color; void main(){ vColor=color; vRand=fract(sin(dot(position.xy, vec2(12.9898,78.233)))*43758.5453); vec4 mv=modelViewMatrix*vec4(position,1.0); gl_PointSize=u_size*(300.0/-mv.z); gl_Position=projectionMatrix*mv; }`,
+                    fragmentShader:`precision highp float; varying float vRand; varying vec3 vColor; uniform float u_time; uniform float u_lambda; void main(){ vec2 uv=gl_PointCoord-0.5; float r=length(uv); float core=smoothstep(0.5,0.0,r); float flick=0.55+0.45*sin(u_time*(3.0+2.0*vRand)+vRand*6.2831); float spec=0.7+0.3*sin(u_time*8.0+vRand*10.0); float L=clamp(u_lambda,0.0,1.0); float intensity=core*mix(0.85,1.35,L)*(0.8+0.2*spec)*(0.8+0.2*flick); vec3 col=vColor*intensity; gl_FragColor=vec4(col,intensity*0.9); }`,
+                    transparent:true, depthTest:true, depthWrite:false, blending:THREE.AdditiveBlending
+                });
+                this.shader = mat;
+
+                this.points=new THREE.Points(geo,mat); this.points.frustumCulled=false; this.scene.add(this.points);
+                this.applyAppearance();
+            }
+            applyAppearance(){ if(this.shader) {this.shader.uniforms.u_size.value = this.params.ec * 1.4; this.updateColors(this.params.omega);} }
+            updateColors(hue){ if (!this.points) return; const colArr=this.points.geometry.getAttribute('color').array; for(let i=0;i<this.count;i++){ const i3=i*3; const c=new THREE.Color().setHSL(hue,.7,.6); colArr[i3]=c.r; colArr[i3+1]=c.g; colArr[i3+2]=c.b; } this.points.geometry.getAttribute('color').needsUpdate=true; }
+            update(dt, now){
+                if (!this.points) return;
+                const p=this.points.geometry.getAttribute('position').array; const v=this.vel; const n=this.count;
+                const chaos=this.audioActive?this.psd:this.params.lambda; 
+                if (this.shader) { this.shader.uniforms.u_time.value = now; this.shader.uniforms.u_lambda.value = chaos; }
+                $('hudChaos').textContent = chaos.toFixed(3);
+                
+                const grav=this.params.ugrav;
+                const invMass=1/Math.max(.2,this.params.ec); const li=this.params.li; const G=0.08; const soft=0.1;
+                for(let i=0;i<n;i++){
+                    const i3=i*3; let x=p[i3], y=p[i3+1], z=p[i3+2]; let vx=v[i3], vy=v[i3+1], vz=v[i3+2]; let ax=0, ay=0, az=0;
+                    const d2 = x*x + y*y + z*z + soft; const invd=1/Math.sqrt(d2); const f=(G*grav)/d2; ax+=-x*invd*f; ay+=-y*invd*f; az+=-z*invd*f;
+                    for(const A of this.attractors){ const ap=A.position; const dx=ap.x-x, dy=ap.y-y, dz=ap.z-z; const d2a=dx*dx+dy*dy+dz*dz+soft; const invdA=1/Math.sqrt(d2a); ax+=(dx*invdA)*A.strength*invMass; ay+=(dy*invdA)*A.strength*invMass; az+=(dz*invdA)*A.strength*invMass; }
+                    ax+=(this.prng()*2-1)*chaos*invMass*2.2; ay+=(this.prng()*2-1)*chaos*invMass*2.2; az+=(this.prng()*2-1)*chaos*invMass*2.2;
+                    vx=(vx+ax*dt)*li; vy=(vy+ay*dt)*li; vz=(vz+az*dt)*li; x+=vx*dt; y+=vy*dt; z+=vz*dt;
+                    p[i3]=x; p[i3+1]=y; p[i3+2]=z; v[i3]=vx; v[i3+1]=vy; v[i3+2]=vz;
+                }
+                this.points.geometry.getAttribute('position').needsUpdate=true;
+            }
+            show(visible) { if(this.points) this.points.visible = visible; }
+        }
+        
+        class SurfaceManager {
+            constructor(bus, scene, prng){
+                this.bus = bus; this.scene = scene; this.prng = prng;
+                this.surfaceGroup=new THREE.Group(); this.surfaceGroup.visible=false; this.scene.add(this.surfaceGroup);
+                this.noise = createNoise2D(this.prng);
+                this.buildSurface();
+            }
+            buildSurface() {
+                this.sky = new Sky(); this.sky.scale.setScalar(450000); this.surfaceGroup.add(this.sky);
+                const sun = new THREE.Vector3();
+                const uniforms = this.sky.material.uniforms;
+                uniforms['turbidity'].value = 10; uniforms['rayleigh'].value = 2;
+                uniforms['mieCoefficient'].value = 0.005; uniforms['mieDirectionalG'].value = 0.8;
+                const phi = THREE.MathUtils.degToRad(90 - 25); const theta = THREE.MathUtils.degToRad(180);
+                sun.setFromSphericalCoords(1, phi, theta);
+                uniforms['sunPosition'].value.copy(sun);
+                this.scene.fog = new THREE.Fog(0x8a9aaa, 100, 4000);
+                
+                // Terrain
+                const terrainGeo = new THREE.PlaneGeometry(8000, 8000, 200, 200);
+                const pos = terrainGeo.attributes.position;
+                for(let i=0; i < pos.count; i++) {
+                    const x = pos.getX(i);
+                    const y = pos.getY(i);
+                    const z1 = this.noise(x*0.005, y*0.005) * 300;
+                    const z2 = this.noise(x*0.02, y*0.02) * 50;
+                    pos.setZ(i, z1 + z2);
+                }
+                terrainGeo.computeVertexNormals();
+                const terrainMat = new THREE.MeshStandardMaterial({color: 0x6a7863, roughness: 0.9, metalness: 0.1});
+                this.terrain = new THREE.Mesh(terrainGeo, terrainMat);
+                this.terrain.rotation.x = -Math.PI / 2;
+                this.surfaceGroup.add(this.terrain);
+
+                // Water
+                const waterGeo = new THREE.PlaneGeometry(8000, 8000);
+                const waterMat = new THREE.MeshStandardMaterial({
+                    color: 0x42628a, transparent: true, opacity: 0.85, roughness: 0.2, metalness: 0.5
+                });
+                this.water = new THREE.Mesh(waterGeo, waterMat);
+                this.water.rotation.x = -Math.PI / 2;
+                this.water.position.y = 20;
+                this.surfaceGroup.add(this.water);
+            }
+            show(visible){ 
+                this.surfaceGroup.visible = visible; 
+                this.scene.fog.isFog = visible;
+            }
+            update(params) {
+                $('hudOcean').textContent = params.oceanRoughness.toFixed(2);
+                $('hudCloud').textContent = `${Math.round(params.cloudCoverage*100)}%`;
+                $('hudVeg').textContent = `${Math.round(params.vegetation*100)}%`;
+                if(this.water) this.water.material.roughness = params.oceanRoughness * 0.4;
+            }
+        }
+
+        class ObjectLibrary {
+             constructor(bus, scene, prng){
+                this.bus=bus; this.scene=scene; this.prng = prng; this.objects=[]; this.objectCount = 0;
+                this.effects = [];
+                bus.on('ai:create', m=>{ if(!m) return; if(m.kind==='star') this.createStar(m.params||{}); else if(m.kind==='planet') this.createPlanet(m.params||{}); else if(m.kind === 'blackHole') this.createBlackHole(m.params || {});});
+                bus.on('engine:update', ({dt}) => this.update(dt));
+            }
+            createStar(params){
+                const size = params.size ?? (8 + this.prng()*10); const hue = params.hue ?? this.prng();
+                const col = new THREE.Color().setHSL(hue,.8,.6);
+                const star = new THREE.Mesh(new THREE.SphereGeometry(size,48,48), new THREE.MeshBasicMaterial({color:col}));
+                const r=800+this.prng()*1200, a=this.prng()*Math.PI*2; star.position.set(r*Math.cos(a), 0, r*Math.sin(a));
+                this.scene.add(star);
+                const light=new THREE.PointLight(col, 16, 0, 2); light.position.copy(star.position); this.scene.add(light);
+                const attractor={ position:light.position, strength:12.0 };
+                const starObject = {mesh: star, light, attractor, type: 'star', life: 100 + this.prng() * 200};
+                star.userData.parent = starObject;
+                this.objects.push(starObject); this.bus.emit('create:attractor', attractor); this.updateCount();
+            }
+            createPlanet(params){
+                const radius = params.radius ?? (3+this.prng()*4);
+                const planet = new THREE.Mesh(new THREE.SphereGeometry(radius,64,64), new THREE.MeshStandardMaterial({ color:new THREE.Color().setHSL(this.prng(),.35,.55), roughness:.9 }));
+                const dist=(params.distance??(140+this.prng()*260)); const ang=this.prng()*Math.PI*2;
+                planet.position.set(Math.cos(ang)*dist, 0, Math.sin(ang)*dist);
+                this.scene.add(planet);
+                const attractor={ position:planet.position, strength:5.0 };
+                this.objects.push({mesh: planet, attractor, type: 'planet'}); this.bus.emit('create:attractor', attractor); this.updateCount();
+            }
+            createBlackHole(params) {
+                const size = params.size ?? (15 + this.prng()*20);
+                const hole = new THREE.Mesh(new THREE.SphereGeometry(size, 64, 64), new THREE.MeshBasicMaterial({color: 0x000000}));
+                const r=1000+this.prng()*1500, a=this.prng()*Math.PI*2; hole.position.set(r*Math.cos(a), (this.prng() - 0.5) * 400, r*Math.sin(a));
+                this.scene.add(hole);
+                const attractor = {position: hole.position, strength: -80.0 }; // Negative strength pulls things in
+                this.objects.push({mesh: hole, attractor, type: 'blackHole'});
+                this.bus.emit('create:attractor', attractor); this.updateCount();
+            }
+            createSupernova(position, color) {
+                const geo = new THREE.SphereGeometry(1, 48, 48);
+                const mat = new THREE.MeshBasicMaterial({color, transparent: true, blending: THREE.AdditiveBlending});
+                const effect = new THREE.Mesh(geo, mat);
+                effect.position.copy(position);
+                this.scene.add(effect);
+                this.effects.push({mesh: effect, life: 3.0, startSize: 15, endSize: 300});
+            }
+            update(dt) {
+                 for(let i=this.objects.length-1; i>=0; i--) {
+                    const obj = this.objects[i];
+                    if(obj.type === 'star' && obj.life > 0) {
+                        obj.life -= dt;
+                        if(obj.life <= 0) {
+                            this.createSupernova(obj.mesh.position, obj.light.color);
+                            this.scene.remove(obj.mesh);
+                            this.scene.remove(obj.light);
+                            this.objects.splice(i, 1);
+                            this.updateCount();
+                        }
+                    }
+                }
+                for(let i=this.effects.length-1; i>=0; i--) {
+                    const effect = this.effects[i];
+                    effect.life -= dt;
+                    if(effect.life <=0) {
+                        this.scene.remove(effect.mesh);
+                        this.effects.splice(i, 1);
+                    } else {
+                        const progress = 1.0 - (effect.life / 3.0);
+                        effect.mesh.scale.setScalar(effect.startSize + progress * (effect.endSize - effect.startSize));
+                        effect.mesh.material.opacity = 1.0 - progress;
+                    }
+                }
+            }
+            updateCount() { this.objectCount = this.objects.filter(o => o.type !== 'effect').length; $('hudObjects').textContent = this.objectCount; }
+            show(visible) { this.objects.forEach(o => { o.mesh.visible = visible; if(o.light) o.light.visible = visible; });}
+        }
+        
+        class AI {
+            constructor(bus){ this.bus=bus; this.enabled=false; this.period=8; this.acc=0; this.lastDust=null;
+                bus.on('audio:spectral', d=>this.lastDust=d); bus.on('engine:update', ({dt})=>this.tick(dt));
+                bus.on('ui:spawnStar', () => this.bus.emit('ai:create',{kind:'star'}));
+                bus.on('ui:spawnPlanet', () => this.bus.emit('ai:create',{kind:'planet'}));
+                bus.on('ui:spawnBlackHole', () => this.bus.emit('ai:create', {kind: 'blackHole'}));
+            }
+            generateSeed() {
+                const seedString = `${Date.now()}`;
+                const seed = cyrb128(seedString);
+                this.bus.emit('seed:generated', { seed });
+            }
+            tick(dt){ if(!this.enabled) return; this.acc+=dt; if(this.acc<this.period) return; this.acc=0; 
+                const d=this.lastDust||{psd:0, level: 0};
+                let kind='planet', msg = 'Low soul-dust variance. Seeding a new world...'; 
+                if(d.psd > 0.6 && d.level > 0.1) {
+                    kind = 'blackHole';
+                    msg = 'High energy void detected. Forming singularity...';
+                } else if(d.psd > 0.45) {
+                    kind='star';
+                    msg = 'High soul-dust variance. Condensing stellar plasma...';
+                }
+                this.bus.emit('ai:intention', msg);
+                this.bus.emit('ai:create', {kind}); 
+            }
+        }
+
+        class PsiOverlay {
+            constructor(bus, player) {
+                this.bus = bus; this.player = player;
+                this.audioLevel = 0; this.fps = 60; this.out = {};
+                bus.on('audio:spectral', d => this.audioLevel = d.level || 0);
+                bus.on('engine:update', ({dt}) => {
+                    this.fps = 1 / dt;
+                    $('hudFps').textContent = this.fps.toFixed(1);
+                    this.update();
+                });
+                $('btnPsiHUD').addEventListener('click', () => $('psiPanel').classList.toggle('hidden'));
+                $('psiClose').addEventListener('click', () => $('psiPanel').classList.add('hidden'));
+            }
+            update() {
+                const phi=(1+Math.sqrt(5))/2; const c=1;
+                const camPosLen = this.player.camera.position.length();
+                this.out.Ec = c*c*phi*(camPosLen*camPosLen*0.00001);
+                this.out.lam = this.audioLevel;
+                const orbitDist = this.player.orbit.getDistance ? this.player.orbit.getDistance() : this.player.camera.position.length();
+                const Omega = THREE.MathUtils.clamp(orbitDist/4000,0,4);
+                this.out.Om = Omega*(camPosLen*camPosLen*0.00001);
+                this.out.U = -1.0/Math.max(1, camPosLen*camPosLen);
+                this.out.Rho = THREE.MathUtils.clamp((60/this.fps)*0.6 + this.audioLevel*0.4, 0, 2);
+                this.out.psi = this.out.Ec + this.out.lam + this.out.Om + this.out.U + this.out.Rho;
+                
+                const f=n=> (n>=0?'+':'')+n.toFixed(3);
+                $('vEc').textContent=f(this.out.Ec); $('vLam').textContent=f(this.out.lam);
+                $('vOm').textContent=f(this.out.Om); $('vGrav').textContent=f(this.out.U);
+                $('vRho').textContent=f(this.out.Rho); $('vPsi').textContent=f(this.out.psi);
+            }
+        }
+
+        class VolumetricDust {
+            constructor(scene, camera) {
+                const uniforms={ u_time:{value:0}, u_camPos:{value:camera.position}, u_density:{value:0.5}, u_steps:{value:20}, u_scale:{value:0.0016}, u_color:{value:new THREE.Color(0x89a9ff)}, u_drive:{value:0} };
+                const mat=new THREE.ShaderMaterial({ uniforms, side:THREE.BackSide, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+                  vertexShader:`varying vec3 vPos; void main(){ vPos=(modelMatrix*vec4(position,1.0)).xyz; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+                  fragmentShader:`precision highp float; varying vec3 vPos; uniform vec3 u_camPos; uniform float u_time; uniform float u_density; uniform int u_steps; uniform float u_scale; uniform vec3 u_color; uniform float u_drive; float hash(vec3 p){ return fract(sin(dot(p, vec3(127.1,311.7,74.7)))*43758.5453); } float noise(vec3 p){ vec3 i=floor(p); vec3 f=fract(p); f=f*f*(3.0-2.0*f); float n=mix(mix(mix(hash(i+vec3(0,0,0)),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y), mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z); return n; } void main(){ vec3 ro=u_camPos; vec3 rd=normalize(vPos-ro); float t=0.0; float T=0.0; vec3 col=vec3(0.0); int STEPS=u_steps; for(int i=0;i<128;i++){ if(i>=STEPS) break; vec3 p=ro+rd*t; float n=noise(p*u_scale+vec3(0.0,u_time*0.02,0.0)); float d=smoothstep(0.45,0.75,n); float a=d*u_density*(0.8+0.4*u_drive); col+=(1.0-T)*a*u_color; T+=a*0.06; if(T>0.98) break; t+=800.0; } gl_FragColor=vec4(col, clamp(T,0.0,0.7)); }`
+                });
+                this.mesh=new THREE.Mesh(new THREE.BoxGeometry(2e6,2e6,2e6), mat); 
+                this.mesh.renderOrder=-10; 
+                scene.add(this.mesh);
+                this.material = mat;
+            }
+            update(now, fps, chaos) {
+                this.material.uniforms.u_time.value = now;
+                this.material.uniforms.u_drive.value = chaos;
+                const steps=Math.round(10 + 20 * Math.min(1, (fps - 30) / 60)); 
+                this.material.uniforms.u_steps.value = steps;
+            }
+            show(visible) { this.mesh.visible = visible; }
+        }
+
+        class Application {
+            constructor() {
+                this.bus = new EventBus();
+                this.ui = new UIManager(this.bus);
+                this.sensory = new SensoryInputManager(this.bus);
+                this.renderer = new Renderer(this.bus);
+                this.player = new Player(this.bus, this.renderer.camera, this.renderer.renderer.domElement);
+                this.cosmos = new Cosmos(this.bus, this.renderer.scene);
+                this.surface = new SurfaceManager(this.bus, this.renderer.scene, this.cosmos.prng);
+                this.dust = new VolumetricDust(this.renderer.scene, this.renderer.camera);
+                this.objects = new ObjectLibrary(this.bus, this.renderer.scene, this.cosmos.prng);
+                this.ai = new AI(this.bus);
+                this.psi = new PsiOverlay(this.bus, this.player);
+                this.mode = 'galaxy';
+                this.initSubscriptions();
+                this.animate = this.animate.bind(this);
+                this.clock = new THREE.Clock();
+                this.running = false;
+            }
+            initSubscriptions() {
+                this.bus.on('ui:start', () => this.start());
+                this.bus.on('ui:regenerate', () => this.ai.generateSeed());
+                this.bus.on('seed:generated', (seedData) => {
+                    this.cosmos.prng = sfc32(...seedData.seed);
+                    const p = unifiedFormula(this.cosmos.prng, this.sensory.audio.level);
+                    this.bus.emit('ui:params', p);
+                    this.cosmos.resize(p.starCount || 16000);
+                });
+                this.bus.on('ui:setMode', (mode) => { this.setMode(mode); });
+                this.bus.on('ui:toggleAudio', (enabled) => this.ai.enabled = enabled);
+                const bindRange = (id, lab, key, fmt=(v)=>v.toFixed(2))=>{
+                    const el=$(id), out=$(lab);
+                    const push=()=>{ const v=parseFloat(el.value); out.textContent=fmt(v); const p={}; p[key]=v; this.bus.emit('ui:params', p); };
+                    el?.addEventListener('input', push); push();
+                };
+                bindRange('ec','ecVal','ec', v=>v.toFixed(1));
+                bindRange('lambda','lambdaVal','lambda');
+                bindRange('li','liVal','li', v=>v.toFixed(3));
+                bindRange('omega','omegaVal','omega');
+                bindRange('ugrav','ugravVal','ugrav');
+            }
+            start() {
+                if(this.running) return;
+                this.running = true;
+                this.ai.generateSeed();
+                this.animate();
+            }
+            setMode(mode) {
+                this.mode = mode;
+                const isSurface = mode === 'surface';
+                this.surface.show(isSurface);
+                this.cosmos.show(!isSurface);
+                this.objects.show(!isSurface);
+                this.dust.show(!isSurface);
+                this.player.setMode(mode);
+                if (isSurface) {
+                    this.player.camera.position.set(0, 100, 0);
+                    this.player.velocity.set(0,0,0);
+                }
+                $('hudLOD').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+                $('btnOrbit').classList.toggle('primary', mode === 'orbit');
+                $('btnShip').classList.toggle('primary', mode === 'ship');
+                $('btnSurface').classList.toggle('primary', isSurface);
+                $('surface-hud').classList.toggle('hidden', !isSurface);
+            }
+            animate() {
+                requestAnimationFrame(this.animate);
+                const dt = Math.min(0.05, this.clock.getDelta());
+                const now = this.clock.getElapsedTime();
+                if (this.mode === 'surface') {
+                    const p = unifiedFormula(this.cosmos.prng, this.sensory.audio.level);
+                    this.surface.update(p);
+                } else {
+                    const chaos = this.sensory.audio.active ? this.cosmos.psd : this.cosmos.params.lambda;
+                    this.dust.update(now, this.psi.fps, chaos);
+                }
+                this.bus.emit('engine:update', {dt, now});
+                const hudPSD = $('hudPSD');
+                if(this.sensory.audio.active) hudPSD.textContent = this.sensory.audio.psd.toFixed(3);
+                else hudPSD.textContent = '0.000';
+            }
+        }
+        new Application();
+    </script>
+</body>
+</html>
+
