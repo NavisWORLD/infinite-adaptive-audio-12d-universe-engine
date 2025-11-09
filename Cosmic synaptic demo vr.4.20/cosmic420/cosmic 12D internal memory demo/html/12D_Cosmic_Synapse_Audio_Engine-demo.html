@@ -5554,6 +5554,438 @@
 
         } // end guarded patch
 
+        // Additive: X12 Entropy Real-time & Determinism Hardening Patch
+        (function() {
+          if (typeof window.CST_PATCH_X12_ENTROPY !== 'undefined') return;
+          window.CST_PATCH_X12_ENTROPY = true;
+
+          console.log('[CST] Applying X12+Entropy real-time patch...');
+
+          // Additive: Particle integrator initialization helper
+          function __cst_initParticleIntegrators(p) {
+            if (!p || !p.id) return;
+            try {
+              if (typeof psiAccumulators !== 'undefined') {
+                if (!psiAccumulators.velocityIntegral.has(p.id)) {
+                  psiAccumulators.velocityIntegral.set(p.id, 0);
+                }
+                if (!psiAccumulators.x12Integral.has(p.id)) {
+                  psiAccumulators.x12Integral.set(p.id, 0);
+                }
+                if (!psiAccumulators.x12Previous.has(p.id)) {
+                  psiAccumulators.x12Previous.set(p.id, p.x12 || 0);
+                }
+              }
+            } catch (e) {
+              console.warn('[CST] Integrator init failed for particle', p.id, e);
+            }
+          }
+
+          // Additive: Initialize integrators for all existing particles
+          try {
+            if (typeof particles !== 'undefined' && Array.isArray(particles)) {
+              particles.forEach(__cst_initParticleIntegrators);
+              console.log('[CST] Initialized integrators for', particles.length, 'existing particles');
+            }
+          } catch (e) {
+            console.warn('[CST] Existing particle integrator init error', e);
+          }
+
+          // Additive: Patch LorenzParticle.update11DProjection to init integrators for new particles
+          try {
+            if (typeof LorenzParticle !== 'undefined' && LorenzParticle.prototype && !LorenzParticle.prototype.__cstIntegratorPatched) {
+              const orig_update11D = LorenzParticle.prototype.update11DProjection;
+              if (typeof orig_update11D === 'function') {
+                LorenzParticle.prototype.update11DProjection = function(...args) {
+                  __cst_initParticleIntegrators(this);
+                  return orig_update11D.apply(this, args);
+                };
+                LorenzParticle.prototype.__cstIntegratorPatched = true;
+                console.log('[CST] Patched LorenzParticle.update11DProjection for integrator init');
+              }
+            }
+          } catch (e) {
+            console.warn('[CST] LorenzParticle integrator patch error', e);
+          }
+
+          // Additive: Robust updatePsiNormalized wrapper with safe x12Previous handling
+          try {
+            if (typeof window.updatePsiNormalized === 'function' && !window.updatePsiNormalized.__cstX12Patched) {
+              const orig_updatePsiNormalized = window.updatePsiNormalized;
+              window.updatePsiNormalized = function(particles, refs, accum) {
+                try {
+                  if (!accum || !particles) return orig_updatePsiNormalized(particles, refs, accum);
+
+                  // Additive: Pre-process particles to ensure x12Previous exists
+                  particles.forEach(p => {
+                    if (!p || !p.id) return;
+                    const x12Prev = accum.x12Previous.get(p.id);
+                    if (x12Prev === undefined || x12Prev === null) {
+                      // First-seen: initialize previous value (no delta this frame)
+                      accum.x12Previous.set(p.id, p.x12 || 0);
+                      if (!accum.x12Integral.has(p.id)) accum.x12Integral.set(p.id, 0);
+                    } else {
+                      // Compute delta and accumulate
+                      const dt = (typeof timestep !== 'undefined' && timestep.dt) ? timestep.dt : 0.001;
+                      const deltaX12 = Math.abs((p.x12 || 0) - x12Prev);
+                      const x12IntPrev = accum.x12Integral.get(p.id) || 0;
+                      const x12IntNew = x12IntPrev + deltaX12 * dt;
+                      accum.x12Integral.set(p.id, x12IntNew);
+                      accum.x12Previous.set(p.id, p.x12 || 0);
+                    }
+                  });
+
+                  // Call original
+                  return orig_updatePsiNormalized(particles, refs, accum);
+                } catch (e) {
+                  console.warn('[CST] updatePsiNormalized wrapper error', e);
+                  return orig_updatePsiNormalized(particles, refs, accum);
+                }
+              };
+              window.updatePsiNormalized.__cstX12Patched = true;
+              console.log('[CST] Patched updatePsiNormalized for robust x12 accumulation');
+            }
+          } catch (e) {
+            console.warn('[CST] updatePsiNormalized patch error', e);
+          }
+
+          // Additive: DPR-aware canvas initialization for entropy trace
+          try {
+            if (typeof window.initEntropyCanvas === 'function' && !window.initEntropyCanvas.__cstDPRPatched) {
+              const orig_initEntropyCanvas = window.initEntropyCanvas;
+              window.initEntropyCanvas = function() {
+                try {
+                  // Call original first
+                  if (typeof orig_initEntropyCanvas === 'function') orig_initEntropyCanvas();
+
+                  // Additive: Apply DPR sizing
+                  const dpr = window.devicePixelRatio || 1;
+                  const canvas = document.getElementById('entropyCanvas');
+                  if (canvas) {
+                    const cssW = canvas.clientWidth || 400;
+                    const cssH = canvas.clientHeight || 100;
+                    canvas.width = Math.floor(cssW * dpr);
+                    canvas.height = Math.floor(cssH * dpr);
+                    const ctx = canvas.getContext('2d');
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                    if (typeof entropyState !== 'undefined') entropyState.ctx = ctx;
+                  }
+
+                  const traceCanvas = document.getElementById('entropyTraceCanvas');
+                  if (traceCanvas) {
+                    const tw = traceCanvas.clientWidth || 400;
+                    const th = traceCanvas.clientHeight || 60;
+                    traceCanvas.width = Math.floor(tw * dpr);
+                    traceCanvas.height = Math.floor(th * dpr);
+                    const tctx = traceCanvas.getContext('2d');
+                    tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                    if (typeof entropyState !== 'undefined') entropyState.traceCtx = tctx;
+                  }
+
+                  console.log('[CST] Applied DPR-aware canvas sizing (dpr=' + dpr + ')');
+                } catch (e) {
+                  console.warn('[CST] initEntropyCanvas DPR patch error', e);
+                }
+              };
+              window.initEntropyCanvas.__cstDPRPatched = true;
+            }
+          } catch (e) {
+            console.warn('[CST] initEntropyCanvas DPR patch error', e);
+          }
+
+          // Additive: Resilient resize handler for entropy canvases
+          try {
+            window.addEventListener('resize', function __cst_entropyCanvasResize() {
+              try {
+                const dpr = window.devicePixelRatio || 1;
+                const canvas = document.getElementById('entropyCanvas');
+                if (canvas) {
+                  const cssW = canvas.clientWidth || 400;
+                  const cssH = canvas.clientHeight || 100;
+                  canvas.width = Math.floor(cssW * dpr);
+                  canvas.height = Math.floor(cssH * dpr);
+                  const ctx = canvas.getContext('2d');
+                  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                  if (typeof entropyState !== 'undefined') entropyState.ctx = ctx;
+                  if (typeof drawEntropyHistogram === 'function') drawEntropyHistogram();
+                }
+
+                const traceCanvas = document.getElementById('entropyTraceCanvas');
+                if (traceCanvas) {
+                  const tw = traceCanvas.clientWidth || 400;
+                  const th = traceCanvas.clientHeight || 60;
+                  traceCanvas.width = Math.floor(tw * dpr);
+                  traceCanvas.height = Math.floor(th * dpr);
+                  const tctx = traceCanvas.getContext('2d');
+                  tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                  if (typeof entropyState !== 'undefined') entropyState.traceCtx = tctx;
+                  if (typeof entropyState !== 'undefined' && typeof drawEntropyTrace === 'function') {
+                    drawEntropyTrace(entropyState.lastEntropy || 0);
+                  }
+                }
+              } catch (e) {
+                console.warn('[CST] Entropy canvas resize error', e);
+              }
+            });
+          } catch (e) {
+            console.warn('[CST] Resize listener error', e);
+          }
+
+          // Additive: Robust drawEntropyTrace with CSS width buffer limit
+          try {
+            if (typeof window.drawEntropyTrace === 'function' && !window.drawEntropyTrace.__cstCSSWidthPatched) {
+              const orig_drawEntropyTrace = window.drawEntropyTrace;
+              window.drawEntropyTrace = function(entropyValue) {
+                try {
+                  if (typeof entropyState === 'undefined' || !entropyState.traceCtx) return;
+                  const ctx = entropyState.traceCtx;
+                  const canvas = ctx.canvas;
+                  const widthCSS = canvas.clientWidth || 400;
+                  const heightCSS = canvas.clientHeight || 60;
+
+                  // Additive: Use smoothed value, reject NaN/Inf
+                  const smoothed = (typeof getSmoothedEntropy === 'function') ? getSmoothedEntropy(entropyValue) : entropyValue;
+                  if (typeof smoothed === 'number' && isFinite(smoothed)) {
+                    if (typeof entropyTrace !== 'undefined') entropyTrace.push(smoothed);
+                  }
+
+                  // Additive: Buffer length = CSS width
+                  if (typeof entropyTrace !== 'undefined') {
+                    while (entropyTrace.length > widthCSS) entropyTrace.shift();
+                  }
+
+                  // Additive: Auto-scale and draw trace
+                  if (typeof entropyTrace !== 'undefined' && entropyTrace.length > 0) {
+                    const minVal = Math.min(...entropyTrace);
+                    const maxVal = Math.max(...entropyTrace);
+                    const range = maxVal - minVal || 1;
+
+                    ctx.clearRect(0, 0, widthCSS, heightCSS);
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    entropyTrace.forEach((val, i) => {
+                      const x = i;
+                      const y = heightCSS - ((val - minVal) / range) * (heightCSS - 4) - 2;
+                      if (i === 0) ctx.moveTo(x, y);
+                      else ctx.lineTo(x, y);
+                    });
+                    ctx.stroke();
+                  }
+
+                  // Store last entropy for resize redraw
+                  if (typeof entropyState !== 'undefined') entropyState.lastEntropy = entropyValue;
+                } catch (e) {
+                  console.warn('[CST] drawEntropyTrace error', e);
+                  // Fallback to original
+                  if (typeof orig_drawEntropyTrace === 'function') orig_drawEntropyTrace(entropyValue);
+                }
+              };
+              window.drawEntropyTrace.__cstCSSWidthPatched = true;
+              console.log('[CST] Patched drawEntropyTrace for CSS width buffer');
+            }
+          } catch (e) {
+            console.warn('[CST] drawEntropyTrace patch error', e);
+          }
+
+          // Additive: Patch updateLorenzParticles to call updatePsiBreakdown after particle updates
+          try {
+            if (typeof window.updateLorenzParticles === 'function' && !window.updateLorenzParticles.__cstPsiBreakdownPatched) {
+              const orig_updateLorenzParticles = window.updateLorenzParticles;
+              window.updateLorenzParticles = function(...args) {
+                try {
+                  const result = orig_updateLorenzParticles.apply(this, args);
+
+                  // Additive: Refresh UI immediately
+                  if (typeof updatePsiBreakdown === 'function') updatePsiBreakdown();
+                  if (typeof entropyState !== 'undefined' && typeof drawEntropyTrace === 'function') {
+                    drawEntropyTrace(entropyState.lastEntropy || 0);
+                  }
+
+                  return result;
+                } catch (e) {
+                  console.warn('[CST] updateLorenzParticles wrapper error', e);
+                  return orig_updateLorenzParticles.apply(this, args);
+                }
+              };
+              window.updateLorenzParticles.__cstPsiBreakdownPatched = true;
+              console.log('[CST] Patched updateLorenzParticles to call updatePsiBreakdown');
+            }
+          } catch (e) {
+            console.warn('[CST] updateLorenzParticles patch error', e);
+          }
+
+          // Additive: Deterministic RNG state (local, non-mutating)
+          window.__cst_detRandomState = { seed: 12345, counter: 0 };
+
+          function __cst_resetDeterministicRandomState(seed) {
+            window.__cst_detRandomState.seed = seed || 12345;
+            window.__cst_detRandomState.counter = 0;
+          }
+
+          function __cst_detRandom() {
+            const s = window.__cst_detRandomState;
+            s.counter++;
+            const x = Math.sin(s.seed + s.counter) * 10000;
+            return x - Math.floor(x);
+          }
+
+          // Additive: Safe getRandom wrapper (uses local state in replay mode)
+          try {
+            if (typeof window.getRandom === 'function' && !window.getRandom.__cstDetPatched) {
+              const orig_getRandom = window.getRandom;
+              window.getRandom = function() {
+                try {
+                  if (typeof determinism !== 'undefined' && determinism.enabled && determinism.isReplaying) {
+                    return __cst_detRandom();
+                  }
+                  return orig_getRandom();
+                } catch (e) {
+                  console.warn('[CST] getRandom wrapper error', e);
+                  return Math.random();
+                }
+              };
+              window.getRandom.__cstDetPatched = true;
+            }
+          } catch (e) {
+            console.warn('[CST] getRandom patch error', e);
+          }
+
+          // Additive: Safe generateUUID wrapper (uses local state in replay mode)
+          try {
+            if (typeof window.generateUUID === 'function' && !window.generateUUID.__cstDetPatched) {
+              const orig_generateUUID = window.generateUUID;
+              window.generateUUID = function() {
+                try {
+                  if (typeof determinism !== 'undefined' && determinism.enabled && determinism.isReplaying) {
+                    const r = __cst_detRandom;
+                    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                      const rnd = Math.floor(r() * 16);
+                      const v = c === 'x' ? rnd : (rnd & 0x3 | 0x8);
+                      return v.toString(16);
+                    });
+                  }
+                  return orig_generateUUID();
+                } catch (e) {
+                  console.warn('[CST] generateUUID wrapper error', e);
+                  return orig_generateUUID();
+                }
+              };
+              window.generateUUID.__cstDetPatched = true;
+            }
+          } catch (e) {
+            console.warn('[CST] generateUUID patch error', e);
+          }
+
+          // Additive: Patch setDeterministicSeed to reset local state
+          try {
+            if (typeof window.setDeterministicSeed === 'function' && !window.setDeterministicSeed.__cstLocalStatePatched) {
+              const orig_setDeterministicSeed = window.setDeterministicSeed;
+              window.setDeterministicSeed = function(seed) {
+                __cst_resetDeterministicRandomState(seed);
+                if (typeof deterministicIdCounter !== 'undefined') {
+                  window.deterministicIdCounter = 0;
+                }
+                return orig_setDeterministicSeed(seed);
+              };
+              window.setDeterministicSeed.__cstLocalStatePatched = true;
+            }
+          } catch (e) {
+            console.warn('[CST] setDeterministicSeed patch error', e);
+          }
+
+          // Additive: Patch startReplayProcessing to reset local state
+          try {
+            if (typeof window.startReplayProcessing === 'function' && !window.startReplayProcessing.__cstLocalStatePatched) {
+              const orig_startReplayProcessing = window.startReplayProcessing;
+              window.startReplayProcessing = function(...args) {
+                __cst_resetDeterministicRandomState(determinism?.seed || 12345);
+                if (typeof deterministicIdCounter !== 'undefined') {
+                  window.deterministicIdCounter = 0;
+                }
+                return orig_startReplayProcessing.apply(this, args);
+              };
+              window.startReplayProcessing.__cstLocalStatePatched = true;
+            }
+          } catch (e) {
+            console.warn('[CST] startReplayProcessing patch error', e);
+          }
+
+          // Additive: Harden flushTokenBuffer with caps
+          try {
+            if (typeof window.flushTokenBuffer === 'function' && !window.flushTokenBuffer.__cstCappedPatched) {
+              const orig_flushTokenBuffer = window.flushTokenBuffer;
+              window.flushTokenBuffer = function() {
+                const MAX_PENDING = 500;
+                const MAX_TOTAL_TOKENS = 5000;
+                try {
+                  if (typeof tokenBuffer !== 'undefined' && Array.isArray(tokenBuffer.pending)) {
+                    // Cap pending tokens
+                    if (tokenBuffer.pending.length > MAX_PENDING) {
+                      tokenBuffer.pending = tokenBuffer.pending.slice(-MAX_PENDING);
+                    }
+                  }
+                  const result = orig_flushTokenBuffer();
+
+                  // Cap stored tokens
+                  if (typeof tokenBuffer !== 'undefined' && Array.isArray(tokenBuffer.tokens)) {
+                    if (tokenBuffer.tokens.length > MAX_TOTAL_TOKENS) {
+                      tokenBuffer.tokens = tokenBuffer.tokens.slice(-MAX_TOTAL_TOKENS);
+                    }
+                  }
+                  return result;
+                } catch (e) {
+                  console.warn('[CST] flushTokenBuffer error', e);
+                  return orig_flushTokenBuffer();
+                } finally {
+                  // Always clear pending buffer
+                  if (typeof tokenBuffer !== 'undefined' && Array.isArray(tokenBuffer.pending)) {
+                    tokenBuffer.pending.length = 0;
+                  }
+                }
+              };
+              window.flushTokenBuffer.__cstCappedPatched = true;
+            }
+          } catch (e) {
+            console.warn('[CST] flushTokenBuffer patch error', e);
+          }
+
+          // Additive: Ensure token buffer flush starts on DOMContentLoaded
+          document.addEventListener('DOMContentLoaded', function __cst_ensureTokenBufferFlush() {
+            try {
+              if (typeof tokenBuffer !== 'undefined' && !tokenBuffer.flushInterval && typeof startTokenBufferFlush === 'function') {
+                startTokenBufferFlush();
+                console.log('[CST] Started token buffer flush on DOMContentLoaded');
+              }
+            } catch (e) {
+              console.warn('[CST] Token buffer flush start error', e);
+            }
+          });
+
+          // Additive: Debug helper
+          window.__cst_dumpX12Integrals = function() {
+            try {
+              if (typeof psiAccumulators === 'undefined') {
+                console.log('psiAccumulators not defined');
+                return [];
+              }
+              const data = [];
+              psiAccumulators.x12Integral.forEach((val, pid) => {
+                data.push({ particleId: pid, x12Integral: val });
+              });
+              console.table(data);
+              return data;
+            } catch (e) {
+              console.warn('[CST] dumpX12Integrals error', e);
+              return [];
+            }
+          };
+
+          console.log('[CST] X12+Entropy real-time patch applied successfully');
+          console.log('[CST] Debug: Run window.__cst_dumpX12Integrals() to inspect ψ integrators');
+
+        })();
+
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
             initThree();
