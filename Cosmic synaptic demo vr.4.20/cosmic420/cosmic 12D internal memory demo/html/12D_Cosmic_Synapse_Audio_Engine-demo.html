@@ -1314,9 +1314,17 @@
 
             assignFrequency(freq, magnitude) {
                 this.frequency = freq;
-                // Generate simple token format for frequency assignment
-                const simpleToken = `Freq_${freq.toFixed(2)}_Particle_${this.id.substr(0, 8)}`;
-                this.tokens.push(simpleToken);
+                // Additive: fixed token hygiene - use object instead of string
+                const tokenObj = {
+                    id: nextDeterministicId(),
+                    type: 'frequency_assignment',
+                    frequency: freq,
+                    magnitude: magnitude,
+                    particleId: this.id,
+                    timestamp: Date.now() / 1000,
+                    eventType: 'frequency_assignment'
+                };
+                this.tokens.push(tokenObj);
             }
 
             destroy() {
@@ -1638,7 +1646,10 @@
                     drift.L = Math.abs((Lmag - L0mag) / L0mag);
         }
             }
-            
+
+            // Additive: advance timestamp after drift calculation for coherent time window
+            conservationStats.lastUpdate = now;
+
             return { Etotal, P, L, drift };
         }
         
@@ -1939,6 +1950,98 @@
                 determinism.replayInterval = null;
             }
             stopTokenBufferFlush();
+        }
+
+        // Additive: replay scheduler state
+        let replayIndex = 0;
+        let replayTimer = null;
+
+        // Additive: deterministic replay scheduler and feeding loop
+        function startReplay() {
+            const frames = determinism.recordedAudioFrames;
+            if (!frames || frames.length === 0) {
+                alert('No recorded frames available. Start recording first.');
+                return;
+            }
+            determinism.mode = 'replay';
+            replayIndex = 0;
+
+            // Deterministic visuals for reproducibility
+            applyDeterministicInit(determinism.seed || 12345);
+
+            // Disable live audio path without touching UI
+            isAudioActive = false;
+
+            // Honor recorded timestamps if present; else use configured cadence
+            const baseTs = frames[0].timestamp || 0;
+            const tick = () => {
+                if (replayIndex >= frames.length) {
+                    stopReplay();
+                    return;
+                }
+                const prev = replayIndex > 0 ? frames[replayIndex - 1] : null;
+                stepReplayFrame(frames[replayIndex], prev, baseTs);
+                replayIndex++;
+                const nextDelay = replayIndex < frames.length
+                    ? Math.max(50, Math.min(250, ((frames[replayIndex].timestamp || 0) - (frames[replayIndex - 1].timestamp || 0)) * 1000 || audioConfig.cadence))
+                    : audioConfig.cadence;
+                replayTimer = setTimeout(tick, nextDelay);
+            };
+
+            tick();
+            updateStatus(`Replay mode enabled - ${frames.length} frames`);
+            reflectDeterminismUI();
+        }
+
+        // Additive: stop deterministic replay
+        function stopReplay() {
+            determinism.mode = 'live';
+            if (replayTimer) {
+                clearTimeout(replayTimer);
+                replayTimer = null;
+            }
+            updateStatus('Replay mode disabled - back to live mode');
+            reflectDeterminismUI();
+        }
+
+        // Additive: step through a single replay frame
+        function stepReplayFrame(frame, prevFrame, baseTs) {
+            // Set pipeline inputs without WebAudio
+            audioEnergy = frame.rmsEnergy || 0;
+            spectralCentroid = frame.spectralCentroid || 0;
+            frequencyData = (frame.frequencyData || []).map(({ frequency, magnitude }) => ({ frequency, magnitude }));
+
+            // Generate tokens deterministically (seed already set)
+            generateTokens(frequencyData, audioEnergy, spectralCentroid);
+
+            // Update frequency spectrum explicitly from replay data
+            updateFrequencyViz(
+                frequencyData.map(d => d.frequency),
+                frequencyData.map(d => d.magnitude)
+            );
+
+            // Update chaos indicator
+            const chaos = calculateAudioChaos();
+            const chaosEl = document.getElementById('audio-chaos');
+            if (chaosEl) chaosEl.textContent = chaos.toFixed(3);
+        }
+
+        // Additive: apply deterministic initialization for reproducible visuals
+        function applyDeterministicInit(seed) {
+            setDeterministicSeed(seed);
+            // Deterministic placement/colors for reproducible visuals
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                const jitter = (getRandom() * 2 - 1) * 0.05;
+                p.x = 0.1 + i * 0.1 + jitter;
+                p.y = i * 0.1 + jitter;
+                p.z = i * 0.1 - jitter;
+
+                const baseHue = 180 + Math.floor(getRandom() * 360);
+                const color = new THREE.Color(`hsl(${baseHue}, 100%, 50%)`);
+                p.line.material.color.setHex(color.getHex());
+                p.sphere.material.color.setHex(color.getHex());
+            }
         }
 
         function initThree() {
@@ -4124,23 +4227,18 @@
             reflectDeterminismUI();
         }
 
+        // Additive: enhanced toggleReplay using new replay functions
         function toggleReplay() {
             if (determinism.mode === 'replay') {
-                determinism.mode = 'live';
-                stopReplayProcessing();
-                updateStatus('Replay mode disabled - back to live mode');
+                stopReplay();
             } else {
                 if (determinism.recordedAudioFrames.length > 0) {
-                    toggleReplayMode({
-                        recordedAudioFrames: determinism.recordedAudioFrames,
-                        seed: determinism.seed || 12345
-                    });
-                    updateStatus(`Replay mode enabled - ${determinism.recordedAudioFrames.length} frames`);
+                    if (!determinism.seed) setDeterministicSeed(12345);
+                    startReplay();
                 } else {
                     alert('No recorded frames available. Start recording first.');
                 }
             }
-            reflectDeterminismUI();
         }
 
         // CST v2.0: Initialize all UI display values on page load
