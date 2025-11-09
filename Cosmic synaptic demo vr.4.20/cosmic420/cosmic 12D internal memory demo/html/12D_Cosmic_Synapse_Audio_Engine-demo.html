@@ -6038,6 +6038,413 @@
             updateStatus('🎤 System ready - Click START MICROPHONE for continuous audio→token generation pipeline');
             animate(); // Start animation loop
         });
+
+        // ==================================================================================
+        // ADDITIVE PATCH: INFINITE TOKEN GENERATION (removes all hard caps)
+        // Implements: Section 3.1 - Token Generation (continuous and infinite)
+        // Reference: 12D Cosmic Synapse Theory Paper
+        // ==================================================================================
+
+        (function infiniteTokenCapRemoval() {
+            console.log('[CST Infinite Token Patch] Removing all token caps for unlimited generation');
+
+            // Override flushTokenBuffer to remove MAX_PENDING and MAX_TOTAL_TOKENS caps
+            if (typeof flushTokenBuffer === 'function' && !flushTokenBuffer.__cstInfinite) {
+                const orig_flushTokenBuffer = flushTokenBuffer;
+
+                window.flushTokenBuffer = function __cst_flushTokenBuffer_infinite() {
+                    try {
+                        if (!tokenBuffer || !Array.isArray(tokenBuffer.tokens) || tokenBuffer.tokens.length === 0) return;
+
+                        // ✅ REMOVED: MAX_PENDING cap - buffer processes ALL pending tokens
+                        // ✅ REMOVED: MAX_TOTAL_TOKENS cap - tokens array grows indefinitely
+
+                        // Append ALL buffered tokens to main store without any caps
+                        for (let i = 0; i < tokenBuffer.tokens.length; i++) {
+                            tokens.push(tokenBuffer.tokens[i]);
+                            tokenCount++;
+                        }
+
+                        // UI updates (display bounded by audioConfig.tokenDisplayLimit only for performance)
+                        if (typeof updateTokenDisplay === 'function') {
+                            try {
+                                updateTokenDisplay();
+                            } catch (e) {
+                                console.error('[CST] updateTokenDisplay error', e);
+                            }
+                        }
+
+                        // Update UI counters to show true unlimited count
+                        const countEl = document.getElementById('token-count');
+                        const countStatusEl = document.getElementById('token-count-status');
+                        const replEl = document.getElementById('replication-count');
+
+                        if (countEl) countEl.textContent = tokens.length;
+                        if (countStatusEl) countStatusEl.textContent = tokens.length;
+                        if (replEl) replEl.textContent = replicationCount;
+
+                    } catch (e) {
+                        console.error('[CST] flushTokenBuffer infinite-cap error', e);
+                    } finally {
+                        // Always clear buffer to avoid reprocessing stale entries
+                        if (tokenBuffer) tokenBuffer.tokens = [];
+                    }
+                };
+
+                window.flushTokenBuffer.__cstInfinite = true;
+                console.log('[CST Infinite Token Patch] ✅ Token caps removed - infinite generation enabled');
+            }
+        })();
+
+        // ==================================================================================
+        // ADDITIVE PATCH: OPTIONAL INDEXEDDB PERSISTENCE FOR INFINITE RUNS
+        // Implements: Section 3.1 - Token Storage (disk-backed for multi-hour sessions)
+        // Reference: 12D Cosmic Synapse Theory Paper
+        // ==================================================================================
+
+        (function optionalIndexedDBPersistence() {
+            // Token database for optional persistent storage
+            window.tokenDB = {
+                db: null,
+                enabled: false, // Set to true to enable persistent storage
+                batchSize: 100,
+                pendingBatch: []
+            };
+
+            function initTokenDB() {
+                const req = indexedDB.open('CST_Tokens_v2', 1);
+
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('tokens')) {
+                        const store = db.createObjectStore('tokens', { keyPath: 'id' });
+                        store.createIndex('timestamp', 'timestamp', { unique: false });
+                        console.log('[CST DB] Created tokens object store');
+                    }
+                };
+
+                req.onsuccess = (e) => {
+                    tokenDB.db = e.target.result;
+                    console.log('[CST DB] IndexedDB initialized and ready');
+                };
+
+                req.onerror = (e) => {
+                    console.warn('[CST DB] IndexedDB init error', e);
+                };
+            }
+
+            function persistTokensToDB(batch) {
+                if (!tokenDB.enabled || !tokenDB.db || !Array.isArray(batch) || batch.length === 0) return;
+
+                try {
+                    const tx = tokenDB.db.transaction('tokens', 'readwrite');
+                    const store = tx.objectStore('tokens');
+
+                    for (let i = 0; i < batch.length; i++) {
+                        store.put(batch[i]);
+                    }
+
+                    tx.oncomplete = () => {
+                        console.log(`[CST DB] Persisted ${batch.length} tokens to IndexedDB`);
+                    };
+
+                    tx.onerror = (e) => {
+                        console.warn('[CST DB] Token write error', e);
+                    };
+                } catch (e) {
+                    console.warn('[CST DB] Persist error', e);
+                }
+            }
+
+            // Hook persistence into flush (additive enhancement)
+            if (typeof window.flushTokenBuffer === 'function' && !window.flushTokenBuffer.__cstDBPersist) {
+                const orig = window.flushTokenBuffer;
+
+                window.flushTokenBuffer = function __cst_flushTokenBuffer_db() {
+                    // Capture pending tokens before flush
+                    const pending = tokenBuffer && tokenBuffer.tokens ? tokenBuffer.tokens.slice() : [];
+
+                    // Persist before we clear buffer (if enabled)
+                    if (tokenDB.enabled && pending.length > 0) {
+                        tokenDB.pendingBatch.push(...pending);
+
+                        // Batch writes for efficiency (write every 100 tokens)
+                        if (tokenDB.pendingBatch.length >= tokenDB.batchSize) {
+                            const batch = tokenDB.pendingBatch.splice(0, tokenDB.batchSize);
+                            persistTokensToDB(batch);
+                        }
+                    }
+
+                    // Continue original infinite-cap flush behavior
+                    return orig.call(this);
+                };
+
+                window.flushTokenBuffer.__cstDBPersist = true;
+                console.log('[CST DB] ✅ IndexedDB persistence hook installed');
+            }
+
+            // Initialize IndexedDB (database ready but disabled by default)
+            initTokenDB();
+
+            // Expose control function for enabling/disabling persistence
+            window.enableTokenPersistence = function(enable) {
+                tokenDB.enabled = !!enable;
+                console.log(`[CST DB] Token persistence ${tokenDB.enabled ? 'ENABLED' : 'DISABLED'}`);
+            };
+
+            console.log('[CST DB] Persistence available - call enableTokenPersistence(true) to activate');
+        })();
+
+        // ==================================================================================
+        // VALIDATION PATCH: Ensure all canvases and metrics update correctly
+        // Implements: Runtime fidelity checks for all visualizations
+        // ==================================================================================
+
+        (function validateRuntimeFidelity() {
+            console.log('[CST Validation] Checking runtime fidelity for all panels...');
+
+            const requiredElements = {
+                // Token display
+                'token-count': 'Token Count',
+                'token-count-status': 'Token Count Status',
+                'replication-count': 'Replication Count',
+
+                // ψ Breakdown (Section 2.5)
+                'psi-energy-term': 'ψ Energy Term (φE/c²)',
+                'psi-lambda-term': 'ψ Lambda Term (λ)',
+                'psi-velint-term': 'ψ Velocity Integral (∫||v||dt)',
+                'psi-x12int-term': 'ψ X12 Integral (∫|Δx12|dt)',
+                'psi-omega-term': 'ψ Omega Term (Ω)',
+                'psi-potential-term': 'ψ Potential Term (U₁₁D)',
+                'psi-total-normalized': 'ψ Total Normalized',
+
+                // Synchronization (Section 2.8)
+                'sync-order-r': 'Kuramoto Order Parameter r',
+                'sync-mean-theta': 'Mean Phase θ',
+                'sync-std-theta': 'Phase Std Dev',
+
+                // Entropy (Section 2.12)
+                'entropy-global': 'Global Entropy S',
+                'entropy-bins': 'Entropy Bins',
+                'entropy-temperature': 'Temperature Proxy',
+
+                // Conservation (Section 2.13)
+                'energy-drift': 'Energy Drift',
+                'momentum-magnitude': 'Momentum Magnitude',
+                'angular-momentum-magnitude': 'Angular Momentum Magnitude',
+                'virial-ratio': 'Virial Ratio'
+            };
+
+            const requiredCanvases = {
+                'adaptiveStateCanvas': 'Adaptive State Strip Chart (Section 2.9-2.10)',
+                'entropyTraceCanvas': 'Entropy Heart-Rate Trace (Section 2.12)',
+                'dmProfileCanvas': 'NFW Density Profile (Section 2.7)',
+                'frequencyCanvas': 'Audio Frequency Spectrum'
+            };
+
+            let allValid = true;
+
+            // Validate display elements
+            for (const [id, name] of Object.entries(requiredElements)) {
+                const el = document.getElementById(id);
+                if (!el) {
+                    console.warn(`[CST Validation] ⚠️  Missing element: ${name} (${id})`);
+                    allValid = false;
+                } else {
+                    console.log(`[CST Validation] ✅ ${name}`);
+                }
+            }
+
+            // Validate canvases
+            for (const [id, name] of Object.entries(requiredCanvases)) {
+                const canvas = document.getElementById(id);
+                if (!canvas) {
+                    console.warn(`[CST Validation] ⚠️  Missing canvas: ${name} (${id})`);
+                    allValid = false;
+                } else {
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        console.log(`[CST Validation] ✅ ${name} (rendering context ready)`);
+                    } else {
+                        console.warn(`[CST Validation] ⚠️  Canvas context unavailable: ${name}`);
+                    }
+                }
+            }
+
+            if (allValid) {
+                console.log('[CST Validation] ✅ All required UI elements present and ready');
+            } else {
+                console.warn('[CST Validation] ⚠️  Some UI elements missing - check console warnings');
+            }
+
+            // Validate update functions exist
+            const requiredFunctions = [
+                'updatePsiBreakdown',
+                'updateSynchronizationMetrics',
+                'updateEntropy',
+                'updateConservationDiagnostics',
+                'updateAdaptiveStateTrace',
+                'drawEntropyTrace',
+                'drawNfwProfile'
+            ];
+
+            for (const funcName of requiredFunctions) {
+                if (typeof window[funcName] === 'function') {
+                    console.log(`[CST Validation] ✅ Function ready: ${funcName}`);
+                } else {
+                    console.warn(`[CST Validation] ⚠️  Missing function: ${funcName}`);
+                }
+            }
+        })();
+
+        // ==================================================================================
+        // ADDITIVE ENHANCEMENT: Display both x12 AND m12 in adaptive state canvas
+        // Implements: Section 2.9-2.10 - Internal State Evolution & Memory Update
+        // Reference: Paper spec requires "live strip chart showing x12 and m12 values"
+        // ==================================================================================
+
+        (function enhanceAdaptiveStateVisualization() {
+            console.log('[CST Adaptive State] Enhancing visualization to show both x12 and m12');
+
+            // Add m12 history tracking alongside x12
+            if (typeof window.m12History === 'undefined') {
+                window.m12History = [];
+            }
+
+            // Enhanced updateAdaptiveStateTrace to show both x12 (solid) and m12 (dashed)
+            if (typeof updateAdaptiveStateTrace === 'function' && !updateAdaptiveStateTrace.__cstEnhanced) {
+                const orig_updateAdaptiveStateTrace = updateAdaptiveStateTrace;
+
+                window.updateAdaptiveStateTrace = function __cst_updateAdaptiveStateTrace_enhanced() {
+                    if (!adaptiveStateCtx || !Array.isArray(particles)) return;
+
+                    const ctx = adaptiveStateCtx;
+                    const c = ctx.canvas;
+                    const width = c.width || 400;
+                    const height = c.height || 120;
+
+                    // Extend histories to number of particles
+                    while (x12History.length < particles.length) x12History.push([]);
+                    while (m12History.length < particles.length) m12History.push([]);
+
+                    // Trim if particles removed
+                    if (x12History.length > particles.length) x12History.length = particles.length;
+                    if (m12History.length > particles.length) m12History.length = particles.length;
+
+                    // Append current x12 and m12 to each particle's history
+                    particles.forEach((p, i) => {
+                        const x12Val = (typeof p.x12 === 'number' && isFinite(p.x12)) ? p.x12 : 0;
+                        const m12Val = (typeof p.m12 === 'number' && isFinite(p.m12)) ? p.m12 : 0;
+
+                        x12History[i].push(x12Val);
+                        m12History[i].push(m12Val);
+
+                        while (x12History[i].length > width) x12History[i].shift();
+                        while (m12History[i].length > width) m12History[i].shift();
+                    });
+
+                    // Draw background
+                    ctx.clearRect(0, 0, width, height);
+                    ctx.fillStyle = 'rgba(10, 10, 26, 0.25)';
+                    ctx.fillRect(0, 0, width, height);
+
+                    // Draw baseline at y=0 centered
+                    const baseline = height / 2;
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(0, baseline);
+                    ctx.lineTo(width, baseline);
+                    ctx.stroke();
+
+                    // Draw grid lines at ±0.5
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                    ctx.beginPath();
+                    ctx.moveTo(0, baseline - (height * 0.45 * 0.5));
+                    ctx.lineTo(width, baseline - (height * 0.45 * 0.5));
+                    ctx.moveTo(0, baseline + (height * 0.45 * 0.5));
+                    ctx.lineTo(width, baseline + (height * 0.45 * 0.5));
+                    ctx.stroke();
+
+                    // Draw each particle's traces: x12 (solid) and m12 (dashed)
+                    particles.forEach((p, i) => {
+                        const colorHex = '#' + p.color.toString(16).padStart(6, '0');
+
+                        // Draw x12 trace (solid line, thicker)
+                        ctx.strokeStyle = colorHex;
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([]);
+                        ctx.globalAlpha = 0.9;
+                        ctx.beginPath();
+                        let first = true;
+                        const x12Hist = x12History[i];
+                        for (let x = 0; x < x12Hist.length; x++) {
+                            // x12 in [-1,1] mapped to vertical extent
+                            const y = baseline - (x12Hist[x] * (height * 0.45));
+                            const clampedY = Math.max(0, Math.min(height, y));
+                            if (first) {
+                                ctx.moveTo(x, clampedY);
+                                first = false;
+                            } else {
+                                ctx.lineTo(x, clampedY);
+                            }
+                        }
+                        ctx.stroke();
+
+                        // Draw m12 trace (dashed line, thinner, slightly transparent)
+                        ctx.strokeStyle = colorHex;
+                        ctx.lineWidth = 1.5;
+                        ctx.setLineDash([4, 4]);
+                        ctx.globalAlpha = 0.6;
+                        ctx.beginPath();
+                        first = true;
+                        const m12Hist = m12History[i];
+                        for (let x = 0; x < m12Hist.length; x++) {
+                            // m12 in [-1,1] mapped to vertical extent
+                            const y = baseline - (m12Hist[x] * (height * 0.45));
+                            const clampedY = Math.max(0, Math.min(height, y));
+                            if (first) {
+                                ctx.moveTo(x, clampedY);
+                                first = false;
+                            } else {
+                                ctx.lineTo(x, clampedY);
+                            }
+                        }
+                        ctx.stroke();
+
+                        // Reset line dash and alpha
+                        ctx.setLineDash([]);
+                        ctx.globalAlpha = 1.0;
+                    });
+
+                    // Draw legend in top-left corner
+                    ctx.font = '10px monospace';
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.fillText('x₁₂ (solid)', 5, 12);
+                    ctx.fillText('m₁₂ (dash)', 5, 24);
+                };
+
+                window.updateAdaptiveStateTrace.__cstEnhanced = true;
+                console.log('[CST Adaptive State] ✅ Enhanced to display both x12 (solid) and m12 (dashed)');
+            }
+        })();
+
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('🌌 12D COSMIC SYNAPSE THEORY - FULL SPEC IMPLEMENTATION v2.1 🌌');
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('✅ Infinite Token Generation (no caps)');
+        console.log('✅ Adaptive State Evolution (dx12/dt, dm12/dt)');
+        console.log('✅ Global Entropy with Heart-Rate Trace');
+        console.log('✅ ψ Function Breakdown (6 terms)');
+        console.log('✅ Replay & Determinism');
+        console.log('✅ Dark Matter NFW Profile');
+        console.log('✅ Kuramoto Synchronization');
+        console.log('✅ Conservation Checks');
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('📖 Reference: 12D_Cosmic_Synapse_Theory.pdf');
+        console.log('🎤 Ready for audio input - tokens will generate infinitely');
+        console.log('💾 Optional: Call enableTokenPersistence(true) for disk storage');
+        console.log('═══════════════════════════════════════════════════════════════');
     </script>
 </body>
 </html>
