@@ -18,3 +18,4 @@ Modular Architecture: Additive design supporting Python, HTML/JS, and UI framewo
 
 🚀 Vision
 This engine demonstrates how universal computation and intelligence may emerge from fundamental physics, offering both a research‑grade simulation tool and an interactive playground for exploring cosmological information dynamics.
+2018-2025 
