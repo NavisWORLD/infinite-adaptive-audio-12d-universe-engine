@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Function Verification Test</title>
+</head>
+<body>
+    <h1>Testing Function Existence</h1>
+    <div id="output"></div>
+    
+    <!-- Load the main file -->
+    <script src="12D_Cosmic_Synapse_Audio_Engine-demo.html"></script>
+    
+    <script>
+        // Test all claimed "missing" functions
+        const output = document.getElementById('output');
+        
+        const functionsToTest = [
+            'toggleMicrophone',
+            'resetSystem', 
+            'togglePause',
+            'changeColor',
+            'addParticle',
+            'setDeterministicSeed',
+            'toggleRecording',
+            'toggleReplay',
+            'exportTokens',
+            'clearTokens',
+            'updateAdaptiveStates',
+            'updateEntropy',
+            'updatePsiBreakdown',
+            'computeDarkMatterPotential',
+            'updatePhases',
+            'drawEntropyTrace',
+            'drawNfwProfile'
+        ];
+        
+        let results = '<h2>Function Existence Test Results:</h2><ul>';
+        
+        functionsToTest.forEach(funcName => {
+            const exists = typeof window[funcName] === 'function';
+            const status = exists ? '✅ EXISTS' : '❌ MISSING';
+            const color = exists ? 'green' : 'red';
+            results += `<li style="color: ${color}">${status}: ${funcName}()</li>`;
+        });
+        
+        results += '</ul>';
+        output.innerHTML = results;
+    </script>
+</body>
+</html>
