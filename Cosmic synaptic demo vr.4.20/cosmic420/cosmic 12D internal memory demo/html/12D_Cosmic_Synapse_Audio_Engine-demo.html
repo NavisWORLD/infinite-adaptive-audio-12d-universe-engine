@@ -753,17 +753,18 @@
     </div>
 
     <!-- Three.js with fallback CDN to fix initialization errors -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
-            onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js';">
+    <!-- Using jsdelivr as primary CDN (more reliable, not blocked by tracking prevention) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"
+            onerror="this.onerror=null; this.src='https://unpkg.com/three@0.128.0/build/three.min.js';">
     </script>
     <script>
         // Added: Validate Three.js loaded before proceeding
         window.addEventListener('DOMContentLoaded', function() {
             if (typeof THREE === 'undefined') {
-                console.error('[CST Runtime] ❌ Three.js failed to load from CDN');
-                // Try loading from jsdelivr as final fallback
+                console.error('[CST Runtime] ❌ Three.js failed to load from primary CDN');
+                // Try loading from unpkg as final fallback
                 const script = document.createElement('script');
-                script.src = 'https://unpkg.com/three@0.128.0/build/three.min.js';
+                script.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
                 script.onerror = function() {
                     console.error('[CST Runtime] ❌ All Three.js CDN sources failed');
                     alert('Failed to load Three.js library. The 3D visualization will not work.');
@@ -6720,6 +6721,23 @@
             initEntropyCanvas(); // CST v2.0+ additive: Initialize entropy canvas
             initAdaptiveStateCanvas(); // NEW: Initialize adaptive state canvas
             initDmProfileCanvas(); // NEW: Initialize dark matter profile canvas
+
+            // Validate all canvas contexts are available (after initialization)
+            console.log('[CST Runtime] Validating canvas contexts after initialization...');
+            const canvasContexts = {
+                'adaptiveStateCtx': adaptiveStateCtx,
+                'entropyState.traceCtx': entropyState.traceCtx,
+                'dmProfileCtx': dmProfileCtx
+            };
+
+            for (const [name, ctx] of Object.entries(canvasContexts)) {
+                if (ctx) {
+                    console.log(`[CST Runtime] ✅ ${name} canvas context ready`);
+                } else {
+                    console.warn(`[CST Runtime] ⚠️  ${name} canvas context not available`);
+                }
+            }
+
             initializeUIDisplays(); // CST v2.0: Set all initial display values
             drawNfwProfile(dmParams.rho0, dmParams.rs); // NEW: Draw initial NFW profile
             updatePsi(0);
@@ -7243,20 +7261,8 @@
                 allFunctionsValid = false;
             }
 
-            // Validate all canvas contexts are available
-            const canvasContexts = {
-                'adaptiveStateCtx': adaptiveStateCtx,
-                'entropyState.traceCtx': entropyState.traceCtx,
-                'dmProfileCtx': dmProfileCtx
-            };
-
-            for (const [name, ctx] of Object.entries(canvasContexts)) {
-                if (ctx) {
-                    console.log(`[CST Runtime] ✅ ${name} canvas context ready`);
-                } else {
-                    console.warn(`[CST Runtime] ⚠️  ${name} canvas context not available`);
-                }
-            }
+            // Note: Canvas context validation moved to DOMContentLoaded event
+            // (after canvas initialization completes) to avoid false warnings
 
             // Final validation summary
             if (allFunctionsValid) {
@@ -7278,6 +7284,13 @@
                 console.log('Conservation E0:', conservationStats.E0);
                 console.log('Entropy:', entropyState.lastEntropy);
                 console.log('Adaptive State Histories:', x12History.length, m12History.length);
+
+                // Canvas context validation
+                console.log('Canvas Contexts:');
+                console.log('  adaptiveStateCtx:', adaptiveStateCtx ? '✅ Ready' : '❌ Not available');
+                console.log('  entropyState.traceCtx:', entropyState.traceCtx ? '✅ Ready' : '❌ Not available');
+                console.log('  dmProfileCtx:', dmProfileCtx ? '✅ Ready' : '❌ Not available');
+
                 console.groupEnd();
                 return {
                     particles: particles.length,
@@ -7288,7 +7301,12 @@
                     mode: determinism.mode,
                     recordingFrames: determinism.recordedAudioFrames.length,
                     entropy: entropyState.lastEntropy,
-                    conservationE0: conservationStats.E0
+                    conservationE0: conservationStats.E0,
+                    canvasContexts: {
+                        adaptiveStateCtx: !!adaptiveStateCtx,
+                        entropyTraceCtx: !!entropyState.traceCtx,
+                        dmProfileCtx: !!dmProfileCtx
+                    }
                 };
             };
 
