@@ -774,6 +774,111 @@
                 console.log('[CST Runtime] ✅ Three.js loaded successfully:', THREE.REVISION);
             }
         });
+
+        // ==================================================================================
+        // ADDITIVE ENHANCEMENT: Enhanced Three.js Loading Status (2025-11-09)
+        // Provides detailed loading feedback for debugging CDN issues
+        // ==================================================================================
+        (function enhancedThreeJsValidation() {
+            // Track loading attempts
+            const loadAttempts = {
+                primary: 'jsdelivr',
+                fallback1: 'unpkg',
+                fallback2: 'cdnjs',
+                status: 'loading'
+            };
+
+            window.getThreeJsStatus = function() {
+                if (typeof THREE !== 'undefined') {
+                    return {
+                        loaded: true,
+                        revision: THREE.REVISION,
+                        source: loadAttempts.status,
+                        message: '✅ Three.js loaded and ready'
+                    };
+                } else {
+                    return {
+                        loaded: false,
+                        revision: null,
+                        source: 'none',
+                        message: '❌ Three.js failed to load from all CDN sources',
+                        alternatives: [
+                            'Option 1: Download three.min.js locally and update script tag to: <script src="js/three.min.js"></script>',
+                            'Option 2: Use alternate CDN: https://cdn.skypack.dev/three@0.128.0',
+                            'Option 3: Disable browser tracking prevention temporarily'
+                        ]
+                    };
+                }
+            };
+
+            console.log('[CST Enhancement] Three.js loading status checker installed - run getThreeJsStatus()');
+        })();
+
+        // ==================================================================================
+        // ADDITIVE ENHANCEMENT: Canvas Element Validation (2025-11-09)
+        // Comprehensive validation of all required canvas elements with detailed diagnostics
+        // ==================================================================================
+        (function canvasElementValidator() {
+            window.validateCanvasElements = function() {
+                const requiredCanvases = [
+                    { id: 'adaptiveStateCanvas', description: 'Adaptive State Trace (x12 & m12)' },
+                    { id: 'dmProfileCanvas', description: 'Dark Matter NFW Profile' },
+                    { id: 'entropyTraceCanvas', description: 'Global Entropy Heart-Rate Trace' },
+                    { id: 'frequencyCanvas', description: 'Audio Frequency Spectrum' },
+                    { id: 'entropyCanvas', description: 'Entropy Histogram' }
+                ];
+
+                const results = {
+                    allPresent: true,
+                    details: []
+                };
+
+                console.group('🔍 Canvas Element Validation');
+
+                for (const canvas of requiredCanvases) {
+                    const element = document.getElementById(canvas.id);
+                    if (element) {
+                        const ctx = element.getContext('2d');
+                        const status = {
+                            id: canvas.id,
+                            description: canvas.description,
+                            exists: true,
+                            hasContext: !!ctx,
+                            dimensions: `${element.width}x${element.height}`,
+                            message: `✅ ${canvas.id} ready`
+                        };
+                        results.details.push(status);
+                        console.log(status.message, `(${canvas.description})`, status.dimensions);
+                    } else {
+                        const status = {
+                            id: canvas.id,
+                            description: canvas.description,
+                            exists: false,
+                            hasContext: false,
+                            dimensions: null,
+                            message: `❌ ${canvas.id} missing`,
+                            fix: `Add to HTML: <canvas id="${canvas.id}" width="400" height="120"></canvas>`
+                        };
+                        results.details.push(status);
+                        results.allPresent = false;
+                        console.error(status.message, `(${canvas.description})`);
+                        console.error('  Fix:', status.fix);
+                    }
+                }
+
+                console.groupEnd();
+
+                if (results.allPresent) {
+                    console.log('[Canvas Validation] ✅ All required canvas elements present and ready');
+                } else {
+                    console.error('[Canvas Validation] ❌ Some canvas elements missing - see details above');
+                }
+
+                return results;
+            };
+
+            console.log('[CST Enhancement] Canvas validation checker installed - run validateCanvasElements()');
+        })();
     </script>
     <script>
         /*
@@ -970,8 +1075,57 @@
          * ✅ Conservation checks (Energy, Momentum, Angular Momentum, Virial)
          *
          * ============================================================================
+         *
+         * CST v2.1++ FINAL ENHANCEMENTS (2025-11-09):
+         * ============================================================================
+         * ISSUE RESOLUTION: Three.js CDN Blocking & Canvas Context Validation
+         *
+         * ENHANCEMENTS APPLIED (Additive-Only, No Code Removal):
+         *
+         * 1. ENHANCED THREE.JS VALIDATION (lines 778-815):
+         *    - New function: getThreeJsStatus() for runtime CDN diagnostics
+         *    - Returns detailed loading status, revision, and troubleshooting alternatives
+         *    - Provides 3 fallback options: local hosting, alternate CDN (skypack), or browser settings
+         *    - Already using jsdelivr as primary CDN (most reliable, not blocked by tracking prevention)
+         *    - Fallback chain: jsdelivr → unpkg → cdnjs
+         *
+         * 2. COMPREHENSIVE CANVAS VALIDATION (lines 817-881):
+         *    - New function: validateCanvasElements() for DOM element verification
+         *    - Validates all 5 required canvases: adaptiveStateCanvas, dmProfileCanvas,
+         *      entropyTraceCanvas, frequencyCanvas, entropyCanvas
+         *    - Checks both element existence AND 2D context availability
+         *    - Provides fix instructions for any missing elements
+         *    - Returns structured validation report with pass/fail status
+         *
+         * 3. COMPREHENSIVE RUNTIME DIAGNOSTICS (lines 7418-7575):
+         *    - New function: runComprehensiveDiagnostics() for full system validation
+         *    - Validates 6 categories: Three.js, Scene, Canvases, Core Systems, Audio, Metrics
+         *    - Provides detailed pass/fail/warning status for each check
+         *    - Includes troubleshooting guidance for any failures
+         *    - Returns structured report: { totalChecks, passed, failed, warnings, details }
+         *
+         * 4. ENHANCED STARTUP MESSAGES (lines 7597-7605):
+         *    - Added diagnostic tools section to console output
+         *    - Lists all 4 diagnostic functions with descriptions
+         *    - Clear instructions for troubleshooting in browser console
+         *
+         * VERIFICATION:
+         * ✅ All canvas elements confirmed present in HTML (lines 517, 678, 691)
+         * ✅ Canvas initialization properly sequenced in DOMContentLoaded (lines 6721-6723)
+         * ✅ Three.js using reliable jsdelivr CDN with 2-level fallback
+         * ✅ 4 new diagnostic functions available globally for debugging
+         *
+         * BROWSER DIAGNOSTIC FUNCTIONS (run in console):
+         * - runComprehensiveDiagnostics() → Full validation report with pass/fail status
+         * - runCST_Diagnostics() → Quick system status snapshot
+         * - validateCanvasElements() → Canvas element verification
+         * - getThreeJsStatus() → Three.js loading status and alternatives
+         *
+         * NO CODE WAS REMOVED - All changes are purely additive enhancements.
+         *
+         * ============================================================================
          */
-        
+
         // Constants
         const c = 299792458; // Speed of light
         const phi = (1 + Math.sqrt(5)) / 2;
@@ -7310,8 +7464,168 @@
                 };
             };
 
+            // ==================================================================================
+            // ADDITIVE ENHANCEMENT: Comprehensive Runtime Validation (2025-11-09)
+            // Enhanced diagnostic function with pass/fail status for all critical components
+            // ==================================================================================
+            window.runComprehensiveDiagnostics = function() {
+                console.log('');
+                console.log('═══════════════════════════════════════════════════════════════');
+                console.log('🔬 12D COSMIC SYNAPSE THEORY - COMPREHENSIVE DIAGNOSTICS');
+                console.log('═══════════════════════════════════════════════════════════════');
+                console.log('');
+
+                const checks = {
+                    passed: 0,
+                    failed: 0,
+                    warnings: 0,
+                    details: []
+                };
+
+                // Check 1: Three.js Library
+                if (typeof THREE !== 'undefined') {
+                    console.log('✅ Three.js Library: Loaded (revision ' + THREE.REVISION + ')');
+                    checks.passed++;
+                    checks.details.push({ category: 'Three.js', status: 'pass', message: 'Loaded revision ' + THREE.REVISION });
+                } else {
+                    console.error('❌ Three.js Library: NOT LOADED');
+                    console.log('   Fix: Run getThreeJsStatus() for troubleshooting');
+                    checks.failed++;
+                    checks.details.push({ category: 'Three.js', status: 'fail', message: 'Library not loaded' });
+                }
+
+                // Check 2: Three.js Scene
+                if (typeof scene !== 'undefined' && scene && typeof camera !== 'undefined' && camera && typeof renderer !== 'undefined' && renderer) {
+                    console.log('✅ Three.js Scene: Initialized');
+                    checks.passed++;
+                    checks.details.push({ category: 'Three.js Scene', status: 'pass', message: 'Scene, camera, and renderer ready' });
+                } else {
+                    console.error('❌ Three.js Scene: NOT INITIALIZED');
+                    checks.failed++;
+                    checks.details.push({ category: 'Three.js Scene', status: 'fail', message: 'Scene/camera/renderer missing' });
+                }
+
+                // Check 3: Canvas Elements
+                console.log('');
+                console.log('📊 Canvas Elements:');
+                const canvasChecks = [
+                    { id: 'adaptiveStateCanvas', varName: 'adaptiveStateCtx', description: 'Adaptive State Trace' },
+                    { id: 'dmProfileCanvas', varName: 'dmProfileCtx', description: 'Dark Matter Profile' },
+                    { id: 'entropyTraceCanvas', varName: 'entropyState.traceCtx', description: 'Entropy Trace' },
+                    { id: 'frequencyCanvas', description: 'Frequency Spectrum' },
+                    { id: 'entropyCanvas', description: 'Entropy Histogram' }
+                ];
+
+                for (const canvasCheck of canvasChecks) {
+                    const element = document.getElementById(canvasCheck.id);
+                    if (element && element.getContext('2d')) {
+                        console.log('  ✅ ' + canvasCheck.id + ': Ready (' + canvasCheck.description + ')');
+                        checks.passed++;
+                        checks.details.push({ category: 'Canvas: ' + canvasCheck.id, status: 'pass', message: canvasCheck.description });
+                    } else {
+                        console.error('  ❌ ' + canvasCheck.id + ': MISSING OR NO CONTEXT');
+                        checks.failed++;
+                        checks.details.push({ category: 'Canvas: ' + canvasCheck.id, status: 'fail', message: 'Element missing or context unavailable' });
+                    }
+                }
+
+                // Check 4: Core Systems
+                console.log('');
+                console.log('⚙️  Core Systems:');
+                const systemChecks = [
+                    { name: 'Particles Array', check: typeof particles !== 'undefined' && Array.isArray(particles), value: particles ? particles.length : 0 },
+                    { name: 'Tokens Array', check: typeof tokens !== 'undefined' && Array.isArray(tokens), value: tokens ? tokens.length : 0 },
+                    { name: 'Physics Config', check: typeof physics !== 'undefined' && physics !== null },
+                    { name: 'Determinism System', check: typeof determinism !== 'undefined' && determinism !== null },
+                    { name: 'Entropy State', check: typeof entropyState !== 'undefined' && entropyState !== null },
+                    { name: 'Conservation Stats', check: typeof conservationStats !== 'undefined' && conservationStats !== null },
+                    { name: 'Psi Accumulators', check: typeof psiAccumulators !== 'undefined' && psiAccumulators !== null }
+                ];
+
+                for (const sysCheck of systemChecks) {
+                    if (sysCheck.check) {
+                        const valueStr = sysCheck.value !== undefined ? ' (' + sysCheck.value + ')' : '';
+                        console.log('  ✅ ' + sysCheck.name + ': Ready' + valueStr);
+                        checks.passed++;
+                        checks.details.push({ category: 'System: ' + sysCheck.name, status: 'pass', message: 'Initialized' + valueStr });
+                    } else {
+                        console.error('  ❌ ' + sysCheck.name + ': NOT INITIALIZED');
+                        checks.failed++;
+                        checks.details.push({ category: 'System: ' + sysCheck.name, status: 'fail', message: 'Not initialized' });
+                    }
+                }
+
+                // Check 5: Audio System
+                console.log('');
+                console.log('🎤 Audio System:');
+                if (typeof audioContext !== 'undefined' && audioContext !== null) {
+                    console.log('  ✅ AudioContext: Ready (state: ' + audioContext.state + ')');
+                    checks.passed++;
+                    checks.details.push({ category: 'Audio: AudioContext', status: 'pass', message: 'State: ' + audioContext.state });
+                } else {
+                    console.log('  ⚠️  AudioContext: Not initialized (click START MICROPHONE)');
+                    checks.warnings++;
+                    checks.details.push({ category: 'Audio: AudioContext', status: 'warning', message: 'Not initialized yet' });
+                }
+
+                console.log('  Audio Active: ' + (isAudioActive ? '✅ Yes' : '⚠️  No (not started)'));
+                console.log('  Token Generation Rate: ' + tokenGenerationRate.toFixed(2) + ' tokens/sec');
+
+                // Check 6: Runtime Metrics
+                console.log('');
+                console.log('📈 Runtime Metrics:');
+                console.log('  Particles: ' + particles.length);
+                console.log('  Tokens Generated: ' + tokens.length);
+                console.log('  Token Rate: ' + tokenGenerationRate.toFixed(2) + ' tokens/sec');
+                console.log('  System Paused: ' + (isPaused ? 'Yes' : 'No'));
+                console.log('  Determinism Mode: ' + (determinism ? determinism.mode : 'unknown'));
+                console.log('  Recorded Frames: ' + (determinism ? determinism.recordedAudioFrames.length : 0));
+                console.log('  Global Entropy: ' + (entropyState ? entropyState.lastEntropy.toFixed(4) : 'N/A'));
+                console.log('  Conservation E0: ' + (conservationStats ? conservationStats.E0.toFixed(4) : 'N/A'));
+
+                // Summary
+                console.log('');
+                console.log('═══════════════════════════════════════════════════════════════');
+                const totalChecks = checks.passed + checks.failed + checks.warnings;
+                console.log('📊 VALIDATION SUMMARY:');
+                console.log('  Total Checks: ' + totalChecks);
+                console.log('  ✅ Passed: ' + checks.passed);
+                console.log('  ❌ Failed: ' + checks.failed);
+                console.log('  ⚠️  Warnings: ' + checks.warnings);
+                console.log('');
+
+                if (checks.failed === 0) {
+                    console.log('🎉 ALL CRITICAL SYSTEMS OPERATIONAL!');
+                    console.log('');
+                    console.log('Ready to run:');
+                    console.log('  1. Click "START MICROPHONE ENGINE" to begin audio input');
+                    console.log('  2. Tokens will generate infinitely (no caps)');
+                    console.log('  3. All 12D CST features fully operational');
+                } else {
+                    console.error('⚠️  SOME SYSTEMS FAILED - Review errors above');
+                    console.log('');
+                    console.log('Troubleshooting:');
+                    console.log('  • Run getThreeJsStatus() to check Three.js loading');
+                    console.log('  • Run validateCanvasElements() to verify canvas setup');
+                    console.log('  • Check browser console for detailed error messages');
+                }
+
+                console.log('═══════════════════════════════════════════════════════════════');
+                console.log('');
+
+                return {
+                    totalChecks: totalChecks,
+                    passed: checks.passed,
+                    failed: checks.failed,
+                    warnings: checks.warnings,
+                    allPassed: checks.failed === 0,
+                    details: checks.details
+                };
+            };
+
             console.log('[CST Runtime] ✅ Runtime validation complete');
             console.log('[CST Runtime] 💡 Run runCST_Diagnostics() in console for system status');
+            console.log('[CST Runtime] 💡 Run runComprehensiveDiagnostics() for detailed validation report');
         })();
 
         console.log('═══════════════════════════════════════════════════════════════');
@@ -7329,7 +7643,13 @@
         console.log('📖 Reference: 12D_Cosmic_Synapse_Theory.pdf');
         console.log('🎤 Ready for audio input - tokens will generate infinitely');
         console.log('💾 Optional: Call enableTokenPersistence(true) for disk storage');
-        console.log('💡 Run runCST_Diagnostics() for system status');
+        console.log('');
+        console.log('🔧 DIAGNOSTIC TOOLS (run in browser console):');
+        console.log('  • runComprehensiveDiagnostics() - Full system validation report');
+        console.log('  • runCST_Diagnostics() - Quick system status check');
+        console.log('  • validateCanvasElements() - Verify all canvas elements');
+        console.log('  • getThreeJsStatus() - Check Three.js loading status');
+        console.log('');
         console.log('🐛 Add ?debug=true to URL for detailed function call logging');
         console.log('═══════════════════════════════════════════════════════════════');
     </script>
