@@ -765,12 +765,12 @@
         // Added: Validate Three.js loaded before proceeding
         window.addEventListener('DOMContentLoaded', function() {
             if (typeof THREE === 'undefined') {
-                console.error('[CST Runtime] ❌ Three.js failed to load from primary CDN');
+                if (CST_DEBUG_MODE) console.error('[CST Runtime] ❌ Three.js failed to load from primary CDN');
                 // Try loading from unpkg as final fallback
                 const script = document.createElement('script');
                 script.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
                 script.onerror = function() {
-                    console.error('[CST Runtime] ❌ All Three.js CDN sources failed');
+                    if (CST_DEBUG_MODE) console.error('[CST Runtime] ❌ All Three.js CDN sources failed');
                     alert('Failed to load Three.js library. The 3D visualization will not work.');
                 };
                 document.head.appendChild(script);
@@ -865,8 +865,8 @@
                         };
                         results.details.push(status);
                         results.allPresent = false;
-                        console.error(status.message, `(${canvas.description})`);
-                        console.error('  Fix:', status.fix);
+                        if (CST_DEBUG_MODE) console.error(status.message, `(${canvas.description})`);
+                        if (CST_DEBUG_MODE) console.error('  Fix:', status.fix);
                     }
                 }
 
@@ -875,7 +875,7 @@
                 if (results.allPresent) {
                     console.log('[Canvas Validation] ✅ All required canvas elements present and ready');
                 } else {
-                    console.error('[Canvas Validation] ❌ Some canvas elements missing - see details above');
+                    if (CST_DEBUG_MODE) console.error('[Canvas Validation] ❌ Some canvas elements missing - see details above');
                 }
 
                 return results;
@@ -2347,8 +2347,8 @@
                     console.log('[CST Runtime]   - Renderer:', renderer.domElement.tagName);
                 }
             } else {
-                console.error('[CST Runtime] ❌ Three.js scene initialization incomplete');
-                console.error('[CST Runtime]   - scene:', !!scene, '- camera:', !!camera, '- renderer:', !!renderer);
+                if (CST_DEBUG_MODE) console.error('[CST Runtime] ❌ Three.js scene initialization incomplete');
+                if (CST_DEBUG_MODE) console.error('[CST Runtime]   - scene:', !!scene, '- camera:', !!camera, '- renderer:', !!renderer);
             }
         }
 
@@ -3061,7 +3061,7 @@
                     restartAudioProcessingLoop();
                     startTokenBufferFlush();
                 } catch (err) {
-                    console.error('Microphone access error:', err);
+                    if (CST_DEBUG_MODE) console.error('Microphone access error:', err);
                     updateStatus('❌ Microphone access denied. Please grant permission and try again.');
                     alert('Could not access microphone. Please grant permission.');
                     stopAudio();
@@ -5525,7 +5525,7 @@
                   return window.__cst_detRandomState / 0x7fffffff;
                 }
               } catch (e) {
-                console.warn('CST getRandom patch error', e);
+                if (CST_DEBUG_MODE) console.warn('CST getRandom patch error', e);
               }
               return orig_getRandom ? orig_getRandom() : Math.random();
             };
@@ -5552,7 +5552,7 @@
                   });
                 }
               } catch (e) {
-                console.warn('CST generateUUID patch error', e);
+                if (CST_DEBUG_MODE) console.warn('CST generateUUID patch error', e);
               }
               return orig_generateUUID ? orig_generateUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
                 const r = Math.random() * 16 | 0;
@@ -5573,7 +5573,7 @@
                   return `replay-${determinism.seed || 0}-${window.deterministicIdCounter}`;
                 }
               } catch (e) {
-                console.warn('CST nextDeterministicId patch error', e);
+                if (CST_DEBUG_MODE) console.warn('CST nextDeterministicId patch error', e);
               }
               return orig_nextDeterministicId ? orig_nextDeterministicId() : (generateUUID ? generateUUID() : 'id-' + Date.now());
             };
@@ -5597,7 +5597,7 @@
                 const m = (typeof this.mass === 'number' && isFinite(this.mass) && this.mass > 0) ? this.mass : 1;
                 this.energy = 0.5 * m * velocityMagnitude * velocityMagnitude;
               } catch (e) {
-                console.warn('CST LorenzParticle.update energy patch failed', e);
+                if (CST_DEBUG_MODE) console.warn('CST LorenzParticle.update energy patch failed', e);
               }
               return ret;
             };
@@ -5611,7 +5611,7 @@
               try {
                 return orig_computeAdaptiveDt.call(this, particlesArg, physicsArg, timestepConfig);
               } catch (e) {
-                console.warn('CST computeAdaptiveDt fallback', e);
+                if (CST_DEBUG_MODE) console.warn('CST computeAdaptiveDt fallback', e);
                 return (timestepConfig && typeof timestepConfig.dtMax === 'number') ? Math.max(0.001, Math.min(0.01, timestepConfig.dtMax)) : 0.005;
               }
             };
@@ -5625,13 +5625,13 @@
                 try {
                   if (audioProcessingInterval) { clearInterval(audioProcessingInterval); audioProcessingInterval = null; }
                   if (isAudioActive && typeof processAudio === 'function') {
-                    try { processAudio(); } catch (e) { console.error('processAudio immediate call error', e); }
+                    try { processAudio(); } catch (e) { if (CST_DEBUG_MODE) console.error('processAudio immediate call error', e); }
                     audioProcessingInterval = setInterval(() => {
-                      try { processAudio(); } catch (e) { console.error('processAudio interval error', e); }
+                      try { processAudio(); } catch (e) { if (CST_DEBUG_MODE) console.error('processAudio interval error', e); }
                     }, Math.max(1, audioConfig.cadence || 100));
                   }
                 } catch (e) {
-                  console.error('CST restartAudioProcessingLoop error', e);
+                  if (CST_DEBUG_MODE) console.error('CST restartAudioProcessingLoop error', e);
                 }
               };
             })(restartAudioProcessingLoop);
@@ -5645,13 +5645,13 @@
                 try {
                   if (determinism.replayInterval) { clearInterval(determinism.replayInterval); determinism.replayInterval = null; }
                   if (determinism.mode === 'replay' && Array.isArray(determinism.recordedAudioFrames) && determinism.recordedAudioFrames.length > 0) {
-                    try { processReplayAudio(); } catch (e) { console.error('processReplayAudio immediate call error', e); }
+                    try { processReplayAudio(); } catch (e) { if (CST_DEBUG_MODE) console.error('processReplayAudio immediate call error', e); }
                     determinism.replayInterval = setInterval(() => {
-                      try { processReplayAudio(); } catch (e) { console.error('processReplayAudio interval error', e); }
+                      try { processReplayAudio(); } catch (e) { if (CST_DEBUG_MODE) console.error('processReplayAudio interval error', e); }
                     }, Math.max(1, audioConfig.cadence || 100));
                   }
                 } catch (e) {
-                  console.error('CST restartReplayLoop error', e);
+                  if (CST_DEBUG_MODE) console.error('CST restartReplayLoop error', e);
                 }
               };
             })(restartReplayLoop);
@@ -5681,7 +5681,7 @@
                 }
                 // Safe UI update
                 if (typeof updateTokenDisplay === 'function') {
-                  try { updateTokenDisplay(); } catch (e) { console.error('updateTokenDisplay error', e); }
+                  try { updateTokenDisplay(); } catch (e) { if (CST_DEBUG_MODE) console.error('updateTokenDisplay error', e); }
                 }
                 const countEl = document.getElementById('token-count');
                 const countStatusEl = document.getElementById('token-count-status');
@@ -5690,7 +5690,7 @@
                 if (countStatusEl) countStatusEl.textContent = tokens.length;
                 if (replEl) replEl.textContent = replicationCount;
               } catch (e) {
-                console.error('CST flushTokenBuffer error', e);
+                if (CST_DEBUG_MODE) console.error('CST flushTokenBuffer error', e);
               } finally {
                 // Always clear buffer to avoid reprocessing stale entries
                 if (tokenBuffer) tokenBuffer.tokens = [];
@@ -5706,14 +5706,14 @@
                 try {
                   if (tokenBuffer.flushInterval) clearInterval(tokenBuffer.flushInterval);
                   tokenBuffer.flushInterval = setInterval(() => {
-                    try { flushTokenBuffer(); } catch (e) { console.error('flushTokenBuffer interval error', e); }
+                    try { flushTokenBuffer(); } catch (e) { if (CST_DEBUG_MODE) console.error('flushTokenBuffer interval error', e); }
                   }, tokenBuffer.flushRate || 50);
                   if (tokenRateUpdateInterval) clearInterval(tokenRateUpdateInterval);
                   tokenRateUpdateInterval = setInterval(() => {
-                    try { updateTokenRate(); } catch (e) { console.error('updateTokenRate error', e); }
+                    try { updateTokenRate(); } catch (e) { if (CST_DEBUG_MODE) console.error('updateTokenRate error', e); }
                   }, 500);
                 } catch (e) {
-                  console.error('CST startTokenBufferFlush error', e);
+                  if (CST_DEBUG_MODE) console.error('CST startTokenBufferFlush error', e);
                 }
               };
             })(startTokenBufferFlush);
@@ -5727,9 +5727,9 @@
                   if (tokenBuffer.flushInterval) { clearInterval(tokenBuffer.flushInterval); tokenBuffer.flushInterval = null; }
                   if (tokenRateUpdateInterval) { clearInterval(tokenRateUpdateInterval); tokenRateUpdateInterval = null; }
                   // flush one final time safely
-                  try { flushTokenBuffer(); } catch (e) { console.error('final flushTokenBuffer error', e); }
+                  try { flushTokenBuffer(); } catch (e) { if (CST_DEBUG_MODE) console.error('final flushTokenBuffer error', e); }
                 } catch (e) {
-                  console.error('CST stopTokenBufferFlush error', e);
+                  if (CST_DEBUG_MODE) console.error('CST stopTokenBufferFlush error', e);
                 }
               };
             })(stopTokenBufferFlush);
@@ -5743,14 +5743,14 @@
               try {
                 if (typeof orig_setDeterministicSeed === 'function') orig_setDeterministicSeed(seed);
               } catch (e) {
-                console.warn('orig setDeterministicSeed error', e);
+                if (CST_DEBUG_MODE) console.warn('orig setDeterministicSeed error', e);
               }
               try {
                 __cst_resetDeterministicRandomState(seed);
                 window.deterministicIdCounter = 0;
                 window.deterministicRandom = seed;
               } catch (e) {
-                console.warn('CST setDeterministicSeed patch error', e);
+                if (CST_DEBUG_MODE) console.warn('CST setDeterministicSeed patch error', e);
               }
             };
             setDeterministicSeed.__cstPatched = true;
@@ -5764,7 +5764,7 @@
                 window.deterministicIdCounter = 0;
                 window.deterministicRandom = determinism.seed || projectionConfig.randomSeed || 12345;
               } catch (e) {
-                console.warn('CST startReplayProcessing init error', e);
+                if (CST_DEBUG_MODE) console.warn('CST startReplayProcessing init error', e);
               }
               return typeof orig_startReplayProcessing === 'function' ? orig_startReplayProcessing() : void 0;
             };
@@ -5776,7 +5776,7 @@
             try {
               if (!tokenBuffer.flushInterval) startTokenBufferFlush();
             } catch (e) {
-              console.warn('CST DOMContentLoaded startTokenBufferFlush error', e);
+              if (CST_DEBUG_MODE) console.warn('CST DOMContentLoaded startTokenBufferFlush error', e);
             }
           });
 
@@ -5794,7 +5794,7 @@
               if (typeof stopTokenBufferFlush === 'function') try { stopTokenBufferFlush(); } catch (e) { /* ignore */ }
               if (typeof stopReplayProcessing === 'function') try { stopReplayProcessing(); } catch (e) { /* ignore */ }
             } catch (e) {
-              console.warn('CST beforeunload cleanup error', e);
+              if (CST_DEBUG_MODE) console.warn('CST beforeunload cleanup error', e);
             }
           });
 
@@ -5823,7 +5823,7 @@
                 }
               }
             } catch (e) {
-              console.warn('[CST] Integrator init failed for particle', p.id, e);
+              if (CST_DEBUG_MODE) console.warn('[CST] Integrator init failed for particle', p.id, e);
             }
           }
 
@@ -5834,7 +5834,7 @@
               if (CST_DEBUG_MODE) console.log('[CST] Initialized integrators for', particles.length, 'existing particles');
             }
           } catch (e) {
-            console.warn('[CST] Existing particle integrator init error', e);
+            if (CST_DEBUG_MODE) console.warn('[CST] Existing particle integrator init error', e);
           }
 
           // Additive: Patch LorenzParticle.update11DProjection to init integrators for new particles
@@ -5851,7 +5851,7 @@
               }
             }
           } catch (e) {
-            console.warn('[CST] LorenzParticle integrator patch error', e);
+            if (CST_DEBUG_MODE) console.warn('[CST] LorenzParticle integrator patch error', e);
           }
 
           // Additive: Robust updatePsiNormalized wrapper with safe x12Previous handling
@@ -5884,7 +5884,7 @@
                   // Call original
                   return orig_updatePsiNormalized(particles, refs, accum);
                 } catch (e) {
-                  console.warn('[CST] updatePsiNormalized wrapper error', e);
+                  if (CST_DEBUG_MODE) console.warn('[CST] updatePsiNormalized wrapper error', e);
                   return orig_updatePsiNormalized(particles, refs, accum);
                 }
               };
@@ -5892,7 +5892,7 @@
               if (CST_DEBUG_MODE) console.log('[CST] Patched updatePsiNormalized for robust x12 accumulation');
             }
           } catch (e) {
-            console.warn('[CST] updatePsiNormalized patch error', e);
+            if (CST_DEBUG_MODE) console.warn('[CST] updatePsiNormalized patch error', e);
           }
 
           // Additive: DPR-aware canvas initialization for entropy trace
@@ -5930,13 +5930,13 @@
 
                   if (CST_DEBUG_MODE) console.log('[CST] Applied DPR-aware canvas sizing (dpr=' + dpr + ')');
                 } catch (e) {
-                  console.warn('[CST] initEntropyCanvas DPR patch error', e);
+                  if (CST_DEBUG_MODE) console.warn('[CST] initEntropyCanvas DPR patch error', e);
                 }
               };
               window.initEntropyCanvas.__cstDPRPatched = true;
             }
           } catch (e) {
-            console.warn('[CST] initEntropyCanvas DPR patch error', e);
+            if (CST_DEBUG_MODE) console.warn('[CST] initEntropyCanvas DPR patch error', e);
           }
 
           // Additive: Resilient resize handler for entropy canvases
@@ -5970,11 +5970,11 @@
                   }
                 }
               } catch (e) {
-                console.warn('[CST] Entropy canvas resize error', e);
+                if (CST_DEBUG_MODE) console.warn('[CST] Entropy canvas resize error', e);
               }
             });
           } catch (e) {
-            console.warn('[CST] Resize listener error', e);
+            if (CST_DEBUG_MODE) console.warn('[CST] Resize listener error', e);
           }
 
           // Additive: Robust drawEntropyTrace with CSS width buffer limit
@@ -6022,7 +6022,7 @@
                   // Store last entropy for resize redraw
                   if (typeof entropyState !== 'undefined') entropyState.lastEntropy = entropyValue;
                 } catch (e) {
-                  console.warn('[CST] drawEntropyTrace error', e);
+                  if (CST_DEBUG_MODE) console.warn('[CST] drawEntropyTrace error', e);
                   // Fallback to original
                   if (typeof orig_drawEntropyTrace === 'function') orig_drawEntropyTrace(entropyValue);
                 }
@@ -6031,7 +6031,7 @@
               if (CST_DEBUG_MODE) console.log('[CST] Patched drawEntropyTrace for CSS width buffer');
             }
           } catch (e) {
-            console.warn('[CST] drawEntropyTrace patch error', e);
+            if (CST_DEBUG_MODE) console.warn('[CST] drawEntropyTrace patch error', e);
           }
 
           // Additive: Patch updateLorenzParticles to call updatePsiBreakdown after particle updates
@@ -6050,7 +6050,7 @@
 
                   return result;
                 } catch (e) {
-                  console.warn('[CST] updateLorenzParticles wrapper error', e);
+                  if (CST_DEBUG_MODE) console.warn('[CST] updateLorenzParticles wrapper error', e);
                   return orig_updateLorenzParticles.apply(this, args);
                 }
               };
@@ -6058,7 +6058,7 @@
               if (CST_DEBUG_MODE) console.log('[CST] Patched updateLorenzParticles to call updatePsiBreakdown');
             }
           } catch (e) {
-            console.warn('[CST] updateLorenzParticles patch error', e);
+            if (CST_DEBUG_MODE) console.warn('[CST] updateLorenzParticles patch error', e);
           }
 
           // Additive: Deterministic RNG state (local, non-mutating)
@@ -6087,14 +6087,14 @@
                   }
                   return orig_getRandom();
                 } catch (e) {
-                  console.warn('[CST] getRandom wrapper error', e);
+                  if (CST_DEBUG_MODE) console.warn('[CST] getRandom wrapper error', e);
                   return Math.random();
                 }
               };
               window.getRandom.__cstDetPatched = true;
             }
           } catch (e) {
-            console.warn('[CST] getRandom patch error', e);
+            if (CST_DEBUG_MODE) console.warn('[CST] getRandom patch error', e);
           }
 
           // Additive: Safe generateUUID wrapper (uses local state in replay mode)
@@ -6113,14 +6113,14 @@
                   }
                   return orig_generateUUID();
                 } catch (e) {
-                  console.warn('[CST] generateUUID wrapper error', e);
+                  if (CST_DEBUG_MODE) console.warn('[CST] generateUUID wrapper error', e);
                   return orig_generateUUID();
                 }
               };
               window.generateUUID.__cstDetPatched = true;
             }
           } catch (e) {
-            console.warn('[CST] generateUUID patch error', e);
+            if (CST_DEBUG_MODE) console.warn('[CST] generateUUID patch error', e);
           }
 
           // Additive: Patch setDeterministicSeed to reset local state
@@ -6137,7 +6137,7 @@
               window.setDeterministicSeed.__cstLocalStatePatched = true;
             }
           } catch (e) {
-            console.warn('[CST] setDeterministicSeed patch error', e);
+            if (CST_DEBUG_MODE) console.warn('[CST] setDeterministicSeed patch error', e);
           }
 
           // Additive: Patch startReplayProcessing to reset local state
@@ -6154,7 +6154,7 @@
               window.startReplayProcessing.__cstLocalStatePatched = true;
             }
           } catch (e) {
-            console.warn('[CST] startReplayProcessing patch error', e);
+            if (CST_DEBUG_MODE) console.warn('[CST] startReplayProcessing patch error', e);
           }
 
           // Additive: Harden flushTokenBuffer with caps
@@ -6181,7 +6181,7 @@
                   }
                   return result;
                 } catch (e) {
-                  console.warn('[CST] flushTokenBuffer error', e);
+                  if (CST_DEBUG_MODE) console.warn('[CST] flushTokenBuffer error', e);
                   return orig_flushTokenBuffer();
                 } finally {
                   // Always clear pending buffer
@@ -6193,7 +6193,7 @@
               window.flushTokenBuffer.__cstCappedPatched = true;
             }
           } catch (e) {
-            console.warn('[CST] flushTokenBuffer patch error', e);
+            if (CST_DEBUG_MODE) console.warn('[CST] flushTokenBuffer patch error', e);
           }
 
           // Additive: Ensure token buffer flush starts on DOMContentLoaded
@@ -6204,7 +6204,7 @@
                 console.log('[CST] Started token buffer flush on DOMContentLoaded');
               }
             } catch (e) {
-              console.warn('[CST] Token buffer flush start error', e);
+              if (CST_DEBUG_MODE) console.warn('[CST] Token buffer flush start error', e);
             }
           });
 
@@ -6222,7 +6222,7 @@
               console.table(data);
               return data;
             } catch (e) {
-              console.warn('[CST] dumpX12Integrals error', e);
+              if (CST_DEBUG_MODE) console.warn('[CST] dumpX12Integrals error', e);
               return [];
             }
           };
@@ -6334,7 +6334,7 @@
               ctx.fillText('m₁₂', 35, 15);
 
             } catch (e) {
-              console.warn('[CST Theory] drawAdaptiveStateTrace error', e);
+              if (CST_DEBUG_MODE) console.warn('[CST Theory] drawAdaptiveStateTrace error', e);
             }
           }
 
@@ -6439,7 +6439,7 @@
                 virialRatio: virialRatio
               };
             } catch (e) {
-              console.warn('[CST Theory] Conservation diagnostics error', e);
+              if (CST_DEBUG_MODE) console.warn('[CST Theory] Conservation diagnostics error', e);
               return { energy: 0, energyError: 0, momentumMag: 0, angularMomentumMag: 0, virialRatio: 0 };
             }
           }
@@ -6477,7 +6477,7 @@
 
               conservationState.lastUpdate = Date.now();
             } catch (e) {
-              console.warn('[CST Theory] Conservation display update error', e);
+              if (CST_DEBUG_MODE) console.warn('[CST Theory] Conservation display update error', e);
             }
           }
 
@@ -6504,7 +6504,7 @@
 
               return baseThreshold * entropyFactor;
             } catch (e) {
-              console.warn('[CST Theory] Entropy modulation error', e);
+              if (CST_DEBUG_MODE) console.warn('[CST Theory] Entropy modulation error', e);
               return 1.0;
             }
           }
@@ -6569,7 +6569,7 @@
                 overallPass
               };
             } catch (e) {
-              console.warn('[CST Theory] Replay validation error', e);
+              if (CST_DEBUG_MODE) console.warn('[CST Theory] Replay validation error', e);
               return { overallPass: false };
             }
           }
@@ -6609,7 +6609,7 @@
                 overallPassEl.style.color = validation.overallPass ? '#00ff00' : '#ff4444';
               }
             } catch (e) {
-              console.warn('[CST Theory] Replay validation display error', e);
+              if (CST_DEBUG_MODE) console.warn('[CST Theory] Replay validation display error', e);
             }
           }
 
@@ -6675,7 +6675,7 @@
                 tokenRateState.lastResetTime = now;
               }
             } catch (e) {
-              console.warn('[CST Theory] Token rate update error', e);
+              if (CST_DEBUG_MODE) console.warn('[CST Theory] Token rate update error', e);
             }
           }
 
@@ -6692,7 +6692,7 @@
           window.__cst_exportTokensCompact = function() {
             try {
               if (typeof tokenBuffer === 'undefined' || !tokenBuffer.tokens) {
-                console.warn('No tokens available');
+                if (CST_DEBUG_MODE) console.warn('No tokens available');
                 return null;
               }
 
@@ -6709,7 +6709,7 @@
               console.log('[CST Theory] Compact token export (' + compact.length + ' tokens)');
               return json;
             } catch (e) {
-              console.warn('[CST Theory] Token export error', e);
+              if (CST_DEBUG_MODE) console.warn('[CST Theory] Token export error', e);
               return null;
             }
           };
@@ -6718,7 +6718,7 @@
           window.__cst_exportTokensFull = function() {
             try {
               if (typeof tokenBuffer === 'undefined' || !tokenBuffer.tokens) {
-                console.warn('No tokens available');
+                if (CST_DEBUG_MODE) console.warn('No tokens available');
                 return null;
               }
 
@@ -6726,7 +6726,7 @@
               console.log('[CST Theory] Full token export (' + tokenBuffer.tokens.length + ' tokens)');
               return json;
             } catch (e) {
-              console.warn('[CST Theory] Token export error', e);
+              if (CST_DEBUG_MODE) console.warn('[CST Theory] Token export error', e);
               return null;
             }
           };
@@ -6758,7 +6758,7 @@
               console.log('[CST Theory] System state exported (' + particles.length + ' particles)');
               return json;
             } catch (e) {
-              console.warn('[CST Theory] System state export error', e);
+              if (CST_DEBUG_MODE) console.warn('[CST Theory] System state export error', e);
               return null;
             }
           };
@@ -6777,7 +6777,7 @@
               URL.revokeObjectURL(url);
               console.log('[CST Theory] Downloaded', filename);
             } catch (e) {
-              console.warn('[CST Theory] Download error', e);
+              if (CST_DEBUG_MODE) console.warn('[CST Theory] Download error', e);
             }
           };
 
@@ -6812,15 +6812,15 @@
               });
 
               if (errors.length > 0) {
-                console.warn('[CST Validate] Found', errors.length, 'errors:');
-                errors.forEach(e => console.warn('  -', e));
+                if (CST_DEBUG_MODE) console.warn('[CST Validate] Found', errors.length, 'errors:');
+                if (CST_DEBUG_MODE) errors.forEach(e => console.warn('  -', e));
                 return false;
               }
 
               console.log('[CST Validate] All', particles.length, 'particles valid');
               return true;
             } catch (e) {
-              console.warn('[CST Validate] Validation error', e);
+              if (CST_DEBUG_MODE) console.warn('[CST Validate] Validation error', e);
               return false;
             }
           };
@@ -6841,7 +6841,7 @@
               console.log('Particle States Valid:', __cst_validateParticleStates());
               console.log('==========================================');
             } catch (e) {
-              console.warn('[CST Theory] Diagnostics dump error', e);
+              if (CST_DEBUG_MODE) console.warn('[CST Theory] Diagnostics dump error', e);
             }
           };
 
@@ -6862,7 +6862,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             // Added: Check if Three.js is loaded before initializing scene
             if (typeof THREE === 'undefined') {
-                console.error('[CST Runtime] ❌ THREE is not defined - waiting for library to load');
+                if (CST_DEBUG_MODE) console.error('[CST Runtime] ❌ THREE is not defined - waiting for library to load');
                 // Retry initialization after a delay
                 setTimeout(() => {
                     if (typeof THREE !== 'undefined') {
@@ -6870,7 +6870,7 @@
                         initThree();
                         animate(); // Start animation loop
                     } else {
-                        console.error('[CST Runtime] ❌ THREE still not available - 3D visualization disabled');
+                        if (CST_DEBUG_MODE) console.error('[CST Runtime] ❌ THREE still not available - 3D visualization disabled');
                         updateStatus('⚠️ System ready (3D visualization unavailable) - Click START MICROPHONE');
                     }
                 }, 1000);
@@ -6896,7 +6896,7 @@
                 if (ctx) {
                     console.log(`[CST Runtime] ✅ ${name} canvas context ready`);
                 } else {
-                    console.warn(`[CST Runtime] ⚠️  ${name} canvas context not available`);
+                    if (CST_DEBUG_MODE) console.warn(`[CST Runtime] ⚠️  ${name} canvas context not available`);
                 }
             }
 
@@ -6937,7 +6937,7 @@
                             try {
                                 updateTokenDisplay();
                             } catch (e) {
-                                console.error('[CST] updateTokenDisplay error', e);
+                                if (CST_DEBUG_MODE) console.error('[CST] updateTokenDisplay error', e);
                             }
                         }
 
@@ -6951,7 +6951,7 @@
                         if (replEl) replEl.textContent = replicationCount;
 
                     } catch (e) {
-                        console.error('[CST] flushTokenBuffer infinite-cap error', e);
+                        if (CST_DEBUG_MODE) console.error('[CST] flushTokenBuffer infinite-cap error', e);
                     } finally {
                         // Always clear buffer to avoid reprocessing stale entries
                         if (tokenBuffer) tokenBuffer.tokens = [];
@@ -6996,7 +6996,7 @@
                 };
 
                 req.onerror = (e) => {
-                    console.warn('[CST DB] IndexedDB init error', e);
+                    if (CST_DEBUG_MODE) console.warn('[CST DB] IndexedDB init error', e);
                 };
             }
 
@@ -7016,10 +7016,10 @@
                     };
 
                     tx.onerror = (e) => {
-                        console.warn('[CST DB] Token write error', e);
+                        if (CST_DEBUG_MODE) console.warn('[CST DB] Token write error', e);
                     };
                 } catch (e) {
-                    console.warn('[CST DB] Persist error', e);
+                    if (CST_DEBUG_MODE) console.warn('[CST DB] Persist error', e);
                 }
             }
 
@@ -7115,7 +7115,7 @@
             for (const [id, name] of Object.entries(requiredElements)) {
                 const el = document.getElementById(id);
                 if (!el) {
-                    console.warn(`[CST Validation] ⚠️  Missing element: ${name} (${id})`);
+                    if (CST_DEBUG_MODE) console.warn(`[CST Validation] ⚠️  Missing element: ${name} (${id})`);
                     allValid = false;
                 } else {
                     if (CST_DEBUG_MODE) console.log(`[CST Validation] ✅ ${name}`);
@@ -7126,14 +7126,14 @@
             for (const [id, name] of Object.entries(requiredCanvases)) {
                 const canvas = document.getElementById(id);
                 if (!canvas) {
-                    console.warn(`[CST Validation] ⚠️  Missing canvas: ${name} (${id})`);
+                    if (CST_DEBUG_MODE) console.warn(`[CST Validation] ⚠️  Missing canvas: ${name} (${id})`);
                     allValid = false;
                 } else {
                     const ctx = canvas.getContext('2d');
                     if (ctx) {
                         if (CST_DEBUG_MODE) console.log(`[CST Validation] ✅ ${name} (rendering context ready)`);
                     } else {
-                        console.warn(`[CST Validation] ⚠️  Canvas context unavailable: ${name}`);
+                        if (CST_DEBUG_MODE) console.warn(`[CST Validation] ⚠️  Canvas context unavailable: ${name}`);
                     }
                 }
             }
@@ -7141,7 +7141,7 @@
             if (allValid) {
                 if (CST_DEBUG_MODE) console.log('[CST Validation] ✅ All required UI elements present and ready');
             } else {
-                console.warn('[CST Validation] ⚠️  Some UI elements missing - check console warnings');
+                if (CST_DEBUG_MODE) console.warn('[CST Validation] ⚠️  Some UI elements missing - check console warnings');
             }
 
             // Validate update functions exist
@@ -7159,7 +7159,7 @@
                 if (typeof window[funcName] === 'function') {
                     if (CST_DEBUG_MODE) console.log(`[CST Validation] ✅ Function ready: ${funcName}`);
                 } else {
-                    console.warn(`[CST Validation] ⚠️  Missing function: ${funcName}`);
+                    if (CST_DEBUG_MODE) console.warn(`[CST Validation] ⚠️  Missing function: ${funcName}`);
                 }
             }
         })();
@@ -7323,7 +7323,7 @@
                 if (typeof func === 'function') {
                     console.log(`[CST Runtime] ✅ ${name}() is callable`);
                 } else {
-                    console.error(`[CST Runtime] ❌ ${name}() is NOT a function!`);
+                    if (CST_DEBUG_MODE) console.error(`[CST Runtime] ❌ ${name}() is NOT a function!`);
                     allFunctionsValid = false;
                 }
             }
@@ -7346,14 +7346,14 @@
                 if (typeof func === 'function') {
                     console.log(`[CST Runtime] ✅ ${name}() exists`);
                 } else {
-                    console.error(`[CST Runtime] ❌ ${name}() does NOT exist!`);
+                    if (CST_DEBUG_MODE) console.error(`[CST Runtime] ❌ ${name}() does NOT exist!`);
                     allFunctionsValid = false;
                 }
             }
 
             // Add global error handler for better debugging
             window.addEventListener('error', (event) => {
-                console.error('[CST Runtime Error]', {
+                if (CST_DEBUG_MODE) console.error('[CST Runtime Error]', {
                     message: event.message,
                     filename: event.filename,
                     lineno: event.lineno,
@@ -7364,7 +7364,7 @@
 
             // Add unhandled promise rejection handler
             window.addEventListener('unhandledrejection', (event) => {
-                console.error('[CST Unhandled Promise Rejection]', {
+                if (CST_DEBUG_MODE) console.error('[CST Unhandled Promise Rejection]', {
                     reason: event.reason,
                     promise: event.promise
                 });
@@ -7379,7 +7379,7 @@
                         console.log(`[CST Call] ${funcName}() completed successfully`);
                         return result;
                     } catch (error) {
-                        console.error(`[CST Call] ${funcName}() FAILED:`, error);
+                        if (CST_DEBUG_MODE) console.error(`[CST Call] ${funcName}() FAILED:`, error);
                         throw error;
                     }
                 };
@@ -7410,7 +7410,7 @@
                 if (typeof obj === expectedType) {
                     if (CST_DEBUG_MODE) console.log(`[CST Runtime] ✅ ${name} initialized correctly`);
                 } else {
-                    console.error(`[CST Runtime] ❌ ${name} is ${typeof obj}, expected ${expectedType}`);
+                    if (CST_DEBUG_MODE) console.error(`[CST Runtime] ❌ ${name} is ${typeof obj}, expected ${expectedType}`);
                     allFunctionsValid = false;
                 }
             }
@@ -7419,7 +7419,7 @@
             if (scene && camera && renderer) {
                 if (CST_DEBUG_MODE) console.log('[CST Runtime] ✅ Three.js scene initialized');
             } else {
-                console.error('[CST Runtime] ❌ Three.js scene not properly initialized');
+                if (CST_DEBUG_MODE) console.error('[CST Runtime] ❌ Three.js scene not properly initialized');
                 allFunctionsValid = false;
             }
 
@@ -7430,7 +7430,7 @@
             if (allFunctionsValid) {
                 if (CST_DEBUG_MODE) console.log('[CST Runtime] ✅ All critical functions validated successfully');
             } else {
-                console.error('[CST Runtime] ❌ Some validation checks failed - see errors above');
+                if (CST_DEBUG_MODE) console.error('[CST Runtime] ❌ Some validation checks failed - see errors above');
             }
 
             // Export diagnostic function to window
@@ -7496,7 +7496,7 @@
                     checks.passed++;
                     checks.details.push({ category: 'Three.js', status: 'pass', message: 'Loaded revision ' + THREE.REVISION });
                 } else {
-                    console.error('❌ Three.js Library: NOT LOADED');
+                    if (CST_DEBUG_MODE) console.error('❌ Three.js Library: NOT LOADED');
                     console.log('   Fix: Run getThreeJsStatus() for troubleshooting');
                     checks.failed++;
                     checks.details.push({ category: 'Three.js', status: 'fail', message: 'Library not loaded' });
@@ -7508,7 +7508,7 @@
                     checks.passed++;
                     checks.details.push({ category: 'Three.js Scene', status: 'pass', message: 'Scene, camera, and renderer ready' });
                 } else {
-                    console.error('❌ Three.js Scene: NOT INITIALIZED');
+                    if (CST_DEBUG_MODE) console.error('❌ Three.js Scene: NOT INITIALIZED');
                     checks.failed++;
                     checks.details.push({ category: 'Three.js Scene', status: 'fail', message: 'Scene/camera/renderer missing' });
                 }
@@ -7531,7 +7531,7 @@
                         checks.passed++;
                         checks.details.push({ category: 'Canvas: ' + canvasCheck.id, status: 'pass', message: canvasCheck.description });
                     } else {
-                        console.error('  ❌ ' + canvasCheck.id + ': MISSING OR NO CONTEXT');
+                        if (CST_DEBUG_MODE) console.error('  ❌ ' + canvasCheck.id + ': MISSING OR NO CONTEXT');
                         checks.failed++;
                         checks.details.push({ category: 'Canvas: ' + canvasCheck.id, status: 'fail', message: 'Element missing or context unavailable' });
                     }
@@ -7557,7 +7557,7 @@
                         checks.passed++;
                         checks.details.push({ category: 'System: ' + sysCheck.name, status: 'pass', message: 'Initialized' + valueStr });
                     } else {
-                        console.error('  ❌ ' + sysCheck.name + ': NOT INITIALIZED');
+                        if (CST_DEBUG_MODE) console.error('  ❌ ' + sysCheck.name + ': NOT INITIALIZED');
                         checks.failed++;
                         checks.details.push({ category: 'System: ' + sysCheck.name, status: 'fail', message: 'Not initialized' });
                     }
@@ -7610,7 +7610,7 @@
                     console.log('  2. Tokens will generate infinitely (no caps)');
                     console.log('  3. All 12D CST features fully operational');
                 } else {
-                    console.error('⚠️  SOME SYSTEMS FAILED - Review errors above');
+                    if (CST_DEBUG_MODE) console.error('⚠️  SOME SYSTEMS FAILED - Review errors above');
                     console.log('');
                     console.log('Troubleshooting:');
                     console.log('  • Run getThreeJsStatus() to check Three.js loading');
