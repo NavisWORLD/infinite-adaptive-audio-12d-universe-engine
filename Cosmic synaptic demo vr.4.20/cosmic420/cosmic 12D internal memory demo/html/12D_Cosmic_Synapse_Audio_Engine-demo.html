@@ -758,6 +758,10 @@
             onerror="this.onerror=null; this.src='https://unpkg.com/three@0.128.0/build/three.min.js';">
     </script>
     <script>
+        // ADDITIVE ENHANCEMENT: Production-Ready Console Management (2025-11-10)
+        // Enable debug mode with ?debug=true URL parameter for verbose logging
+        const CST_DEBUG_MODE = window.location.search.includes('debug=true');
+
         // Added: Validate Three.js loaded before proceeding
         window.addEventListener('DOMContentLoaded', function() {
             if (typeof THREE === 'undefined') {
@@ -771,7 +775,7 @@
                 };
                 document.head.appendChild(script);
             } else {
-                console.log('[CST Runtime] ✅ Three.js loaded successfully:', THREE.REVISION);
+                if (CST_DEBUG_MODE) console.log('[CST Runtime] ✅ Three.js loaded successfully:', THREE.REVISION);
             }
         });
 
@@ -811,7 +815,7 @@
                 }
             };
 
-            console.log('[CST Enhancement] Three.js loading status checker installed - run getThreeJsStatus()');
+            if (CST_DEBUG_MODE) console.log('[CST Enhancement] Three.js loading status checker installed - run getThreeJsStatus()');
         })();
 
         // ==================================================================================
@@ -877,7 +881,7 @@
                 return results;
             };
 
-            console.log('[CST Enhancement] Canvas validation checker installed - run validateCanvasElements()');
+            if (CST_DEBUG_MODE) console.log('[CST Enhancement] Canvas validation checker installed - run validateCanvasElements()');
         })();
     </script>
     <script>
@@ -2336,10 +2340,12 @@
 
             // Added: Validate Three.js scene initialization to fix runtime errors
             if (scene && camera && renderer) {
-                console.log('[CST Runtime] ✅ Three.js scene properly initialized');
-                console.log('[CST Runtime]   - Scene:', scene);
-                console.log('[CST Runtime]   - Camera:', camera.type);
-                console.log('[CST Runtime]   - Renderer:', renderer.domElement.tagName);
+                if (CST_DEBUG_MODE) {
+                    console.log('[CST Runtime] ✅ Three.js scene properly initialized');
+                    console.log('[CST Runtime]   - Scene:', scene);
+                    console.log('[CST Runtime]   - Camera:', camera.type);
+                    console.log('[CST Runtime]   - Renderer:', renderer.domElement.tagName);
+                }
             } else {
                 console.error('[CST Runtime] ❌ Three.js scene initialization incomplete');
                 console.error('[CST Runtime]   - scene:', !!scene, '- camera:', !!camera, '- renderer:', !!renderer);
@@ -5799,7 +5805,7 @@
           if (typeof window.CST_PATCH_X12_ENTROPY !== 'undefined') return;
           window.CST_PATCH_X12_ENTROPY = true;
 
-          console.log('[CST] Applying X12+Entropy real-time patch...');
+          if (CST_DEBUG_MODE) console.log('[CST] Applying X12+Entropy real-time patch...');
 
           // Additive: Particle integrator initialization helper
           function __cst_initParticleIntegrators(p) {
@@ -5825,7 +5831,7 @@
           try {
             if (typeof particles !== 'undefined' && Array.isArray(particles)) {
               particles.forEach(__cst_initParticleIntegrators);
-              console.log('[CST] Initialized integrators for', particles.length, 'existing particles');
+              if (CST_DEBUG_MODE) console.log('[CST] Initialized integrators for', particles.length, 'existing particles');
             }
           } catch (e) {
             console.warn('[CST] Existing particle integrator init error', e);
@@ -5841,7 +5847,7 @@
                   return orig_update11D.apply(this, args);
                 };
                 LorenzParticle.prototype.__cstIntegratorPatched = true;
-                console.log('[CST] Patched LorenzParticle.update11DProjection for integrator init');
+                if (CST_DEBUG_MODE) console.log('[CST] Patched LorenzParticle.update11DProjection for integrator init');
               }
             }
           } catch (e) {
@@ -5883,7 +5889,7 @@
                 }
               };
               window.updatePsiNormalized.__cstX12Patched = true;
-              console.log('[CST] Patched updatePsiNormalized for robust x12 accumulation');
+              if (CST_DEBUG_MODE) console.log('[CST] Patched updatePsiNormalized for robust x12 accumulation');
             }
           } catch (e) {
             console.warn('[CST] updatePsiNormalized patch error', e);
@@ -5922,7 +5928,7 @@
                     if (typeof entropyState !== 'undefined') entropyState.traceCtx = tctx;
                   }
 
-                  console.log('[CST] Applied DPR-aware canvas sizing (dpr=' + dpr + ')');
+                  if (CST_DEBUG_MODE) console.log('[CST] Applied DPR-aware canvas sizing (dpr=' + dpr + ')');
                 } catch (e) {
                   console.warn('[CST] initEntropyCanvas DPR patch error', e);
                 }
@@ -6022,7 +6028,7 @@
                 }
               };
               window.drawEntropyTrace.__cstCSSWidthPatched = true;
-              console.log('[CST] Patched drawEntropyTrace for CSS width buffer');
+              if (CST_DEBUG_MODE) console.log('[CST] Patched drawEntropyTrace for CSS width buffer');
             }
           } catch (e) {
             console.warn('[CST] drawEntropyTrace patch error', e);
@@ -6049,7 +6055,7 @@
                 }
               };
               window.updateLorenzParticles.__cstPsiBreakdownPatched = true;
-              console.log('[CST] Patched updateLorenzParticles to call updatePsiBreakdown');
+              if (CST_DEBUG_MODE) console.log('[CST] Patched updateLorenzParticles to call updatePsiBreakdown');
             }
           } catch (e) {
             console.warn('[CST] updateLorenzParticles patch error', e);
@@ -6221,8 +6227,10 @@
             }
           };
 
-          console.log('[CST] X12+Entropy real-time patch applied successfully');
-          console.log('[CST] Debug: Run window.__cst_dumpX12Integrals() to inspect ψ integrators');
+          if (CST_DEBUG_MODE) {
+              console.log('[CST] X12+Entropy real-time patch applied successfully');
+              console.log('[CST] Debug: Run window.__cst_dumpX12Integrals() to inspect ψ integrators');
+          }
 
         })();
 
@@ -6858,7 +6866,7 @@
                 // Retry initialization after a delay
                 setTimeout(() => {
                     if (typeof THREE !== 'undefined') {
-                        console.log('[CST Runtime] ✅ THREE loaded after delay, initializing...');
+                        if (CST_DEBUG_MODE) console.log('[CST Runtime] ✅ THREE loaded after delay, initializing...');
                         initThree();
                         animate(); // Start animation loop
                     } else {
@@ -6951,7 +6959,7 @@
                 };
 
                 window.flushTokenBuffer.__cstInfinite = true;
-                console.log('[CST Infinite Token Patch] ✅ Token caps removed - infinite generation enabled');
+                if (CST_DEBUG_MODE) console.log('[CST Infinite Token Patch] ✅ Token caps removed - infinite generation enabled');
             }
         })();
 
@@ -7039,7 +7047,7 @@
                 };
 
                 window.flushTokenBuffer.__cstDBPersist = true;
-                console.log('[CST DB] ✅ IndexedDB persistence hook installed');
+                if (CST_DEBUG_MODE) console.log('[CST DB] ✅ IndexedDB persistence hook installed');
             }
 
             // Initialize IndexedDB (database ready but disabled by default)
@@ -7110,7 +7118,7 @@
                     console.warn(`[CST Validation] ⚠️  Missing element: ${name} (${id})`);
                     allValid = false;
                 } else {
-                    console.log(`[CST Validation] ✅ ${name}`);
+                    if (CST_DEBUG_MODE) console.log(`[CST Validation] ✅ ${name}`);
                 }
             }
 
@@ -7123,7 +7131,7 @@
                 } else {
                     const ctx = canvas.getContext('2d');
                     if (ctx) {
-                        console.log(`[CST Validation] ✅ ${name} (rendering context ready)`);
+                        if (CST_DEBUG_MODE) console.log(`[CST Validation] ✅ ${name} (rendering context ready)`);
                     } else {
                         console.warn(`[CST Validation] ⚠️  Canvas context unavailable: ${name}`);
                     }
@@ -7131,7 +7139,7 @@
             }
 
             if (allValid) {
-                console.log('[CST Validation] ✅ All required UI elements present and ready');
+                if (CST_DEBUG_MODE) console.log('[CST Validation] ✅ All required UI elements present and ready');
             } else {
                 console.warn('[CST Validation] ⚠️  Some UI elements missing - check console warnings');
             }
@@ -7149,7 +7157,7 @@
 
             for (const funcName of requiredFunctions) {
                 if (typeof window[funcName] === 'function') {
-                    console.log(`[CST Validation] ✅ Function ready: ${funcName}`);
+                    if (CST_DEBUG_MODE) console.log(`[CST Validation] ✅ Function ready: ${funcName}`);
                 } else {
                     console.warn(`[CST Validation] ⚠️  Missing function: ${funcName}`);
                 }
@@ -7163,7 +7171,7 @@
         // ==================================================================================
 
         (function enhanceAdaptiveStateVisualization() {
-            console.log('[CST Adaptive State] Enhancing visualization to show both x12 and m12');
+            if (CST_DEBUG_MODE) console.log('[CST Adaptive State] Enhancing visualization to show both x12 and m12');
 
             // Add m12 history tracking alongside x12
             if (typeof window.m12History === 'undefined') {
@@ -7284,7 +7292,7 @@
                 };
 
                 window.updateAdaptiveStateTrace.__cstEnhanced = true;
-                console.log('[CST Adaptive State] ✅ Enhanced to display both x12 (solid) and m12 (dashed)');
+                if (CST_DEBUG_MODE) console.log('[CST Adaptive State] ✅ Enhanced to display both x12 (solid) and m12 (dashed)');
             }
         })();
 
@@ -7400,7 +7408,7 @@
 
             for (const { name, obj, expectedType } of criticalObjects) {
                 if (typeof obj === expectedType) {
-                    console.log(`[CST Runtime] ✅ ${name} initialized correctly`);
+                    if (CST_DEBUG_MODE) console.log(`[CST Runtime] ✅ ${name} initialized correctly`);
                 } else {
                     console.error(`[CST Runtime] ❌ ${name} is ${typeof obj}, expected ${expectedType}`);
                     allFunctionsValid = false;
@@ -7409,7 +7417,7 @@
 
             // Validate Three.js scene is set up
             if (scene && camera && renderer) {
-                console.log('[CST Runtime] ✅ Three.js scene initialized');
+                if (CST_DEBUG_MODE) console.log('[CST Runtime] ✅ Three.js scene initialized');
             } else {
                 console.error('[CST Runtime] ❌ Three.js scene not properly initialized');
                 allFunctionsValid = false;
@@ -7420,7 +7428,7 @@
 
             // Final validation summary
             if (allFunctionsValid) {
-                console.log('[CST Runtime] ✅ All critical functions validated successfully');
+                if (CST_DEBUG_MODE) console.log('[CST Runtime] ✅ All critical functions validated successfully');
             } else {
                 console.error('[CST Runtime] ❌ Some validation checks failed - see errors above');
             }
@@ -7623,35 +7631,44 @@
                 };
             };
 
-            console.log('[CST Runtime] ✅ Runtime validation complete');
-            console.log('[CST Runtime] 💡 Run runCST_Diagnostics() in console for system status');
-            console.log('[CST Runtime] 💡 Run runComprehensiveDiagnostics() for detailed validation report');
+            if (CST_DEBUG_MODE) {
+                console.log('[CST Runtime] ✅ Runtime validation complete');
+                console.log('[CST Runtime] 💡 Run runCST_Diagnostics() in console for system status');
+                console.log('[CST Runtime] 💡 Run runComprehensiveDiagnostics() for detailed validation report');
+            }
         })();
 
-        console.log('═══════════════════════════════════════════════════════════════');
-        console.log('🌌 12D COSMIC SYNAPSE THEORY - FULL SPEC IMPLEMENTATION v2.1 🌌');
-        console.log('═══════════════════════════════════════════════════════════════');
-        console.log('✅ Infinite Token Generation (no caps)');
-        console.log('✅ Adaptive State Evolution (dx12/dt, dm12/dt)');
-        console.log('✅ Global Entropy with Heart-Rate Trace');
-        console.log('✅ ψ Function Breakdown (6 terms)');
-        console.log('✅ Replay & Determinism');
-        console.log('✅ Dark Matter NFW Profile');
-        console.log('✅ Kuramoto Synchronization');
-        console.log('✅ Conservation Checks');
-        console.log('═══════════════════════════════════════════════════════════════');
-        console.log('📖 Reference: 12D_Cosmic_Synapse_Theory.pdf');
-        console.log('🎤 Ready for audio input - tokens will generate infinitely');
-        console.log('💾 Optional: Call enableTokenPersistence(true) for disk storage');
-        console.log('');
-        console.log('🔧 DIAGNOSTIC TOOLS (run in browser console):');
-        console.log('  • runComprehensiveDiagnostics() - Full system validation report');
-        console.log('  • runCST_Diagnostics() - Quick system status check');
-        console.log('  • validateCanvasElements() - Verify all canvas elements');
-        console.log('  • getThreeJsStatus() - Check Three.js loading status');
-        console.log('');
-        console.log('🐛 Add ?debug=true to URL for detailed function call logging');
-        console.log('═══════════════════════════════════════════════════════════════');
+        // ADDITIVE ENHANCEMENT: Production-friendly startup banner (2025-11-10)
+        // Minimal output by default, verbose in debug mode
+        if (CST_DEBUG_MODE) {
+            console.log('═══════════════════════════════════════════════════════════════');
+            console.log('🌌 12D COSMIC SYNAPSE THEORY - FULL SPEC IMPLEMENTATION v2.1 🌌');
+            console.log('═══════════════════════════════════════════════════════════════');
+            console.log('✅ Infinite Token Generation (no caps)');
+            console.log('✅ Adaptive State Evolution (dx12/dt, dm12/dt)');
+            console.log('✅ Global Entropy with Heart-Rate Trace');
+            console.log('✅ ψ Function Breakdown (6 terms)');
+            console.log('✅ Replay & Determinism');
+            console.log('✅ Dark Matter NFW Profile');
+            console.log('✅ Kuramoto Synchronization');
+            console.log('✅ Conservation Checks');
+            console.log('═══════════════════════════════════════════════════════════════');
+            console.log('📖 Reference: 12D_Cosmic_Synapse_Theory.pdf');
+            console.log('🎤 Ready for audio input - tokens will generate infinitely');
+            console.log('💾 Optional: Call enableTokenPersistence(true) for disk storage');
+            console.log('');
+            console.log('🔧 DIAGNOSTIC TOOLS (run in browser console):');
+            console.log('  • runComprehensiveDiagnostics() - Full system validation report');
+            console.log('  • runCST_Diagnostics() - Quick system status check');
+            console.log('  • validateCanvasElements() - Verify all canvas elements');
+            console.log('  • getThreeJsStatus() - Check Three.js loading status');
+            console.log('═══════════════════════════════════════════════════════════════');
+        } else {
+            // Concise production startup message
+            console.log('🌌 12D Cosmic Synapse Theory v2.1 - Ready');
+            console.log('💡 Diagnostic tools: runComprehensiveDiagnostics() | runCST_Diagnostics()');
+            console.log('🐛 Enable debug mode: Add ?debug=true to URL');
+        }
     </script>
 </body>
 </html>
