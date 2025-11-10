@@ -1011,7 +1011,51 @@
             flushInterval: null, // Interval ID for UI flush (~20Hz = 50ms)
             flushRate: 50 // UI update rate in ms (~20Hz)
         };
-        
+
+        // Onset detection state
+        let lastSpectrumForOnset = null;
+        const onsetConfig = {
+            enabled: true,
+            threshold: 0.5, // Spectral flux threshold for onset detection
+            cooldown: 200, // Milliseconds between onset-triggered particle creation
+            lastOnsetTime: 0
+        };
+
+        function detectOnset(currentMagnitudes) {
+            if (!lastSpectrumForOnset) {
+                lastSpectrumForOnset = currentMagnitudes.slice();
+                return false;
+            }
+
+            // Calculate spectral flux (positive changes in magnitude)
+            let flux = 0;
+            const minLength = Math.min(currentMagnitudes.length, lastSpectrumForOnset.length);
+            for (let i = 0; i < minLength; i++) {
+                const diff = currentMagnitudes[i] - lastSpectrumForOnset[i];
+                if (diff > 0) {
+                    flux += diff;
+                }
+            }
+
+            lastSpectrumForOnset = currentMagnitudes.slice();
+
+            // Check cooldown
+            const now = Date.now();
+            if (now - onsetConfig.lastOnsetTime < onsetConfig.cooldown) {
+                return false;
+            }
+
+            // Detect onset
+            if (flux > onsetConfig.threshold) {
+                onsetConfig.lastOnsetTime = now;
+                return true;
+            }
+
+            return false;
+        }
+
+        console.log('[CST Onset Detection] ✅ Onset detection system initialized');
+
         // CST v2.0+ additive: Token rate update interval for smooth UI updates
         let tokenRateUpdateInterval = null;
         
@@ -1095,6 +1139,249 @@
             rho0: 1.0, // Central density
             rs: 5.0 // Scale radius
         };
+
+        // ============================================================================
+        // NEURAL NETWORK ADAPTER FOR PARTICLE ENERGY LEARNING
+        // Implements adaptive energy modulation based on network state
+        // ============================================================================
+
+        class NeuralNetworkAdapter {
+            constructor(inputSize, hiddenSize, outputSize) {
+                this.inputSize = inputSize;
+                this.hiddenSize = hiddenSize;
+                this.outputSize = outputSize;
+                this.learningRate = 0.001;
+
+                // Initialize weights with small random values
+                this.weightsInputHidden = Array.from({ length: inputSize }, () =>
+                    Array.from({ length: hiddenSize }, () => (Math.random() - 0.5) * 0.1)
+                );
+                this.weightsHiddenOutput = Array.from({ length: hiddenSize }, () =>
+                    Array.from({ length: outputSize }, () => (Math.random() - 0.5) * 0.1)
+                );
+                this.biasHidden = Array.from({ length: hiddenSize }, () => 0);
+                this.biasOutput = Array.from({ length: outputSize }, () => 0);
+
+                // Store last values for backprop
+                this.lastInput = null;
+                this.lastHidden = null;
+                this.lastOutput = null;
+            }
+
+            forward(input) {
+                this.lastInput = input;
+
+                // Input to hidden layer
+                const hidden = this.weightsInputHidden[0].map((_, h) => {
+                    let sum = this.biasHidden[h];
+                    for (let i = 0; i < this.inputSize; i++) {
+                        sum += input[i] * this.weightsInputHidden[i][h];
+                    }
+                    return Math.max(0, sum); // ReLU activation
+                });
+                this.lastHidden = hidden;
+
+                // Hidden to output layer
+                const output = this.weightsHiddenOutput[0].map((_, o) => {
+                    let sum = this.biasOutput[o];
+                    for (let h = 0; h < this.hiddenSize; h++) {
+                        sum += hidden[h] * this.weightsHiddenOutput[h][o];
+                    }
+                    return Math.tanh(sum); // Tanh activation for bounded output
+                });
+                this.lastOutput = output;
+
+                return output;
+            }
+
+            backward(target) {
+                if (!this.lastInput || !this.lastHidden || !this.lastOutput) return;
+
+                // Compute output layer gradients
+                const outputGradients = this.lastOutput.map((o, i) => {
+                    const error = target[i] - o;
+                    return error * (1 - o * o); // Tanh derivative
+                });
+
+                // Update hidden-to-output weights
+                for (let h = 0; h < this.hiddenSize; h++) {
+                    for (let o = 0; o < this.outputSize; o++) {
+                        const gradient = outputGradients[o] * this.lastHidden[h];
+                        this.weightsHiddenOutput[h][o] += this.learningRate * gradient;
+                    }
+                }
+                for (let o = 0; o < this.outputSize; o++) {
+                    this.biasOutput[o] += this.learningRate * outputGradients[o];
+                }
+
+                // Compute hidden layer gradients
+                const hiddenGradients = this.lastHidden.map((h, i) => {
+                    let error = 0;
+                    for (let o = 0; o < this.outputSize; o++) {
+                        error += outputGradients[o] * this.weightsHiddenOutput[i][o];
+                    }
+                    return h > 0 ? error : 0; // ReLU derivative
+                });
+
+                // Update input-to-hidden weights
+                for (let i = 0; i < this.inputSize; i++) {
+                    for (let h = 0; h < this.hiddenSize; h++) {
+                        const gradient = hiddenGradients[h] * this.lastInput[i];
+                        this.weightsInputHidden[i][h] += this.learningRate * gradient;
+                    }
+                }
+                for (let h = 0; h < this.hiddenSize; h++) {
+                    this.biasHidden[h] += this.learningRate * hiddenGradients[h];
+                }
+            }
+        }
+
+        // Create global neural network adapter instance
+        const neuralAdapter = new NeuralNetworkAdapter(15, 64, 2);
+        const neuralConfig = {
+            enabled: true,
+            sensitivity: 0.1,
+            learningRate: 0.001
+        };
+
+        console.log('[CST Neural Network] ✅ Neural network adapter initialized (15→64→2)');
+
+        // ============================================================================
+        // MEMORY LEARNING SYSTEM
+        // Particles learn from their neighbors' states and update internal memory
+        // ============================================================================
+
+        function updateMemoryFromNeighbors(particle, allParticles, topFrequencies) {
+            if (!particle.neighbors || particle.neighbors.length === 0) return;
+
+            // Gather neighbor states
+            const neighborStates = particle.neighbors.map(j => {
+                const neighbor = allParticles[j];
+                return {
+                    x12: neighbor.x12,
+                    m12: neighbor.m12,
+                    Ec: neighbor.Ec,
+                    frequency: neighbor.frequency
+                };
+            });
+
+            // Compute average neighbor states
+            const avgX12 = neighborStates.reduce((sum, n) => sum + n.x12, 0) / neighborStates.length;
+            const avgM12 = neighborStates.reduce((sum, n) => sum + n.m12, 0) / neighborStates.length;
+            const avgEc = neighborStates.reduce((sum, n) => sum + n.Ec, 0) / neighborStates.length;
+
+            // Update particle memory based on neighbors (Hebbian learning)
+            // Memory slots 0-4: Top frequency magnitudes
+            // Memory slots 5-9: Learned neighbor patterns
+
+            // Shift old memory
+            for (let i = 9; i > 4; i--) {
+                particle.memory[i] = particle.memory[i - 1];
+            }
+
+            // Insert new learned patterns
+            particle.memory[5] = avgX12;
+            particle.memory[6] = avgM12;
+            particle.memory[7] = avgEc / 100; // Normalized
+            particle.memory[8] = (particle.x12 - avgX12); // State difference
+            particle.memory[9] = particle.omega / 10; // Normalized synaptic strength
+
+            // Update top frequency memory (slots 0-4)
+            const safeTopFreqs = (topFrequencies || []).slice(0, 5);
+            for (let i = 0; i < 5; i++) {
+                if (i < safeTopFreqs.length && safeTopFreqs[i]) {
+                    particle.memory[i] = safeTopFreqs[i].magnitude || 0;
+                }
+            }
+        }
+
+        console.log('[CST Memory Learning] ✅ Memory update function defined');
+
+        // ============================================================================
+        // TOKEN AUTO-SAVE SYSTEM
+        // Automatically saves tokens to localStorage every 60 seconds
+        // ============================================================================
+
+        const tokenPersistence = {
+            enabled: true,
+            storageKey: 'cst_tokens_autosave',
+            lastSaveTime: 0
+        };
+
+        function saveTokensToStorage() {
+            if (!tokenPersistence.enabled || tokens.length === 0) return;
+
+            try {
+                // Store tokens with metadata
+                const saveData = {
+                    tokens: tokens,
+                    timestamp: Date.now(),
+                    particleCount: particles.length,
+                    version: '12D-CST-v2.0'
+                };
+
+                localStorage.setItem(tokenPersistence.storageKey, JSON.stringify(saveData));
+                tokenPersistence.lastSaveTime = Date.now();
+            } catch (e) {
+                console.error('[Token Persistence] Failed to save tokens:', e);
+            }
+        }
+
+        function loadTokensFromStorage() {
+            if (!tokenPersistence.enabled) return;
+
+            try {
+                const savedData = localStorage.getItem(tokenPersistence.storageKey);
+                if (savedData) {
+                    const parsed = JSON.parse(savedData);
+                    console.log(`[Token Persistence] Loaded ${parsed.tokens.length} tokens from ${new Date(parsed.timestamp).toLocaleString()}`);
+                    return parsed.tokens;
+                }
+            } catch (e) {
+                console.error('[Token Persistence] Failed to load tokens:', e);
+            }
+            return null;
+        }
+
+        // Auto-save tokens every 60 seconds
+        let autoSaveInterval = null;
+
+        function startTokenAutoSave() {
+            if (autoSaveInterval) {
+                clearInterval(autoSaveInterval);
+            }
+            autoSaveInterval = setInterval(() => {
+                if (tokenPersistence.enabled && tokens.length > 0) {
+                    saveTokensToStorage();
+                    console.log('[Token Persistence] Auto-saved', tokens.length, 'tokens');
+                }
+            }, 60000); // Every 60 seconds
+        }
+
+        function stopTokenAutoSave() {
+            if (autoSaveInterval) {
+                clearInterval(autoSaveInterval);
+                autoSaveInterval = null;
+            }
+        }
+
+        function enableTokenPersistence(enable) {
+            tokenPersistence.enabled = enable;
+            if (enable) {
+                startTokenAutoSave();
+                console.log('[Token Persistence] ✅ Auto-save enabled (60s interval)');
+            } else {
+                stopTokenAutoSave();
+                console.log('[Token Persistence] ⏸️  Auto-save disabled');
+            }
+        }
+
+        // Start auto-save by default if persistence is enabled
+        if (tokenPersistence.enabled) {
+            startTokenAutoSave();
+        }
+
+        console.log('[Token Persistence] ✅ Token auto-save system initialized');
 
         // CST v2.0+ additive: Projection mode configuration
         const projectionConfig = {
@@ -1519,7 +1806,53 @@
                     accelerations[i].z += fz / pi.mass;
                 });
             });
-            
+
+            // === DARK MATTER FORCE CONTRIBUTION ===
+            if (physics.dmEnabled) {
+                particles.forEach((pi, i) => {
+                    // Compute numerical gradient of dark matter potential
+                    const h = 0.01; // Small step for numerical derivative
+
+                    // Current position
+                    const r = Math.sqrt(pi.x*pi.x + pi.y*pi.y + pi.z*pi.z) + physics.epsilon;
+
+                    // Compute potential at current position
+                    const r_rs = r / dmParams.rs;
+                    const rho = r_rs > 1e-10 ? dmParams.rho0 / (r_rs * Math.pow(1 + r_rs, 2)) : 0;
+                    const U_current = -physics.G * pi.mass * rho * 4 * Math.PI * r * r / 3;
+
+                    // Compute potential gradient using finite differences
+                    // ∇U = (∂U/∂x, ∂U/∂y, ∂U/∂z)
+                    // F = -∇U
+
+                    // X direction
+                    const rx_plus = Math.sqrt((pi.x+h)*(pi.x+h) + pi.y*pi.y + pi.z*pi.z) + physics.epsilon;
+                    const r_rs_x = rx_plus / dmParams.rs;
+                    const rho_x = r_rs_x > 1e-10 ? dmParams.rho0 / (r_rs_x * Math.pow(1 + r_rs_x, 2)) : 0;
+                    const U_x = -physics.G * pi.mass * rho_x * 4 * Math.PI * rx_plus * rx_plus / 3;
+                    const dU_dx = (U_x - U_current) / h;
+
+                    // Y direction
+                    const ry_plus = Math.sqrt(pi.x*pi.x + (pi.y+h)*(pi.y+h) + pi.z*pi.z) + physics.epsilon;
+                    const r_rs_y = ry_plus / dmParams.rs;
+                    const rho_y = r_rs_y > 1e-10 ? dmParams.rho0 / (r_rs_y * Math.pow(1 + r_rs_y, 2)) : 0;
+                    const U_y = -physics.G * pi.mass * rho_y * 4 * Math.PI * ry_plus * ry_plus / 3;
+                    const dU_dy = (U_y - U_current) / h;
+
+                    // Z direction
+                    const rz_plus = Math.sqrt(pi.x*pi.x + pi.y*pi.y + (pi.z+h)*(pi.z+h)) + physics.epsilon;
+                    const r_rs_z = rz_plus / dmParams.rs;
+                    const rho_z = r_rs_z > 1e-10 ? dmParams.rho0 / (r_rs_z * Math.pow(1 + r_rs_z, 2)) : 0;
+                    const U_z = -physics.G * pi.mass * rho_z * 4 * Math.PI * rz_plus * rz_plus / 3;
+                    const dU_dz = (U_z - U_current) / h;
+
+                    // Apply dark matter force: F = -∇U, a = F/m
+                    accelerations[i].x -= dU_dx / pi.mass;
+                    accelerations[i].y -= dU_dy / pi.mass;
+                    accelerations[i].z -= dU_dz / pi.mass;
+                });
+            }
+
             return accelerations;
         }
 
@@ -1620,6 +1953,39 @@
                 // Paper Section 2.10: dm₁₂,ᵢ/dt = α · (x₁₂,ᵢ − m₁₂,ᵢ)
                 const dm12 = adapt.alpha * (p.x12 - p.m12) * dt;
                 p.m12 += dm12;
+
+                // === NEURAL NETWORK ENERGY MODULATION ===
+                if (neuralConfig.enabled && p.neighbors && p.neighbors.length > 0) {
+                    // Prepare input: memory (10D) + top 5 frequency components
+                    const memoryInput = p.memory.slice(0, 10);
+                    const topFrequencies = (frequencyData || []).slice(0, 5);
+                    const freqInput = topFrequencies.map(f => f.magnitude || 0);
+                    const neuralInput = [...memoryInput, ...freqInput];
+
+                    // Pad to 15 if needed
+                    while (neuralInput.length < 15) {
+                        neuralInput.push(0);
+                    }
+
+                    // Forward pass
+                    const [deltaAlpha, deltaEnergy] = neuralAdapter.forward(neuralInput);
+
+                    // Apply energy adjustment
+                    const inputMean = neuralInput.reduce((a, b) => a + b, 0) / neuralInput.length;
+                    const adjustment = neuralConfig.sensitivity * deltaEnergy * (inputMean - p.Ec / 100);
+                    p.Ec += adjustment;
+                    p.Ec = Math.max(0.01, p.Ec); // Ensure positive energy
+
+                    // Training: target should maintain energy conservation
+                    // Simple training rule: minimize deviation from average neighbor energy
+                    if (p.neighbors.length > 0) {
+                        const avgNeighborEnergy = p.neighbors
+                            .map(j => particles[j].Ec)
+                            .reduce((a, b) => a + b, 0) / p.neighbors.length;
+                        const targetDeltaEnergy = (avgNeighborEnergy - p.Ec) / 100;
+                        neuralAdapter.backward([0, targetDeltaEnergy]);
+                    }
+                }
             });
         }
 
@@ -1649,6 +2015,29 @@
                 // Keep theta in [0, 2π]
                 pi.theta = ((pi.theta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
             });
+
+            // === SYNCHRONIZATION FORCE FEEDBACK ===
+            // Particles feel a force based on how synchronized they are with global phase
+            if (sync.Ksync > 0 && particles.length > 1) {
+                // Compute global synchronization order parameter
+                const syncMetric = computeSynchronizationMetric(particles);
+                const orderParameter = syncMetric.r;
+                const globalPhase = syncMetric.meanTheta;
+
+                if (orderParameter > 0.1) {
+                    particles.forEach((p, i) => {
+                        const phaseDiff = p.theta - globalPhase;
+                        const syncForce = sync.Ksync * orderParameter * Math.sin(phaseDiff);
+
+                        // Apply synchronization force as modulation to velocity
+                        // This creates emergent synchronized motion
+                        const forceMag = syncForce * 0.1;
+                        p.velocity.x += forceMag * Math.cos(p.theta);
+                        p.velocity.y += forceMag * Math.sin(p.theta);
+                        p.velocity.z += forceMag * Math.cos(phaseDiff);
+                    });
+                }
+            }
         }
 
         function computeSynchronizationMetric(particles) {
@@ -2987,6 +3376,15 @@
             frequencyData = frame.frequencies || [];
             spectralCentroid = frame.centroid || 0;
 
+            // === ONSET DETECTION ===
+            if (onsetConfig.enabled && frame.raw && frame.raw.length > 0) {
+                if (detectOnset(frame.raw) && particles.length < 30) {
+                    // Create particle on onset
+                    console.log('[CST Onset] 🎵 Audio onset detected - creating particle');
+                    addParticle();
+                }
+            }
+
             // Update displays
             const rmsEl = document.getElementById('rms-energy');
             const dominantEl = document.getElementById('dominant-freq');
@@ -3475,6 +3873,14 @@
             computeGravitationalEnergy(particles, spatialIndex, physics);
             computeDarkMatterPotential(particles, dmParams);
                 computeSynapticStrength(particles, spatialIndex, physics, adapt);
+
+            // === UPDATE MEMORY FROM NEIGHBORS ===
+            if (frequencyData && frequencyData.length > 0) {
+                particles.forEach(particle => {
+                    updateMemoryFromNeighbors(particle, particles, frequencyData);
+                });
+            }
+
             updateAdaptiveStates(particles, adapt, timestep.dt);
             updatePhases(particles, sync, spatialIndex, timestep.dt);
 
@@ -3714,80 +4120,90 @@
             requestAnimationFrame(animate);
 
             if (!isPaused) {
-                // Adaptive timestep
-                const adaptiveDtCheckbox = document.getElementById('adaptive-dt');
-                if (adaptiveDtCheckbox && adaptiveDtCheckbox.checked && particles.length > 0) {
-                    timestep.dt = computeAdaptiveDt(particles, physics, timestep);
-                }
-
-                // Update Lorenz particles with full physics
-                if (particles.length > 0) {
-                    updateLorenzParticles();
-                }
-                
-                // Draw frequency spectrum
-                drawFrequencySpectrum();
-                
-                // Update metrics
-                updateChaosMetrics();
-                updateSynchronizationMetrics();
-                updateConservationDiagnostics();
-                // CST v2.0+ fix: Update ψ breakdown every frame for real-time updates
-                updatePsiBreakdown();
-                
-                // CST v2.0+ additive: Update entropy metrics every frame, draw histogram every ~10 frames
-                // Throttle entropy trace updates for better performance (update every 2 frames = ~30Hz)
-                if (frameCount % 2 === 0 || frameCount === 0) {
-                    updateEntropy(); // Updates metrics, UI, and trace
-                } else {
-                    // Still update metrics and UI, but skip trace drawing for performance
-                    if (particles.length > 0) {
-                        const { entropy, histogram, tempProxy } = computeEntropyMetrics();
-                        entropyState.lastEntropy = kB * entropy;
-                        entropyState.histogram = histogram;
-                        entropyState.tempProxy = tempProxy;
-                        
-                        const entropyEl = document.getElementById('entropy-global');
-                        const binsEl = document.getElementById('entropy-bins');
-                        const tempEl = document.getElementById('entropy-temperature');
-                        
-                        if (entropyEl) entropyEl.textContent = entropyState.lastEntropy.toFixed(3);
-                        if (binsEl) binsEl.textContent = JSON.stringify(histogram.slice(0, 5));
-                        if (tempEl) tempEl.textContent = tempProxy.toFixed(3);
+                try {
+                    // === ADAPTIVE TIMESTEP ===
+                    const adaptiveDtCheckbox = document.getElementById('adaptive-dt');
+                    if (adaptiveDtCheckbox && adaptiveDtCheckbox.checked && particles.length > 0) {
+                        timestep.dt = computeAdaptiveDt(particles, physics, timestep);
                     }
+
+                    // === UPDATE PHYSICS ===
+                    if (particles.length > 0) {
+                        updateLorenzParticles();
+                    }
+
+                    // === DRAW VISUALIZATIONS ===
+                    drawFrequencySpectrum();
+
+                    // === UPDATE METRICS ===
+                    updateChaosMetrics();
+                    updateSynchronizationMetrics();
+                    updateConservationDiagnostics();
+                    updatePsiBreakdown();
+
+                    // === UPDATE ENTROPY ===
+                    if (frameCount % 2 === 0 || frameCount === 0) {
+                        updateEntropy();
+                    } else {
+                        if (particles.length > 0) {
+                            const { entropy, histogram, tempProxy } = computeEntropyMetrics();
+                            entropyState.lastEntropy = kB * entropy;
+                            entropyState.histogram = histogram;
+                            entropyState.tempProxy = tempProxy;
+
+                            const entropyEl = document.getElementById('entropy-global');
+                            const binsEl = document.getElementById('entropy-bins');
+                            const tempEl = document.getElementById('entropy-temperature');
+
+                            if (entropyEl) entropyEl.textContent = entropyState.lastEntropy.toFixed(3);
+                            if (binsEl) binsEl.textContent = JSON.stringify(histogram.slice(0, 5));
+                            if (tempEl) tempEl.textContent = tempProxy.toFixed(3);
+                        }
+                    }
+                    if (frameCount % 10 === 0 || frameCount === 0) {
+                        drawEntropyHistogram(entropyState.histogram);
+                    }
+
+                    // === UPDATE TOKEN STREAM ===
+                    updateTokenStream();
+
+                    // === UPDATE ADAPTIVE STATE TRACE ===
+                    updateAdaptiveStateTrace();
+                } catch (error) {
+                    console.error('[CST Animate Error]', error);
+                    console.error('[CST Animate Error] Stack:', error.stack);
+                    // Continue animation despite error
                 }
-                if (frameCount % 10 === 0 || frameCount === 0) {
-                    drawEntropyHistogram(entropyState.histogram); // Draw histogram bars
-                }
-                
-                // Update token stream
-                updateTokenStream();
-                // Note: updateTokenRate() is called periodically via tokenRateUpdateInterval at ~500ms cadence
-                
-                // NEW: Update adaptive state trace
-                updateAdaptiveStateTrace();
             }
 
-            // Render Three.js scene
-            if (renderer && scene && camera) {
-                renderer.render(scene, camera);
+            try {
+                // === RENDER ===
+                if (renderer && scene && camera) {
+                    renderer.render(scene, camera);
+                }
+            } catch (error) {
+                console.error('[CST Render Error]', error);
             }
 
-            // FPS counter - CST v2.0+ fix: Show actual FPS from requestAnimationFrame
-            frameCount++;
-            const now = performance.now();
-            if (now >= lastTime + 1000) {
-                const actualFPS = frameCount; // frameCount is frames in last second
-                const fpsEl = document.getElementById('fps');
-                if (fpsEl) fpsEl.textContent = actualFPS.toFixed(1);
-                const particleEl = document.getElementById('particle-count');
-                const tokenEl = document.getElementById('token-count-status');
-                const replEl = document.getElementById('replication-count');
-                if (particleEl) particleEl.textContent = particles.length;
-                if (tokenEl) tokenEl.textContent = tokens.length;
-                if (replEl) replEl.textContent = replicationCount;
-                frameCount = 0;
-                lastTime = now;
+            try {
+                // === UPDATE DISPLAYS ===
+                frameCount++;
+                const now = performance.now();
+                if (now >= lastTime + 1000) {
+                    const actualFPS = frameCount;
+                    const fpsEl = document.getElementById('fps');
+                    if (fpsEl) fpsEl.textContent = actualFPS.toFixed(1);
+                    const particleEl = document.getElementById('particle-count');
+                    const tokenEl = document.getElementById('token-count-status');
+                    const replEl = document.getElementById('replication-count');
+                    if (particleEl) particleEl.textContent = particles.length;
+                    if (tokenEl) tokenEl.textContent = tokens.length;
+                    if (replEl) replEl.textContent = replicationCount;
+                    frameCount = 0;
+                    lastTime = now;
+                }
+            } catch (error) {
+                console.error('[CST Display Update Error]', error);
             }
         }
         
@@ -6742,6 +7158,55 @@
             drawNfwProfile(dmParams.rho0, dmParams.rs); // NEW: Draw initial NFW profile
             updatePsi(0);
             updateStatus('🎤 System ready - Click START MICROPHONE for continuous audio→token generation pipeline');
+
+            // ============================================================================
+            // KEYBOARD SHORTCUTS
+            // ============================================================================
+            document.addEventListener('keydown', (e) => {
+                // Ignore if user is typing in an input field
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+                switch(e.key.toLowerCase()) {
+                    case 'm':
+                        e.preventDefault();
+                        toggleMicrophone();
+                        break;
+                    case 'r':
+                        e.preventDefault();
+                        resetSystem();
+                        break;
+                    case 'p':
+                    case ' ':
+                        e.preventDefault();
+                        togglePause();
+                        break;
+                    case 'a':
+                        e.preventDefault();
+                        addParticle();
+                        break;
+                    case 'c':
+                        e.preventDefault();
+                        changeColor();
+                        break;
+                    case 'e':
+                        e.preventDefault();
+                        exportTokens();
+                        break;
+                    case 'd':
+                        e.preventDefault();
+                        if (window.runCST_Diagnostics) {
+                            window.runCST_Diagnostics();
+                        }
+                        break;
+                    case 'h':
+                    case '?':
+                        e.preventDefault();
+                        alert('Keyboard Shortcuts:\n\nM - Toggle Microphone\nR - Reset System\nP/Space - Pause/Play\nA - Add Particle\nC - Change Color\nE - Export Tokens\nD - Run Diagnostics\nH/? - Show this help');
+                        break;
+                }
+            });
+
+            console.log('[CST Keyboard] ✅ Keyboard shortcuts enabled (press H for help)');
         });
 
         // ==================================================================================
