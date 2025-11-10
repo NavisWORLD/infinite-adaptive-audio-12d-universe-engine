@@ -1002,10 +1002,7 @@
         const audioConfig = {
             cadence: 100, // Token generation cadence in ms (1-100)
             fftSize: 2048, // FFT size (256, 512, 1024, 2048, 4096, 8192)
-            tokenDisplayLimit: 200, // Maximum tokens to display in UI
-            neuralSensitivity: 0.1, // Neural network energy adjustment sensitivity
-            onsetThreshold: 2.5, // Spectral flux threshold for onset detection
-            syncCouplingStrength: 0.05 // Synchronization force coupling strength
+            tokenDisplayLimit: 200 // Maximum tokens to display in UI
         };
         
         // CST v2.0+ additive: Token buffering for batched UI updates
@@ -1036,136 +1033,6 @@
         };
 
         // ============================================================================
-        // NEURAL NETWORK ADAPTER - Learning system for energy modulation
-        // ============================================================================
-        class NeuralNetworkAdapter {
-            constructor(inputSize, hiddenSize, outputSize) {
-                this.inputSize = inputSize;
-                this.hiddenSize = hiddenSize;
-                this.outputSize = outputSize;
-                this.learningRate = 0.001;
-
-                // Initialize weights with small random values
-                this.weightsInputHidden = Array(inputSize).fill(0).map(() =>
-                    Array(hiddenSize).fill(0).map(() => (getRandom() - 0.5) * 0.1)
-                );
-                this.weightsHiddenOutput = Array(hiddenSize).fill(0).map(() =>
-                    Array(outputSize).fill(0).map(() => (getRandom() - 0.5) * 0.1)
-                );
-                this.biasHidden = Array(hiddenSize).fill(0);
-                this.biasOutput = Array(outputSize).fill(0);
-
-                // Cache for backpropagation
-                this.lastInput = null;
-                this.lastHidden = null;
-                this.lastOutput = null;
-            }
-
-            // ReLU activation
-            relu(x) {
-                return Math.max(0, x);
-            }
-
-            // ReLU derivative
-            reluDerivative(x) {
-                return x > 0 ? 1 : 0;
-            }
-
-            // Forward pass
-            forward(input) {
-                this.lastInput = input;
-
-                // Input to hidden layer
-                const hidden = [];
-                for (let i = 0; i < this.hiddenSize; i++) {
-                    let sum = this.biasHidden[i];
-                    for (let j = 0; j < this.inputSize; j++) {
-                        sum += input[j] * this.weightsInputHidden[j][i];
-                    }
-                    hidden.push(this.relu(sum));
-                }
-                this.lastHidden = hidden;
-
-                // Hidden to output layer
-                const output = [];
-                for (let i = 0; i < this.outputSize; i++) {
-                    let sum = this.biasOutput[i];
-                    for (let j = 0; j < this.hiddenSize; j++) {
-                        sum += hidden[j] * this.weightsHiddenOutput[j][i];
-                    }
-                    output.push(sum); // Linear output (no activation)
-                }
-                this.lastOutput = output;
-
-                return output;
-            }
-
-            // Backward pass and weight update
-            backward(targetOutput) {
-                if (!this.lastInput || !this.lastHidden || !this.lastOutput) return;
-
-                // Output layer error
-                const outputError = [];
-                for (let i = 0; i < this.outputSize; i++) {
-                    outputError.push(this.lastOutput[i] - targetOutput[i]);
-                }
-
-                // Update hidden-to-output weights
-                for (let i = 0; i < this.hiddenSize; i++) {
-                    for (let j = 0; j < this.outputSize; j++) {
-                        const gradient = outputError[j] * this.lastHidden[i];
-                        this.weightsHiddenOutput[i][j] -= this.learningRate * gradient;
-                    }
-                }
-
-                // Update output bias
-                for (let i = 0; i < this.outputSize; i++) {
-                    this.biasOutput[i] -= this.learningRate * outputError[i];
-                }
-
-                // Hidden layer error (backpropagated)
-                const hiddenError = [];
-                for (let i = 0; i < this.hiddenSize; i++) {
-                    let error = 0;
-                    for (let j = 0; j < this.outputSize; j++) {
-                        error += outputError[j] * this.weightsHiddenOutput[i][j];
-                    }
-                    // Apply ReLU derivative
-                    const hiddenValue = this.lastHidden[i];
-                    const preActivation = hiddenValue; // Approximate (should store pre-activation)
-                    hiddenError.push(error * this.reluDerivative(preActivation));
-                }
-
-                // Update input-to-hidden weights
-                for (let i = 0; i < this.inputSize; i++) {
-                    for (let j = 0; j < this.hiddenSize; j++) {
-                        const gradient = hiddenError[j] * this.lastInput[i];
-                        this.weightsInputHidden[i][j] -= this.learningRate * gradient;
-                    }
-                }
-
-                // Update hidden bias
-                for (let i = 0; i < this.hiddenSize; i++) {
-                    this.biasHidden[i] -= this.learningRate * hiddenError[i];
-                }
-            }
-
-            // Train on a batch of examples
-            train(inputBatch, targetBatch, epochs = 1) {
-                for (let epoch = 0; epoch < epochs; epoch++) {
-                    for (let i = 0; i < inputBatch.length; i++) {
-                        this.forward(inputBatch[i]);
-                        this.backward(targetBatch[i]);
-                    }
-                }
-            }
-        }
-
-        // Onset detection state
-        let lastSpectrum = null;
-        let onsetDetectionEnabled = true;
-
-        // ============================================================================
         // 12D CST GLOBAL SIMULATION STATE
         // ============================================================================
         const physics = {
@@ -1191,12 +1058,6 @@
 
         const sync = {
             Ksync: 0.1 // Kuramoto coupling strength
-        };
-
-        // Synchronization state
-        const synchronization = {
-            orderParameter: 0,
-            globalPhase: 0
         };
 
         const timestep = {
@@ -1233,17 +1094,6 @@
         const dmParams = {
             rho0: 1.0, // Central density
             rs: 5.0 // Scale radius
-        };
-
-        // Neural network adapter instance (input: 10 memory + 5 frequencies, hidden: 64, output: 2)
-        let neuralAdapter = null;
-
-        // Token persistence configuration
-        const tokenPersistence = {
-            enabled: true, // Enable auto-save/load
-            storageKey: 'cst_tokens_v2', // LocalStorage key
-            autoSaveInterval: 60000, // Auto-save every 60 seconds
-            lastSaveTime: Date.now()
         };
 
         // CST v2.0+ additive: Projection mode configuration
@@ -1803,171 +1653,19 @@
 
         function computeSynchronizationMetric(particles) {
             if (particles.length === 0) return { r: 0, meanTheta: 0 };
-
+            
             let sumReal = 0;
             let sumImag = 0;
-
+            
             particles.forEach(p => {
                 sumReal += Math.cos(p.theta);
                 sumImag += Math.sin(p.theta);
             });
-
+            
             const r = Math.sqrt(sumReal*sumReal + sumImag*sumImag) / particles.length;
             const meanTheta = Math.atan2(sumImag, sumReal);
-
+            
             return { r, meanTheta };
-        }
-
-        // ============================================================================
-        // NEW ENHANCEMENT FUNCTIONS
-        // ============================================================================
-
-        // Compute dark matter force (gradient of NFW potential)
-        // Returns acceleration vector for a particle
-        function computeDarkMatterForce(particle, dmParams) {
-            if (!physics.dmEnabled) {
-                return { x: 0, y: 0, z: 0 };
-            }
-
-            const r = Math.sqrt(particle.x*particle.x + particle.y*particle.y + particle.z*particle.z) + physics.epsilon;
-            if (r < 1e-10) return { x: 0, y: 0, z: 0 };
-
-            const r_rs = r / dmParams.rs;
-
-            // NFW density: ρ(r) = ρ₀ / ((r/rs) · (1 + r/rs)²)
-            const rho = r_rs > 1e-10 ? dmParams.rho0 / (r_rs * Math.pow(1 + r_rs, 2)) : 0;
-
-            // Numerical gradient of potential
-            // F = -∇U ≈ -G · m · ρ · (4π/3) · ∇(r²)
-            // For NFW, the force scales approximately as -G·m·M(r)/r² where M(r) is enclosed mass
-            // Simplified: F_r ≈ -G·m·ρ·4π·r / 3
-            const forceMagnitude = -physics.G * particle.mass * rho * 4 * Math.PI * r / 3;
-
-            // Force direction (radial)
-            const fx = forceMagnitude * (particle.x / r);
-            const fy = forceMagnitude * (particle.y / r);
-            const fz = forceMagnitude * (particle.z / r);
-
-            // Return acceleration (F/m)
-            return {
-                x: fx / particle.mass,
-                y: fy / particle.mass,
-                z: fz / particle.mass
-            };
-        }
-
-        // Update particle memory from neighbors (learning mechanism)
-        function updateMemoryFromNeighbors(particle, particles, topFrequencies) {
-            if (!particle.neighbors || particle.neighbors.length === 0) return;
-
-            // Collect neighbor states
-            const neighborMemories = particle.neighbors.map(idx => particles[idx].memory);
-            const neighborX12s = particle.neighbors.map(idx => particles[idx].x12);
-            const neighborM12s = particle.neighbors.map(idx => particles[idx].m12);
-
-            // Average neighbor x12 and m12
-            const avgNeighborX12 = neighborX12s.reduce((sum, val) => sum + val, 0) / neighborX12s.length;
-            const avgNeighborM12 = neighborM12s.reduce((sum, val) => sum + val, 0) / neighborM12s.length;
-
-            // Hebbian-like update: particles that are synchronized update their memory towards each other
-            const learningRate = 0.05;
-            particle.m12 += learningRate * (avgNeighborM12 - particle.m12);
-
-            // Update memory array with blend of own state and neighbor average
-            for (let i = 0; i < particle.memory.length; i++) {
-                let avgNeighborMem = 0;
-                neighborMemories.forEach(mem => {
-                    avgNeighborMem += mem[i];
-                });
-                avgNeighborMem /= neighborMemories.length;
-
-                // Weighted average: 80% own, 20% neighbors
-                particle.memory[i] = 0.8 * particle.memory[i] + 0.2 * avgNeighborMem;
-            }
-
-            // Also update memory with current audio frequencies
-            if (topFrequencies && topFrequencies.length > 0) {
-                const memorySlots = Math.min(5, topFrequencies.length);
-                for (let i = 0; i < memorySlots; i++) {
-                    const freqNormalized = topFrequencies[i].frequency / 20000; // Normalize to [0,1]
-                    particle.memory[i] = 0.9 * particle.memory[i] + 0.1 * freqNormalized;
-                }
-            }
-        }
-
-        // Detect audio onset (sudden amplitude increase)
-        function detectOnset(spectrum) {
-            if (!onsetDetectionEnabled || !spectrum || spectrum.length === 0) {
-                return false;
-            }
-
-            if (!lastSpectrum) {
-                lastSpectrum = spectrum.slice(); // Deep copy
-                return false;
-            }
-
-            // Spectral flux: sum of positive differences
-            let flux = 0;
-            for (let i = 0; i < Math.min(spectrum.length, lastSpectrum.length); i++) {
-                const diff = spectrum[i] - lastSpectrum[i];
-                if (diff > 0) flux += diff;
-            }
-
-            lastSpectrum = spectrum.slice(); // Update
-
-            // Normalize by spectrum length
-            flux /= spectrum.length;
-
-            return flux > audioConfig.onsetThreshold;
-        }
-
-        // Token persistence functions
-        function saveTokensToStorage() {
-            if (!tokenPersistence.enabled) return;
-
-            try {
-                const data = {
-                    tokens: tokens.slice(-1000), // Save last 1000 tokens
-                    timestamp: Date.now(),
-                    version: '2.0+',
-                    particleCount: particles.length
-                };
-                localStorage.setItem(tokenPersistence.storageKey, JSON.stringify(data));
-                tokenPersistence.lastSaveTime = Date.now();
-                console.log('[CST Token Persistence] Saved', tokens.length, 'tokens to localStorage');
-            } catch (err) {
-                console.error('[CST Token Persistence] Save failed:', err);
-            }
-        }
-
-        function loadTokensFromStorage() {
-            if (!tokenPersistence.enabled) return;
-
-            try {
-                const stored = localStorage.getItem(tokenPersistence.storageKey);
-                if (!stored) {
-                    console.log('[CST Token Persistence] No saved tokens found');
-                    return;
-                }
-
-                const data = JSON.parse(stored);
-                if (data.tokens && Array.isArray(data.tokens)) {
-                    tokens = data.tokens;
-                    tokenCount = tokens.length;
-                    updateTokenDisplay();
-                    console.log('[CST Token Persistence] Loaded', tokens.length, 'tokens from localStorage');
-                    console.log('[CST Token Persistence] Data from', new Date(data.timestamp).toLocaleString());
-                }
-            } catch (err) {
-                console.error('[CST Token Persistence] Load failed:', err);
-            }
-        }
-
-        function autoSaveTokens() {
-            const now = Date.now();
-            if (now - tokenPersistence.lastSaveTime >= tokenPersistence.autoSaveInterval) {
-                saveTokensToStorage();
-            }
         }
 
         // 7) Entropy via coarse-graining
@@ -3289,19 +2987,6 @@
             frequencyData = frame.frequencies || [];
             spectralCentroid = frame.centroid || 0;
 
-            // NEW: Onset detection for particle creation
-            const onset = detectOnset(frame.raw);
-            if (onset && particles.length < 50) {
-                console.log('[CST Onset] Creating particle from audio onset');
-                const colorHue = (spectralCentroid / 20000) * 360;
-                const color = new THREE.Color(`hsl(${colorHue}, 100%, 50%)`);
-                createParticleFromFrequency(
-                    spectralCentroid || 440,
-                    audioEnergy,
-                    color.getHex()
-                );
-            }
-
             // Update displays
             const rmsEl = document.getElementById('rms-energy');
             const dominantEl = document.getElementById('dominant-freq');
@@ -3324,9 +3009,6 @@
             const chaos = calculateAudioChaos();
             const chaosEl = document.getElementById('audio-chaos');
             if (chaosEl) chaosEl.textContent = chaos.toFixed(3);
-
-            // NEW: Auto-save tokens periodically
-            autoSaveTokens();
         }
 
         function generatePhiHarmonics(fundamental, count) {
@@ -3787,97 +3469,33 @@
         function updateLorenzParticles() {
             if (particles.length === 0 || isPaused) return;
 
-            try {
-                // Adaptive dt is updated in animate() before this call
-                const spatialIndex = buildSpatialIndex(particles, physics.rCutoff);
-                const gravAccelerations = computeGravitationalAccelerations(particles, spatialIndex, physics);
-                computeGravitationalEnergy(particles, spatialIndex, physics);
-                computeDarkMatterPotential(particles, dmParams);
+            // Adaptive dt is updated in animate() before this call
+            const spatialIndex = buildSpatialIndex(particles, physics.rCutoff);
+            const gravAccelerations = computeGravitationalAccelerations(particles, spatialIndex, physics);
+            computeGravitationalEnergy(particles, spatialIndex, physics);
+            computeDarkMatterPotential(particles, dmParams);
                 computeSynapticStrength(particles, spatialIndex, physics, adapt);
-                updateAdaptiveStates(particles, adapt, timestep.dt);
-                updatePhases(particles, sync, spatialIndex, timestep.dt);
+            updateAdaptiveStates(particles, adapt, timestep.dt);
+            updatePhases(particles, sync, spatialIndex, timestep.dt);
 
-                // NEW: Compute synchronization metric for feedback
-                const syncMetric = computeSynchronizationMetric(particles);
-                synchronization.orderParameter = syncMetric.r;
-                synchronization.globalPhase = syncMetric.meanTheta;
-
-                // NEW: Apply memory learning from neighbors
-                const topFreqs = frequencyData ? frequencyData.slice(0, 10) : [];
-                particles.forEach(p => {
-                    try {
-                        updateMemoryFromNeighbors(p, particles, topFreqs);
-                    } catch (err) {
-                        console.error('[CST] Memory update error:', err);
-                    }
-                });
-
-                // Audio modulation
+            // Audio modulation
                 const audioMod = isAudioActive ? audioEnergy * audioSensitivity : 0;
 
-                // Update particle trajectories and visuals
+            // Update particle trajectories and visuals
                 let chaosSum = 0;
-                particles.forEach((p, i) => {
-                    try {
-                        const accel = gravAccelerations[i];
-
-                        // NEW: Add dark matter force
-                        const dmForce = computeDarkMatterForce(p, dmParams);
-                        accel.x += dmForce.x;
-                        accel.y += dmForce.y;
-                        accel.z += dmForce.z;
-
-                        // NEW: Add synchronization feedback force
-                        const syncOrder = synchronization.orderParameter || 0;
-                        const syncPhase = synchronization.globalPhase || 0;
-                        const phaseDiff = p.theta - syncPhase;
-                        const syncForce = syncOrder * Math.sin(phaseDiff) * audioConfig.syncCouplingStrength;
-                        // Apply sync force as velocity modulation
-                        p.velocity.x += syncForce * timestep.dt;
-                        p.velocity.y += syncForce * timestep.dt;
-                        p.velocity.z += syncForce * timestep.dt;
-
-                        const d = p.update(audioMod, accel);
-                        chaosSum += Math.abs(d.dx) + Math.abs(d.dy) + Math.abs(d.dz);
-                    } catch (err) {
-                        console.error('[CST] Particle update error:', err);
-                    }
+            particles.forEach((p, i) => {
+                const accel = gravAccelerations[i];
+                const d = p.update(audioMod, accel);
+                chaosSum += Math.abs(d.dx) + Math.abs(d.dy) + Math.abs(d.dz);
                 });
 
-                // Recompute energies and vi
-                particles.forEach(p => {
-                    const v2 = p.velocity.x*p.velocity.x + p.velocity.y*p.velocity.y + p.velocity.z*p.velocity.z;
-                    const K = 0.5 * p.mass * v2;
-                    p.Ec = K + p.Ugrav + p.Udm;
-
-                    // NEW: Apply neural network energy adjustment
-                    if (neuralAdapter && p.memory && p.memory.length > 0) {
-                        try {
-                            const memoryInput = [...p.memory.slice(0, 10), ...topFreqs.slice(0, 5).map(f => f.magnitude || 0)];
-                            // Pad to 15 elements if needed
-                            while (memoryInput.length < 15) memoryInput.push(0);
-                            const [deltaAlpha, deltaEnergy] = neuralAdapter.forward(memoryInput.slice(0, 15));
-
-                            const avgMemory = memoryInput.reduce((a, b) => a + b, 0) / memoryInput.length;
-                            const adjustment = audioConfig.neuralSensitivity * deltaEnergy * (avgMemory - p.Ec * 1e-16);
-                            p.Ec += adjustment;
-                            p.Ec = Math.max(0, p.Ec);
-
-                            // Train neural network based on energy conservation error
-                            if (conservationStats.E0 !== 0 && frameCount % 100 === 0) {
-                                const energyError = Math.abs(conservationStats.E0 - p.Ec) / (Math.abs(conservationStats.E0) + 1e-10);
-                                neuralAdapter.backward([0, energyError < 0.1 ? 0 : energyError]);
-                            }
-                        } catch (err) {
-                            console.error('[CST] Neural network error:', err);
-                        }
-                    }
-
-                    p.vi = p.Ec / h;
-                });
-            } catch (err) {
-                console.error('[CST] updateLorenzParticles critical error:', err);
-            }
+            // Recompute energies and vi
+            particles.forEach(p => {
+                const v2 = p.velocity.x*p.velocity.x + p.velocity.y*p.velocity.y + p.velocity.z*p.velocity.z;
+                const K = 0.5 * p.mass * v2;
+                p.Ec = K + p.Ugrav + p.Udm;
+                p.vi = p.Ec / h;
+            });
             
             // Entropy every N frames (performance)
                 if (frameCount % 10 === 0) {
@@ -7696,139 +7314,21 @@
             console.log('[CST Runtime] 💡 Run runCST_Diagnostics() in console for system status');
         })();
 
-        // ============================================================================
-        // KEYBOARD SHORTCUTS AND INITIALIZATION
-        // ============================================================================
-
-        // Keyboard shortcut handler
-        document.addEventListener('keydown', (e) => {
-            // Ignore shortcuts when typing in input fields
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-            switch(e.key.toLowerCase()) {
-                case 'm':
-                    toggleMicrophone();
-                    break;
-                case 'r':
-                    resetSystem();
-                    break;
-                case 'p':
-                    togglePause();
-                    break;
-                case 'a':
-                    addParticle();
-                    break;
-                case 'e':
-                    exportTokens();
-                    break;
-                case 'c':
-                    changeColor();
-                    break;
-                case 'h':
-                    toggleHelpOverlay();
-                    break;
-                case 's':
-                    saveTokensToStorage();
-                    console.log('[CST] Tokens saved manually');
-                    break;
-                case '?':
-                    toggleHelpOverlay();
-                    break;
-            }
-        });
-
-        // Help overlay toggle
-        let helpOverlayVisible = false;
-        function toggleHelpOverlay() {
-            let overlay = document.getElementById('help-overlay');
-            if (!overlay) {
-                // Create help overlay on first call
-                overlay = document.createElement('div');
-                overlay.id = 'help-overlay';
-                overlay.style.cssText = `
-                    position: fixed;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    background: rgba(10, 10, 26, 0.95);
-                    border: 2px solid rgba(0, 212, 255, 0.5);
-                    border-radius: 15px;
-                    padding: 30px;
-                    z-index: 10000;
-                    max-width: 500px;
-                    color: white;
-                    font-family: 'Segoe UI', sans-serif;
-                    box-shadow: 0 10px 50px rgba(123, 47, 247, 0.5);
-                    display: none;
-                `;
-                overlay.innerHTML = `
-                    <h2 style="color: #00d4ff; margin-top: 0;">🎹 Keyboard Shortcuts</h2>
-                    <div style="line-height: 1.8;">
-                        <p><strong>M</strong> - Toggle Microphone</p>
-                        <p><strong>R</strong> - Reset System</p>
-                        <p><strong>P</strong> - Pause/Play</p>
-                        <p><strong>A</strong> - Add Particle</p>
-                        <p><strong>E</strong> - Export Tokens</p>
-                        <p><strong>C</strong> - Change Color</p>
-                        <p><strong>S</strong> - Save Tokens Manually</p>
-                        <p><strong>H or ?</strong> - Toggle This Help</p>
-                    </div>
-                    <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
-                        <p style="font-size: 0.9em; color: #a0a0ff;">
-                            <strong>Neural Network:</strong> Active learning from memory + frequencies<br>
-                            <strong>Dark Matter:</strong> NFW forces integrated<br>
-                            <strong>Synchronization:</strong> Kuramoto feedback active<br>
-                            <strong>Onset Detection:</strong> Auto-creates particles on audio peaks<br>
-                            <strong>Token Persistence:</strong> Auto-saves every 60 seconds
-                        </p>
-                    </div>
-                    <button onclick="toggleHelpOverlay()" style="
-                        margin-top: 15px;
-                        background: linear-gradient(45deg, #00d4ff, #7b2ff7);
-                        border: none;
-                        padding: 10px 20px;
-                        border-radius: 20px;
-                        color: white;
-                        cursor: pointer;
-                        font-weight: bold;
-                    ">Close</button>
-                `;
-                document.body.appendChild(overlay);
-            }
-
-            helpOverlayVisible = !helpOverlayVisible;
-            overlay.style.display = helpOverlayVisible ? 'block' : 'none';
-        }
-
-        // Initialize neural network adapter on page load
-        console.log('[CST Init] Initializing neural network adapter...');
-        neuralAdapter = new NeuralNetworkAdapter(15, 64, 2);
-        console.log('[CST Init] ✅ Neural network adapter initialized (15 inputs, 64 hidden, 2 outputs)');
-
-        // Load saved tokens from localStorage
-        console.log('[CST Init] Loading tokens from localStorage...');
-        loadTokensFromStorage();
-
         console.log('═══════════════════════════════════════════════════════════════');
-        console.log('🌌 12D COSMIC SYNAPSE THEORY - FULL SPEC IMPLEMENTATION v2.1+ 🌌');
+        console.log('🌌 12D COSMIC SYNAPSE THEORY - FULL SPEC IMPLEMENTATION v2.1 🌌');
         console.log('═══════════════════════════════════════════════════════════════');
         console.log('✅ Infinite Token Generation (no caps)');
         console.log('✅ Adaptive State Evolution (dx12/dt, dm12/dt)');
         console.log('✅ Global Entropy with Heart-Rate Trace');
         console.log('✅ ψ Function Breakdown (6 terms)');
         console.log('✅ Replay & Determinism');
-        console.log('✅ Dark Matter NFW Profile + Forces');
-        console.log('✅ Kuramoto Synchronization + Feedback');
+        console.log('✅ Dark Matter NFW Profile');
+        console.log('✅ Kuramoto Synchronization');
         console.log('✅ Conservation Checks');
-        console.log('✅ Neural Network Learning (NEW)');
-        console.log('✅ Memory Learning from Neighbors (NEW)');
-        console.log('✅ Onset Detection (NEW)');
-        console.log('✅ Token Auto-Save/Load (NEW)');
-        console.log('✅ Keyboard Shortcuts (NEW)');
         console.log('═══════════════════════════════════════════════════════════════');
         console.log('📖 Reference: 12D_Cosmic_Synapse_Theory.pdf');
         console.log('🎤 Ready for audio input - tokens will generate infinitely');
-        console.log('⌨️  Press H or ? for keyboard shortcuts');
+        console.log('💾 Optional: Call enableTokenPersistence(true) for disk storage');
         console.log('💡 Run runCST_Diagnostics() for system status');
         console.log('🐛 Add ?debug=true to URL for detailed function call logging');
         console.log('═══════════════════════════════════════════════════════════════');
