@@ -130,6 +130,36 @@
         #final-message .btn { margin-top: 30px; animation: fadeIn 5s ease 1s forwards; opacity: 0; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
+        /* Seed Visualizer Styles */
+        .data-stream {
+            width: 15%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .data-pulse {
+            width: 10px;
+            height: 10px;
+            background-color: #334155;
+            border-radius: 50%;
+            transition: background-color 0.1s, box-shadow 0.2s;
+            margin-top: 5px;
+        }
+        .data-pulse.active {
+            background-color: #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+        }
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(56, 189, 248, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+        }
+
     </style>
 </head>
 <body>
@@ -300,7 +330,37 @@
              </div>
         </div>
     </div>
-    
+
+    <!-- PSI Overlay Panel -->
+    <div id="psiPanel" class="ui-panel" style="right: 12px; bottom: 12px; max-width: 420px; padding: 12px; display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h3 style="margin: 0; font-size: 14px; color: #9db8ff;">CST ψ — Live Terms</h3>
+            <button id="psiClose" style="border: 0; background: transparent; color: #9db8ff; font-weight: 700; cursor: pointer; font-size: 18px;">×</button>
+        </div>
+        <div style="display: grid; grid-template-columns: auto 1fr; column-gap: 10px; row-gap: 6px; font-family: 'Roboto Mono', monospace; font-size: 12px;">
+            <div style="color: #9db8ff;">c²·φ·E_c</div><div style="color: #cfe8ff; text-align: right;" id="psi_term1">–</div>
+            <div style="color: #9db8ff;">λ (audio)</div><div style="color: #cfe8ff; text-align: right;" id="psi_term2">–</div>
+            <div style="color: #9db8ff;">Ω·E_c</div><div style="color: #cfe8ff; text-align: right;" id="psi_term3">–</div>
+            <div style="color: #9db8ff;">U_grav</div><div style="color: #cfe8ff; text-align: right;" id="psi_term4">–</div>
+            <div style="color: #9db8ff;">Σρ_sd</div><div style="color: #cfe8ff; text-align: right;" id="psi_term5">–</div>
+            <div style="color: #9db8ff;">ψ (sum)</div><div style="color: #cfe8ff; text-align: right;" id="psi_sum">–</div>
+        </div>
+        <canvas id="psi_graph_canvas" width="400" height="100" style="margin-top: 10px; width: 100%; height: 100px;"></canvas>
+    </div>
+
+    <!-- Seed Visualizer -->
+    <div id="seed-visualizer" style="position: fixed; bottom: 12px; left: 12px; height: 60px; width: 400px; display: none; background: rgba(0,0,0,0.6); border: 1px solid rgba(100,116,139,0.3); border-radius: 0.5rem; overflow: hidden; backdrop-filter: blur(10px);">
+        <div style="display: flex; align-items: center; justify-content: space-around; height: 100%;">
+            <div class="data-stream"><span>Audio</span><div id="pulse-audio" class="data-pulse"></div></div>
+            <div class="data-stream"><span>Video</span><div id="pulse-video" class="data-pulse"></div></div>
+            <div class="data-stream"><span>Loc</span><div id="pulse-loc" class="data-pulse"></div></div>
+            <div class="data-stream"><span>Light</span><div id="pulse-light" class="data-pulse"></div></div>
+            <div class="data-stream"><span>USGS</span><div id="pulse-usgs" class="data-pulse"></div></div>
+            <div class="data-stream"><span>APOD</span><div id="pulse-apod" class="data-pulse"></div></div>
+            <div class="data-stream"><span>ML</span><div id="pulse-ml" class="data-pulse"></div></div>
+        </div>
+    </div>
+
 <script type="module">
     // --- IMPORTS ---
     import * as THREE from 'three';
@@ -674,7 +734,7 @@
     class ExternalDataManager {
         constructor(eventBus) {
             this.eventBus = eventBus;
-            this.apiKey = 'DEMO_KEY'; // Use DEMO_KEY for testing
+            this.apiKey = 'HTVS2skIdJsnffqXwdqUunQGmm6y6Wg0yAnD7fZW'; // NASA API key
             this.cache = new Map();
             this.rateLimits = new Map();
             this.lastFetch = new Map();
@@ -813,6 +873,22 @@
         constructor(eventBus, dataLogger) {
             this.eventBus = eventBus;
             this.dataLogger = dataLogger;
+            this.preferences = { floraBias: 1.0, blackHoleBias: 1.0 };
+            this.latestData = {
+                loc: "0,0",
+                light: 100,
+                apod: "Unknown",
+                usgs: 0,
+                ml: [],
+                audio: 0,
+                lastAudioSpike: 0,
+                lastLightValue: 100,
+                lastSignificantQuakeTime: 0,
+                bioFreq: 7.83 // Schumann resonance
+            };
+            this.scheduledEventTimers = [];
+            this.seed = null;
+            this.intention = '';
             this.state = {
                 awareness: 0,
                 creativity: 0,
@@ -822,6 +898,126 @@
             this.memory = [];
             this.maxMemory = 50;
             this.lastDecision = null;
+            this.initSubscriptions();
+        }
+
+        initSubscriptions() {
+            this.eventBus.on('sensor:geolocation:update', data => {
+                this.latestData.loc = `${data.latitude.toFixed(4)},${data.longitude.toFixed(4)}`;
+                this.eventBus.emit('genesis:log', { name: 'Location', value: this.latestData.loc, type: 'success' });
+            });
+
+            this.eventBus.on('sensor:ambientLight:update', data => {
+                this.latestData.light = Math.round(data.illuminance);
+                if (Math.abs(this.latestData.light - this.latestData.lastLightValue) > 50) {
+                    this.eventBus.emit('ai:event', { type: 'lightChange', value: this.latestData.light });
+                    this.latestData.lastLightValue = this.latestData.light;
+                }
+            });
+
+            this.eventBus.on('external:nasa_apod:success', data => {
+                this.latestData.apod = data.title || "Cosmic Silence";
+            });
+
+            this.eventBus.on('external:usgs_earthquakes:success', data => {
+                if (data.features && data.features.length > 0) {
+                    const latestQuake = data.features[0];
+                    this.latestData.usgs = latestQuake.properties.mag;
+                    if (latestQuake.properties.mag > 6.0 && latestQuake.properties.time > this.latestData.lastSignificantQuakeTime) {
+                        this.eventBus.emit('ai:event', { type: 'majorSeismicEvent', magnitude: latestQuake.properties.mag });
+                        this.latestData.lastSignificantQuakeTime = latestQuake.properties.time;
+                    }
+                } else {
+                    this.latestData.usgs = 0;
+                }
+            });
+
+            this.eventBus.on('ml:detections', data => {
+                this.latestData.ml = [...new Set(data.map(d => d.label))];
+            });
+
+            this.eventBus.on('sensor:audio:update', data => {
+                const avgFreq = (data.bass + data.mids + data.treble) * 85; // Approximate average
+                const now = Date.now();
+                if (avgFreq > 120 && (now - this.latestData.lastAudioSpike > 3000)) {
+                    this.eventBus.emit('ai:event', {type: 'audioSpike', value: avgFreq});
+                    this.latestData.lastAudioSpike = now;
+                }
+                this.latestData.audio = avgFreq;
+            });
+        }
+
+        generateSeed(overrideData = null) {
+            const timestamp = Date.now().toString();
+            let seedString;
+            let intention = "Observing the Void.";
+            let influence = {
+                hasPlant: false,
+                hasBook: false,
+                createBlackHole: false,
+                bioFreq: this.latestData.bioFreq
+            };
+
+            if(overrideData) {
+                seedString = JSON.stringify(overrideData);
+                intention = "Traversing the Cosmic Web to a new echo.";
+            } else {
+                seedString = [
+                    timestamp,
+                    this.latestData.loc,
+                    this.latestData.light,
+                    this.latestData.apod,
+                    this.latestData.audio,
+                    ...this.latestData.ml,
+                    this.latestData.usgs,
+                    this.latestData.bioFreq
+                ].join('|');
+
+                influence.hasPlant = (this.latestData.ml.includes("potted plant") || this.latestData.ml.includes("plant"));
+                influence.hasBook = this.latestData.ml.includes("book");
+                influence.createBlackHole = this.latestData.usgs > 5.0;
+
+                if (influence.createBlackHole) {
+                    intention = `Manifesting gravitational anomaly from seismic event (mag ${this.latestData.usgs}).`;
+                } else if (influence.hasPlant) {
+                    intention = "Cultivating organic structures.";
+                } else if (influence.hasBook) {
+                    intention = "Constructing monoliths from observed knowledge.";
+                } else if (this.latestData.audio > 80) {
+                    intention = "Manifesting high-frequency audio energy.";
+                } else if (this.latestData.ml.includes("person")) {
+                    intention = "Contemplating observed human presence.";
+                } else if (this.latestData.light < 50) {
+                    intention = "Weaving a cosmos from shadows and low light.";
+                } else {
+                    intention = `Synthesizing a tranquil cosmos from ${this.latestData.apod}.`;
+                }
+            }
+
+            this.seed = this.hashString(seedString);
+            this.intention = intention;
+
+            this.eventBus.emit('ai:intentionUpdate', intention);
+            this.dataLogger.logLedger('event', 'AI', intention);
+            this.dataLogger.logLedger('info', 'AI', `Seed: ${this.seed}`);
+
+            return { seed: this.seed, intention, influence };
+        }
+
+        hashString(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash).toString(16);
+        }
+
+        scheduleFutureEvent(eventType, delayMs) {
+            const triggerTime = Date.now() + delayMs;
+            this.scheduledEventTimers.push({ type: eventType, triggerTime });
+            this.dataLogger.logLedger('info', 'AI', `Scheduled ${eventType} in ${delayMs}ms`);
         }
 
         learn(data) {
@@ -897,6 +1093,16 @@
         }
 
         tick(timestamp) {
+            // Check scheduled events
+            this.scheduledEventTimers = this.scheduledEventTimers.filter(evt => {
+                if (timestamp >= evt.triggerTime) {
+                    this.eventBus.emit(`ai:event:${evt.type}`, { timestamp });
+                    this.dataLogger.logLedger('event', 'AI', `Triggered: ${evt.type}`);
+                    return false;
+                }
+                return true;
+            });
+
             // Periodic AI updates
             if (!this.lastTick || timestamp - this.lastTick > 5000) {
                 this.lastTick = timestamp;
@@ -922,6 +1128,136 @@
 
         getMemory(limit = 10) {
             return this.memory.slice(-limit);
+        }
+    }
+
+    // CSTComputeEngine - 12D Composite Space-Time v3 Computation Engine
+    class CSTComputeEngine {
+        constructor(eventBus, dataLogger) {
+            this.eventBus = eventBus;
+            this.dataLogger = dataLogger;
+            this.c = 299792458; // Speed of light (m/s)
+            this.phi = 1.618033988749895; // Golden ratio
+            this.G = 6.674e-11; // Gravitational constant
+            this.psi = 0; // Current psi value
+            this.psiHistory = []; // History for graphing
+            this.maxHistory = 100;
+        }
+
+        computePsi(params, sensors, entities) {
+            // Term 1: c²·φ·Ec (fundamental energy contribution)
+            const term1 = Math.pow(this.c, 2) * this.phi * params.ec;
+
+            // Term 2: λ·audio (sensory audio coupling)
+            const audioAvg = sensors.audio ? (sensors.audio.avgFreq || 0) : 0;
+            const term2 = params.lambda * audioAvg;
+
+            // Term 3: Ω·Ec (cosmic expansion contribution)
+            const term3 = params.omega * params.ec;
+
+            // Term 4: U_grav (gravitational potential energy from massive objects)
+            let term4 = 0;
+            entities.forEach(e => {
+                if (e.userData && (e.userData.type === 'star' || e.userData.type === 'blackhole')) {
+                    const mass = e.userData.mass || 1;
+                    const r = e.position.length();
+                    if (r > 1) term4 += (this.G * mass) / r;
+                }
+            });
+            term4 *= params.ugrav;
+
+            // Term 5: Σρ_sd (Soul Dust density contribution)
+            const soulDustCount = entities.filter(e => e.userData && e.userData.type === 'soul_dust').length;
+            const term5 = soulDustCount * 0.01;
+
+            // Total psi
+            this.psi = term1 + term2 + term3 + term4 + term5;
+
+            // Store in history for graphing
+            this.psiHistory.push({ t: Date.now(), psi: this.psi });
+            if (this.psiHistory.length > this.maxHistory) this.psiHistory.shift();
+
+            // Emit event for UI updates
+            this.eventBus.emit('cst:psi_update', {
+                term1, term2, term3, term4, term5, psi: this.psi
+            });
+
+            return {
+                term1, term2, term3, term4, term5, psi: this.psi
+            };
+        }
+
+        updateEntityState(entity, deltaTime) {
+            if (!entity.userData) return;
+
+            // Initialize 12D state vectors if not present
+            if (!entity.userData.h12) entity.userData.h12 = new Float32Array(12);
+            if (!entity.userData.x12) entity.userData.x12 = new Float32Array(12);
+            if (!entity.userData.m12) entity.userData.m12 = new Float32Array(12);
+
+            const { h12, x12, m12 } = entity.userData;
+
+            // Update x12 (current state vector)
+            // Dimensions 0-2: Position (normalized)
+            x12[0] = entity.position.x / 100;
+            x12[1] = entity.position.y / 100;
+            x12[2] = entity.position.z / 100;
+
+            // Dimensions 3-5: Velocity
+            if (entity.userData.velocity) {
+                x12[3] = entity.userData.velocity.x;
+                x12[4] = entity.userData.velocity.y;
+                x12[5] = entity.userData.velocity.z;
+            }
+
+            // Dimension 6: Age/lifecycle (0 to 1)
+            x12[6] = (entity.userData.age || 0) / (entity.userData.maxAge || 1);
+
+            // Dimension 7: Energy (normalized)
+            x12[7] = (entity.userData.energy || 0) / 100;
+
+            // Dimension 8: Mass/scale
+            x12[8] = entity.scale ? entity.scale.x : 1.0;
+
+            // Dimension 9: Rotation phase
+            x12[9] = entity.rotation ? (entity.rotation.y % (2 * Math.PI)) / (2 * Math.PI) : 0;
+
+            // Dimension 10: Interaction count (normalized)
+            x12[10] = (entity.userData.interactions || 0) / 100;
+
+            // Dimension 11: Psi influence (normalized)
+            x12[11] = this.psi / 1e18;
+
+            // Update m12 (memory via Exponential Moving Average)
+            const alpha = 0.1; // Memory decay factor
+            for (let i = 0; i < 12; i++) {
+                m12[i] = alpha * x12[i] + (1 - alpha) * m12[i];
+            }
+
+            // h12 (historical max/min tracking)
+            for (let i = 0; i < 12; i++) {
+                if (!h12[i] || Math.abs(x12[i]) > Math.abs(h12[i])) {
+                    h12[i] = x12[i];
+                }
+            }
+        }
+
+        getEntityStateVector(entity) {
+            if (!entity.userData || !entity.userData.x12) return null;
+            return {
+                h12: Array.from(entity.userData.h12 || []),
+                x12: Array.from(entity.userData.x12 || []),
+                m12: Array.from(entity.userData.m12 || [])
+            };
+        }
+
+        getPsiHistory() {
+            return this.psiHistory;
+        }
+
+        reset() {
+            this.psi = 0;
+            this.psiHistory = [];
         }
     }
 
@@ -2143,6 +2479,9 @@
             // Initialize AI and decision-making
             this.cosmicAI = new CosmicAwarenessAgent(this.eventBus, this.dataLogger);
 
+            // Initialize CST 12D Computation Engine
+            this.cstCompute = new CSTComputeEngine(this.eventBus, this.dataLogger);
+
             // Initialize quantum and procedural systems
             this.quantumEvents = new QuantumEventManager(this.eventBus, this, this.scene, this.camera);
             this.proceduralGen = new ProceduralGenerationEngine(this.scene, this.eventBus);
@@ -2304,6 +2643,10 @@
             // Initialize quantum and procedural systems
             this.quantumEvents.initialize();
 
+            // Generate initial AI seed
+            const aiSeed = this.cosmicAI.generateSeed();
+            this.dataLogger.log('events', { name: 'Genesis Seed', data: aiSeed });
+
             // Generate initial universe using AI
             const initialInfluence = this.cosmicAI.generateInfluence();
             this.proceduralGen.generateUniverse(initialInfluence);
@@ -2314,6 +2657,10 @@
             this.aiLife.init();
 
             this.eventBus.emit('app:started', { timestamp: Date.now() });
+
+            // Initialize PSI overlay and seed visualizer
+            initPSIOverlay();
+
             this.animate();
         }
         
@@ -2374,6 +2721,20 @@
             this.quantumEvents.update(dt);
             this.proceduralGen.update(dt);
             this.cosmicAI.tick(Date.now());
+
+            // Compute CST 12D state vectors and ψ
+            const allEntities = [
+                ...this.cosmos.particles,
+                ...this.aiLife.particles,
+                ...(this.quantumEvents.getParticles ? this.quantumEvents.getParticles() : [])
+            ];
+            const sensorData = { audio: audioData };
+            const cstData = this.cstCompute.computePsi(this.physicsParams, sensorData, allEntities);
+
+            // Update entity state vectors
+            allEntities.forEach(entity => {
+                this.cstCompute.updateEntityState(entity, dt);
+            });
 
             // Update legacy systems
             if (this.currentView === 'galaxy') {
@@ -2516,6 +2877,114 @@
                 this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
             }
         }
+    }
+
+    // PSI Overlay and Seed Visualizer Functions
+    function initPSIOverlay() {
+        const psiPanel = document.getElementById('psiPanel');
+        const psiClose = document.getElementById('psiClose');
+        const seedViz = document.getElementById('seed-visualizer');
+
+        // Show PSI panel and seed visualizer after initialization
+        setTimeout(() => {
+            if (psiPanel) psiPanel.style.display = 'block';
+            if (seedViz) seedViz.style.display = 'block';
+        }, 2000);
+
+        // Close button handler
+        if (psiClose) {
+            psiClose.addEventListener('click', () => {
+                if (psiPanel) psiPanel.style.display = 'none';
+            });
+        }
+
+        // Listen for CST updates
+        if (window.genesisApp && window.genesisApp.eventBus) {
+            window.genesisApp.eventBus.on('cst:psi_update', (data) => {
+                updatePSIDisplay(data);
+                updatePSIGraph();
+            });
+
+            // Listen for sensor updates to pulse the seed visualizer
+            window.genesisApp.eventBus.on('sensor:audio:update', () => pulseIndicator('pulse-audio'));
+            window.genesisApp.eventBus.on('sensor:video:initialized', () => pulseIndicator('pulse-video'));
+            window.genesisApp.eventBus.on('sensor:geolocation:update', () => pulseIndicator('pulse-loc'));
+            window.genesisApp.eventBus.on('sensor:ambientLight:update', () => pulseIndicator('pulse-light'));
+            window.genesisApp.eventBus.on('external:usgs_earthquakes:success', () => pulseIndicator('pulse-usgs'));
+            window.genesisApp.eventBus.on('external:nasa_apod:success', () => pulseIndicator('pulse-apod'));
+            window.genesisApp.eventBus.on('ml:detections', () => pulseIndicator('pulse-ml'));
+        }
+    }
+
+    function updatePSIDisplay(data) {
+        const term1El = document.getElementById('psi_term1');
+        const term2El = document.getElementById('psi_term2');
+        const term3El = document.getElementById('psi_term3');
+        const term4El = document.getElementById('psi_term4');
+        const term5El = document.getElementById('psi_term5');
+        const sumEl = document.getElementById('psi_sum');
+
+        if (term1El) term1El.textContent = data.term1.toExponential(2);
+        if (term2El) term2El.textContent = data.term2.toFixed(2);
+        if (term3El) term3El.textContent = data.term3.toFixed(3);
+        if (term4El) term4El.textContent = data.term4.toExponential(2);
+        if (term5El) term5El.textContent = data.term5.toFixed(3);
+        if (sumEl) sumEl.textContent = data.psi.toExponential(2);
+    }
+
+    function updatePSIGraph() {
+        const canvas = document.getElementById('psi_graph_canvas');
+        if (!canvas || !window.genesisApp || !window.genesisApp.cstCompute) return;
+
+        const ctx = canvas.getContext('2d');
+        const history = window.genesisApp.cstCompute.getPsiHistory();
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (history.length < 2) return;
+
+        const values = history.map(h => h.psi);
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const range = max - min || 1;
+
+        // Draw grid
+        ctx.strokeStyle = 'rgba(100, 116, 139, 0.2)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = (i / 4) * canvas.height;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+        }
+
+        // Draw PSI line
+        ctx.strokeStyle = '#7c9cff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        history.forEach((h, i) => {
+            const x = (i / (history.length - 1)) * canvas.width;
+            const y = canvas.height - ((h.psi - min) / range) * canvas.height;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+
+        ctx.stroke();
+    }
+
+    function pulseIndicator(elementId) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+
+        el.classList.add('active');
+        el.style.animation = 'pulse-glow 0.6s ease-out';
+
+        setTimeout(() => {
+            el.classList.remove('active');
+            el.style.animation = '';
+        }, 600);
     }
 
     window.genesisApp = new Application();
