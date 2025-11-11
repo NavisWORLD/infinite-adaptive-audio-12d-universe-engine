@@ -1635,82 +1635,216 @@ class UIManager {
 }
 
 // =====================================================================================
-// SIMPLE PLACEHOLDER CLASSES (To be expanded)
+// SENSORY INPUT MANAGER - Integrated from lostcosmo's.html
 // =====================================================================================
 
-// Minimal SensoryInputManager placeholder
+/**
+ * Manages all sensory inputs: audio, video, geolocation, ambient light
+ * Provides real-time data streams for reactive simulation behavior
+ */
 class SensoryInputManager {
-    constructor(eventBus) {
+    constructor(eventBus, uiManager) {
         this.eventBus = eventBus;
-        this.audioContext = null;
-        this.analyser = null;
-        this.audioActive = false;
-        this.audioData = { bass: 0, mid: 0, treble: 0, energy: 0, spectralCentroid: 0 };
+        this.uiManager = uiManager;
+        this.videoElement = document.getElementById('video-feed');
+        this.isAudioInitialized = false;
+    }
 
-        this.eventBus.subscribe('ui:toggleAudio', (enabled) => {
-            if (enabled) this.initAudio();
-            else this.stopAudio();
-        });
+    async initializeAll() {
+        if (this.uiManager) {
+            this.uiManager.log("Requesting sensor permissions...");
+        }
+        await Promise.allSettled([
+            this.initAudio(),
+            this.initVideo(),
+            this.initGeolocation(),
+            this.initAmbientLight()
+        ]);
+        if (this.uiManager) {
+            this.uiManager.log("Sensor initialization complete.", 'success');
+        }
     }
 
     async initAudio() {
+        if (this.isAudioInitialized) return true;
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const source = this.audioContext.createMediaStreamSource(stream);
-            this.analyser = this.audioContext.createAnalyser();
-            this.analyser.fftSize = 512;
-            this.analyser.smoothingTimeConstant = 0.8;
-            source.connect(this.analyser);
-            this.audioActive = true;
-            this.eventBus.publish('audio:status', 'active');
-        } catch (e) {
-            console.error('Audio init failed:', e);
-            this.eventBus.publish('audio:status', 'error');
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            this.eventBus.publish('genesis:log', { name: 'Microphone', value: 'Online', type: 'success' });
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioContext.createMediaStreamSource(stream);
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            source.connect(analyser);
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            const pollAudio = () => {
+                analyser.getByteFrequencyData(dataArray);
+                const avgFreq = dataArray.reduce((sum, val) => sum + val, 0) / dataArray.length;
+                this.eventBus.publish('audio:data', { raw: dataArray, avgFreq });
+                requestAnimationFrame(pollAudio);
+            };
+            pollAudio();
+            this.isAudioInitialized = true;
+            return true;
+        } catch (err) {
+            this.eventBus.publish('genesis:log', { name: 'Microphone', value: 'Denied', type: 'error' });
+            return false;
         }
     }
 
-    stopAudio() {
-        if (this.audioContext) {
-            this.audioContext.close();
-            this.audioContext = null;
+    async initVideo() {
+        if (!this.videoElement) {
+            console.warn('Video element not found, skipping video initialization');
+            return false;
         }
-        this.audioActive = false;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+            this.videoElement.srcObject = stream;
+            await this.videoElement.play();
+            this.eventBus.publish('genesis:log', { name: 'Camera', value: 'Online', type: 'success' });
+
+            const pollVideo = () => {
+                if (this.videoElement.readyState >= 2) {
+                    this.eventBus.publish('video:frame', this.videoElement);
+                }
+                requestAnimationFrame(pollVideo);
+            };
+            pollVideo();
+            return true;
+        } catch (err) {
+            this.eventBus.publish('genesis:log', { name: 'Camera', value: 'Denied', type: 'error' });
+            return false;
+        }
     }
 
-    update() {
-        if (!this.audioActive || !this.analyser) return;
+    initGeolocation() {
+        if ('geolocation' in navigator) {
+            navigator.geolocation.watchPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    this.eventBus.publish('location:updated', { lat: latitude, lon: longitude });
+                },
+                (err) => {
+                    this.eventBus.publish('genesis:log', { name: 'Location', value: 'Unavailable', type: 'error' });
+                },
+                { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+            );
+        } else {
+            this.eventBus.publish('genesis:log', { name: 'Location', value: 'Unsupported', type: 'warn' });
+        }
+    }
 
-        const freqData = new Uint8Array(this.analyser.frequencyBinCount);
-        this.analyser.getByteFrequencyData(freqData);
-
-        // Simple band separation
-        const third = Math.floor(freqData.length / 3);
-        const bass = freqData.slice(0, third).reduce((sum, val) => sum + val, 0) / (third * 255);
-        const mid = freqData.slice(third, third * 2).reduce((sum, val) => sum + val, 0) / (third * 255);
-        const treble = freqData.slice(third * 2).reduce((sum, val) => sum + val, 0) / ((freqData.length - third * 2) * 255);
-
-        this.audioData = {
-            bass,
-            mid,
-            treble,
-            energy: (bass + mid + treble) / 3
-        };
-
-        this.eventBus.publish('audio:update', this.audioData);
+    async initAmbientLight() {
+        if ('AmbientLightSensor' in window) {
+            try {
+                const { state } = await navigator.permissions.query({ name: 'ambient-light-sensor' });
+                if (state === 'denied') {
+                    this.eventBus.publish('genesis:log', { name: 'Light Sensor', value: 'Permission Denied', type: 'error' });
+                    return;
+                }
+                const sensor = new AmbientLightSensor({ frequency: 1 });
+                sensor.onreading = () => {
+                    this.eventBus.publish('light:updated', { lux: sensor.illuminance });
+                };
+                sensor.onerror = (event) => {
+                    this.eventBus.publish('genesis:log', { name: 'Light Sensor', value: `Error: ${event.error.name}`, type: 'error' });
+                };
+                sensor.start();
+                this.eventBus.publish('genesis:log', { name: 'Light Sensor', value: 'Online', type: 'success' });
+            } catch (error) {
+                this.eventBus.publish('genesis:log', { name: 'Light Sensor', value: `Not available: ${error.name}`, type: 'warn' });
+            }
+        } else {
+            this.eventBus.publish('genesis:log', { name: 'Light Sensor', value: 'Unsupported', type: 'warn' });
+        }
     }
 }
 
-// Minimal ExternalDataManager placeholder
+// =====================================================================================
+// EXTERNAL DATA MANAGER - Integrated from lostcosmo's.html
+// =====================================================================================
+
+/**
+ * Fetches external data from USGS earthquake feeds and NASA APIs
+ * Provides real-world data integration for enhanced realism
+ */
 class ExternalDataManager {
     constructor(eventBus) {
         this.eventBus = eventBus;
-        this.lastFetch = {};
+        this.init();
     }
 
-    async fetchAll() {
-        // Placeholder - would fetch USGS, NASA APOD, etc.
-        console.log('External data fetching disabled in minimal build');
+    init() {
+        this.fetchEarthquakeData();
+        this.fetchAPOD();
+        this.fetchNASADONKI();
+        this.fetchNASANEO();
+
+        // Refresh every 15 minutes
+        setInterval(() => {
+            this.fetchEarthquakeData();
+            this.fetchAPOD();
+            this.fetchNASADONKI();
+            this.fetchNASANEO();
+        }, 900000);
+    }
+
+    async fetchEarthquakeData() {
+        try {
+            const response = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson');
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            this.eventBus.publish('external:usgs', data);
+            console.log('USGS earthquake data fetched:', data.features?.length || 0, 'events');
+        } catch (err) {
+            console.warn("Could not fetch USGS data.", err);
+        }
+    }
+
+    async fetchAPOD() {
+        try {
+            const apiKey = 'DEMO_KEY';
+            const response = await fetch(`https://api.nasa.gov/planetary/apod?api_key=${apiKey}`);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            this.eventBus.publish('external:apod', data);
+            console.log('NASA APOD fetched:', data.title);
+        } catch (err) {
+            console.warn("Could not fetch APOD data.", err);
+        }
+    }
+
+    async fetchNASADONKI() {
+        try {
+            const apiKey = 'DEMO_KEY';
+            const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            const endDate = new Date().toISOString().split('T')[0];
+            const response = await fetch(
+                `https://api.nasa.gov/DONKI/FLR?startDate=${startDate}&endDate=${endDate}&api_key=${apiKey}`
+            );
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            this.eventBus.publish('external:donki', data);
+            console.log('NASA DONKI solar flare data fetched:', data.length, 'events');
+        } catch (err) {
+            console.warn("Could not fetch NASA DONKI data.", err);
+        }
+    }
+
+    async fetchNASANEO() {
+        try {
+            const apiKey = 'DEMO_KEY';
+            const today = new Date().toISOString().split('T')[0];
+            const response = await fetch(
+                `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=${apiKey}`
+            );
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            this.eventBus.publish('external:neo', data);
+            console.log('NASA NEO data fetched');
+        } catch (err) {
+            console.warn("Could not fetch NASA NEO data.", err);
+        }
     }
 }
 
