@@ -2676,26 +2676,26 @@ class Application {
 
         // Camera
         this.camera = new THREE.PerspectiveCamera(
-            60,
+            65,
             window.innerWidth / window.innerHeight,
-            1,
-            100000
+            0.1,
+            150000
         );
-        this.camera.position.set(0, 200, 500);
+        this.camera.position.set(0, 0, 3500);
 
-        // Renderer
-        const canvas = document.createElement('canvas');
-        document.getElementById('canvas-container').appendChild(canvas);
-
+        // Renderer - use existing canvas
+        const canvas = document.getElementById('main-canvas');
         this.renderer = new THREE.WebGLRenderer({
             canvas,
             antialias: true,
-            powerPreference: 'high-performance'
+            powerPreference: 'high-performance',
+            logarithmicDepthBuffer: true
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.0;
+        this.renderer.toneMappingExposure = 1.05;
 
         // Post-processing
         this.composer = new EffectComposer(this.renderer);
@@ -2704,16 +2704,33 @@ class Application {
         // Bloom pass
         this.bloomPass = new UnrealBloomPass(
             new THREE.Vector2(window.innerWidth, window.innerHeight),
-            1.5,
-            0.4,
+            1.2,
+            0.8,
             0.85
         );
         this.composer.addPass(this.bloomPass);
+
+        // Afterimage pass (disabled by default)
+        this.afterimagePass = new AfterimagePass(0.85);
+        this.afterimagePass.enabled = false;
+        this.composer.addPass(this.afterimagePass);
 
         // Controls
         this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
         this.orbitControls.enableDamping = true;
         this.orbitControls.dampingFactor = 0.05;
+        this.orbitControls.minDistance = 500;
+        this.orbitControls.maxDistance = 10000;
+
+        this.pointerLockControls = new PointerLockControls(this.camera, this.renderer.domElement);
+        this.pointerLockControls.addEventListener('lock', () => {
+            document.getElementById('crosshair').style.opacity = '1';
+            document.getElementById('fps-hint').classList.remove('is-hidden');
+        });
+        this.pointerLockControls.addEventListener('unlock', () => {
+            document.getElementById('crosshair').style.opacity = '0';
+            document.getElementById('fps-hint').classList.add('is-hidden');
+        });
 
         // Lighting
         const ambientLight = new THREE.AmbientLight(0x222222);
@@ -2748,60 +2765,392 @@ class Application {
         const blocker = document.getElementById('blocker');
 
         startButton.addEventListener('click', () => {
-            blocker.style.opacity = '0';
-            setTimeout(() => {
-                blocker.style.display = 'none';
-                document.getElementById('toggle-ui-button').classList.remove('ui-hidden');
-                document.getElementById('ui-container').classList.remove('ui-hidden');
-                document.getElementById('psi-overlay').classList.remove('ui-hidden');
-            }, 500);
+            this.start();
+        });
 
-            // Generate initial universe
-            this.pge.generateUniverse();
+        // Regenerate button
+        $('regenerate-button')?.addEventListener('click', () => {
+            this.regenerate();
+        });
 
-            // Start animation
-            window.systemReady = true;
-            this.animate();
+        // Clear button
+        $('clear-button')?.addEventListener('click', () => {
+            this.clearAll();
+        });
 
-            this.uiManager.log('System initialized', 'success');
-            this.uiManager.updateStatus('ACTIVE');
+        // View mode selector
+        $('view-mode-select')?.addEventListener('change', (e) => {
+            this.setView(e.target.value);
+        });
+
+        // Directive Prime button
+        $('btn-directive-prime')?.addEventListener('click', () => {
+            this.activateDirectivePrime();
+        });
+
+        // Anew button (restart after final message)
+        $('btn-anew')?.addEventListener('click', () => {
+            window.location.reload();
+        });
+
+        // File upload for particlizer
+        $('file-upload')?.addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                this.particlizer.particlize(e.target.files[0]);
+            }
+        });
+
+        // Object spawning buttons
+        $('btn-spawn-star')?.addEventListener('click', () => {
+            this.objectLibrary.createStar({});
+        });
+        $('btn-spawn-planet')?.addEventListener('click', () => {
+            this.objectLibrary.createPlanet({});
+        });
+        $('btn-spawn-blackhole')?.addEventListener('click', () => {
+            this.objectLibrary.createBlackHole({});
+        });
+
+        // Physics sliders
+        const bindSlider = (sliderId, valueId, paramKey) => {
+            const slider = $(sliderId);
+            const valueDisplay = $(valueId);
+            if (!slider || !valueDisplay) return;
+            slider.addEventListener('input', () => {
+                const val = parseFloat(slider.value);
+                this.physics[paramKey] = val;
+                const decimals = paramKey === 'li' ? 3 : 2;
+                valueDisplay.textContent = val.toFixed(decimals);
+            });
+        };
+
+        bindSlider('in-ugrav', 'val-ugrav', 'ugrav');
+        bindSlider('in-lambda', 'val-lambda', 'lambda');
+        bindSlider('in-ec', 'val-ec', 'ec');
+        bindSlider('in-li', 'val-li', 'li');
+        bindSlider('in-omega', 'val-omega', 'omega');
+        bindSlider('in-swirl', 'val-swirl', 'swirl');
+
+        // Tab navigation
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(b => b.classList.remove('active'));
+                tabContents.forEach(tc => tc.classList.remove('active'));
+                button.classList.add('active');
+                const tabId = button.getAttribute('data-tab');
+                $(`tab-${tabId}`)?.classList.add('active');
+            });
+        });
+
+        // Toggle UI button
+        $('toggle-ui-button')?.addEventListener('click', () => {
+            $('main-ui')?.classList.toggle('is-hidden');
         });
 
         // Download ledger button
-        document.getElementById('download-ledger-button')?.addEventListener('click', () => {
-            this.dataLogger.downloadLedger();
+        $('btn-clear-ledger')?.addEventListener('click', () => {
+            this.dataLogger.ledger = [];
+            this.dataLogger.updateLedgerUI();
         });
 
         // Download telemetry button
-        document.getElementById('download-telemetry-button')?.addEventListener('click', () => {
-            this.dataLogger.downloadTelemetry();
-        });
-
-        // Telemetry filter
-        document.getElementById('telemetry-filter')?.addEventListener('input', () => {
+        $('btn-clear-telemetry')?.addEventListener('click', () => {
+            this.dataLogger.telemetry = [];
             this.dataLogger.updateTelemetryUI();
         });
+
+        console.log("✓ Event handlers initialized");
+    }
+
+    start() {
+        const blocker = $('blocker');
+        const loadingMsg = $('loading-message');
+
+        loadingMsg.style.display = 'block';
+
+        blocker.style.opacity = '0';
+        setTimeout(() => {
+            blocker.style.display = 'none';
+        }, 500);
+
+        // Initialize all particle systems
+        this.cosmos.init(this.physics);
+        this.aiLife.init();
+        this.solarSystem.init();
+        this.spaceship.reset();
+
+        // Start animation
+        window.systemReady = true;
+        this.animate();
+
+        // Update status
+        const statusIndicator = $('system-status-readout');
+        if (statusIndicator) {
+            statusIndicator.innerHTML = '<span class="status-indicator status-active"></span>STATUS: ACTIVE';
+        }
+
+        console.log("✓ System started");
+    }
+
+    regenerate() {
+        // Generate new seed
+        const newSeed = cyrb128(`cosmic-${Date.now()}-${Math.random()}`);
+        this.prng = sfc32(...newSeed);
+        $('current-seed')!.textContent = newSeed[0].toString(16).substring(0, 8);
+
+        // Reinitialize particle systems with new seed
+        this.cosmos.init(this.physics);
+        this.aiLife.init();
+        this.solarSystem.init();
+
+        console.log("✓ Universe regenerated");
+    }
+
+    clearAll() {
+        // Clear all procedurally generated objects
+        this.objectLibrary.objects.forEach(obj => {
+            this.scene.remove(obj.mesh);
+            if (obj.light) this.scene.remove(obj.light);
+        });
+        this.objectLibrary.objects = [];
+        this.objectLibrary.updateCount();
+
+        console.log("✓ All objects cleared");
+    }
+
+    setView(mode) {
+        this.currentView = mode;
+
+        const isGalaxy = mode === 'galaxy';
+        const isSolar = mode === 'solar_system';
+        const isSurface = mode === 'surface';
+        const isShip = mode === 'spaceship' || mode === 'cockpit';
+
+        // Show/hide appropriate systems
+        this.singularity.show(isGalaxy);
+        this.cosmos.show(isGalaxy);
+        this.aiLife.show(isGalaxy);
+        this.volumetricDust.show(isGalaxy);
+        this.solarSystem.show(isSolar || isShip);
+        this.spaceship.show(isShip);
+        this.surface.show(isSurface);
+        this.objectLibrary.show(isGalaxy);
+
+        // Show/hide HUD sections
+        $('galaxy-hud')!.style.display = isGalaxy ? 'block' : 'none';
+        $('surface-hud')!.style.display = isSurface ? 'block' : 'none';
+        $('ship-hud')!.style.display = isShip ? 'block' : 'none';
+
+        // Configure controls
+        this.orbitControls.enabled = isGalaxy || isSolar;
+
+        if (isShip && mode === 'cockpit') {
+            try { this.pointerLockControls.lock(); } catch(e) {}
+        } else {
+            if (this.pointerLockControls.isLocked) {
+                try { this.pointerLockControls.unlock(); } catch(e) {}
+            }
+        }
+
+        // Camera positioning
+        if (isGalaxy) {
+            this.camera.position.set(0, 0, 3500);
+            this.orbitControls.target.set(0, 0, 0);
+            $('action-text')!.textContent = 'Hold Left-Click to exert creator influence on particles.';
+        } else if (isSolar) {
+            this.camera.position.set(0, 800, 2000);
+            this.orbitControls.target.set(0, 0, 0);
+            $('action-text')!.textContent = 'Observe the solar system with realistic orbital mechanics.';
+        } else if (isSurface) {
+            this.camera.position.set(0, 100, 0);
+            $('action-text')!.textContent = 'Explore the procedurally generated planetary surface.';
+        } else if (isShip) {
+            this.spaceship.reset();
+            $('action-text')!.textContent = 'W/S: Thrust | Q/E: Roll | Mouse: Pitch/Yaw | Shift: Boost';
+        }
+
+        $('hud-mode')!.textContent = mode.charAt(0).toUpperCase() + mode.slice(1).replace('_', ' ');
+
+        console.log(`✓ View mode: ${mode}`);
+    }
+
+    activateDirectivePrime() {
+        if (this.directivePrimeActive) return;
+
+        this.setView('galaxy');
+        this.directivePrimeActive = true;
+        this.directiveState = 'supernova';
+        this.directiveTimer = 0;
+        this.orbitControls.enabled = false;
+
+        console.log("⚡ DIRECTIVE PRIME ACTIVATED");
+    }
+
+    updateDirectivePrime(dt) {
+        this.directiveTimer += dt;
+
+        switch (this.directiveState) {
+            case 'supernova':
+                // Massive repulsion
+                this.physics.ugrav = -10.0;
+                if (this.directiveTimer > 3) {
+                    this.directiveTimer = 0;
+                    this.directiveState = 'convergence';
+                    console.log("⚡ Phase: CONVERGENCE");
+                }
+                break;
+
+            case 'convergence':
+                // Gradually increase attraction
+                this.physics.ugrav = lerp(-10.0, 50.0, this.directiveTimer / 8);
+                if (this.directiveTimer > 8) {
+                    this.directiveTimer = 0;
+                    this.directiveState = 'crystal';
+                    this.aiLife.formNeuralCrystal();
+                    console.log("⚡ Phase: CRYSTAL FORMATION");
+                }
+                break;
+
+            case 'crystal':
+                // Maximum attraction, AI Life forms crystal
+                this.physics.ugrav = 50.0;
+                if (this.directiveTimer > 10) {
+                    this.directiveTimer = 0;
+                    this.directiveState = 'final';
+                    console.log("⚡ Phase: I AM");
+                }
+                break;
+
+            case 'final':
+                // Show final message
+                const blocker = $('blocker');
+                const initialScreen = $('initial-screen');
+                const finalMessage = $('final-message');
+                blocker.style.display = 'flex';
+                initialScreen.style.display = 'none';
+                finalMessage.style.display = 'flex';
+                blocker.style.opacity = '1';
+                this.directiveState = 'finished';
+                this.directivePrimeActive = false;
+                window.systemReady = false;
+                console.log("⚡ DIRECTIVE PRIME COMPLETE");
+                break;
+        }
+    }
+
+    updateHUD() {
+        // Update main HUD values
+        $('hud-influence')!.textContent = this.isMouseDown ? 'Active' : 'Idle';
+        $('hud-gravity')!.textContent = this.physics.ugrav.toFixed(2);
+        $('hud-chaos')!.textContent = this.physics.lambda.toFixed(2);
+        $('hud-energy')!.textContent = this.physics.ec.toFixed(2);
+        $('hud-psd')!.textContent = this.audioData.psd.toFixed(3);
+
+        // AI Life stats
+        const lifeStats = this.aiLife.getStats();
+        $('hud-life-pop')!.textContent = lifeStats.population.toString();
+        $('hud-life-forms')!.textContent = lifeStats.formations.toString();
+        $('hud-life-energy')!.textContent = lifeStats.energy;
+
+        // Ship HUD (if in spaceship mode)
+        if (this.currentView === 'spaceship' || this.currentView === 'cockpit') {
+            const shipState = this.spaceship.getState();
+            $('hud-ship-vel')!.textContent = `${shipState.velocity.toFixed(0)} km/s`;
+            $('hud-ship-alt')!.textContent = shipState.gravSource ? `${shipState.altitude.toFixed(0)} km` : 'N/A';
+            $('hud-ship-grav')!.textContent = shipState.gravSource ? shipState.gravSource.name : 'Deep Space';
+        }
+
+        // AI state
+        const aiState = this.quantumAI.update(this.clock.getDelta());
+        $('hud-ai-state')!.textContent = aiState.dominantState;
+        $('hud-ai-learning')!.textContent = this.audioData.psd > 0.1 ? 'Active' : 'Passive';
+
+        // CST ψ computation
+        const c2 = C_SPEED_OF_LIGHT * C_SPEED_OF_LIGHT * 0.0000001; // Scaled
+        const phi = PHI_GOLDEN;
+        const term1 = c2 * phi * this.physics.ec;
+        const term2 = this.audioData.psd * this.physics.lambda;
+        const term3 = this.physics.omega * this.physics.ec;
+        const term4 = this.physics.ugrav;
+        const term5 = this.audioData.psd * 0.5; // Simplified Soul Dust density
+        const psi = term1 + term2 + term3 + term4 + term5;
+
+        $('psi-term-1')!.textContent = term1.toFixed(3);
+        $('psi-term-2')!.textContent = term2.toFixed(3);
+        $('psi-term-3')!.textContent = term3.toFixed(3);
+        $('psi-term-4')!.textContent = term4.toFixed(3);
+        $('psi-term-5')!.textContent = term5.toFixed(3);
+        $('psi-total')!.textContent = psi.toFixed(3);
     }
 
     animate() {
-        if (!window.systemReady) return;
+        if (!window.systemReady && !this.directivePrimeActive) return;
 
         requestAnimationFrame(this.animate);
 
-        const delta = this.clock.getDelta();
+        const delta = Math.min(0.05, this.clock.getDelta());
         const elapsedTime = this.clock.getElapsedTime();
+        this.fps = 1 / delta;
 
-        // Update orbit controls
-        this.orbitControls.update();
+        // Handle Directive Prime sequence
+        if (this.directivePrimeActive) {
+            this.updateDirectivePrime(delta);
+        }
 
         // Update sensory input
         this.sensory.update();
 
-        // Update physics
+        // Update audio data
+        if (this.sensory.audio && this.sensory.audio.active) {
+            this.audioData = {
+                bass: this.sensory.audio.bass || 0,
+                mids: this.sensory.audio.mids || 0,
+                treble: this.sensory.audio.treble || 0,
+                psd: this.sensory.audio.psd || 0
+            };
+        }
+
+        // Update physics based on current view
+        if (this.currentView === 'galaxy') {
+            // Update galaxy-specific systems
+            this.singularity.update(this.physics, this.isMouseDown);
+            this.cosmos.update(delta, this.physics, this.mouse, this.isMouseDown, this.camera);
+            this.aiLife.update(delta, this.audioData, this.mouse, this.isMouseDown, this.camera, this.directiveState === 'crystal');
+            this.objectLibrary.update(delta);
+            this.volumetricDust.update(elapsedTime, this.fps, this.audioData.psd);
+            this.orbitControls.update();
+        } else if (this.currentView === 'solar_system') {
+            this.solarSystem.update(delta);
+            this.orbitControls.update();
+        } else if (this.currentView === 'spaceship' || this.currentView === 'cockpit') {
+            const celestialBodies = this.solarSystem.getCelestialBodies();
+            this.spaceship.update(delta, celestialBodies);
+            if (this.currentView === 'spaceship') {
+                this.spaceship.updateCamera(this.camera);
+            }
+            this.solarSystem.update(delta);
+        } else if (this.currentView === 'surface') {
+            const params = unifiedFormula(this.prng, this.audioData.psd);
+            this.surface.update(params);
+        }
+
+        // Update procedural generation engine
         this.pge.updatePhysics(delta);
 
-        // Update quantum particles
+        // Update quantum event manager
         this.qem.update(delta);
+
+        // Update Quantum AI learning
+        this.quantumAI.learn({
+            audio: this.audioData,
+            physics: this.physics,
+            view: this.currentView
+        });
+
+        // Update HUD
+        this.updateHUD();
 
         // Render
         this.composer.render();
