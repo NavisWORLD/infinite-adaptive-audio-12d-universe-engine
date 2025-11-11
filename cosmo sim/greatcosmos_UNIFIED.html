@@ -2459,6 +2459,185 @@ class QuantumEventManager {
 }
 
 // =====================================================================================
+// SURFACE WORLD MANAGER - Integrated from earth.html
+// =====================================================================================
+
+/**
+ * Creates a 2D Perlin noise function for terrain generation
+ * @param {Function} prng - Pseudo-random number generator
+ * @returns {Function} Noise function that takes (x, y) and returns noise value
+ */
+function createNoise2D(prng) {
+    const perm = Array.from({length: 256}, (_, i) => i);
+    for (let i = 255; i > 0; i--) {
+        const j = Math.floor(prng() * (i + 1));
+        [perm[i], perm[j]] = [perm[j], perm[i]];
+    }
+    const p = new Uint8Array(512);
+    for(let i=0; i<256; i++) p[i] = p[i+256] = perm[i];
+
+    function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+    function lerp(t, a, b) { return a + t * (b - a); }
+    function grad(hash, x, y) {
+        const h = hash & 15;
+        const u = h < 8 ? x : y;
+        const v = h < 4 ? y : h === 12 || h === 14 ? x : 0;
+        return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+    }
+
+    return function(x, y) {
+        const X = Math.floor(x) & 255;
+        const Y = Math.floor(y) & 255;
+        x -= Math.floor(x);
+        y -= Math.floor(y);
+        const u = fade(x);
+        const v = fade(y);
+        const a = p[X] + Y, b = p[X + 1] + Y;
+        return lerp(v, lerp(u, grad(p[a], x, y), grad(p[b], x - 1, y)),
+                       lerp(u, grad(p[a + 1], x, y - 1), grad(p[b + 1], x - 1, y - 1)));
+    };
+}
+
+/**
+ * Manages surface world rendering with terrain, sky, ocean, and vegetation
+ * Provides ground-level exploration mode with physically-based terrain generation
+ */
+class SurfaceManager {
+    constructor(eventBus, scene, prng) {
+        this.eventBus = eventBus;
+        this.scene = scene;
+        this.prng = prng;
+
+        this.surfaceGroup = new THREE.Group();
+        this.surfaceGroup.visible = false;
+        this.scene.add(this.surfaceGroup);
+
+        this.noise = createNoise2D(this.prng);
+        this.buildSurface();
+    }
+
+    buildSurface() {
+        // Sky with atmospheric scattering
+        this.sky = new Sky();
+        this.sky.scale.setScalar(450000);
+        this.surfaceGroup.add(this.sky);
+
+        const sun = new THREE.Vector3();
+        const uniforms = this.sky.material.uniforms;
+        uniforms['turbidity'].value = 10;
+        uniforms['rayleigh'].value = 2;
+        uniforms['mieCoefficient'].value = 0.005;
+        uniforms['mieDirectionalG'].value = 0.8;
+
+        const phi = THREE.MathUtils.degToRad(90 - 25);
+        const theta = THREE.MathUtils.degToRad(180);
+        sun.setFromSphericalCoords(1, phi, theta);
+        uniforms['sunPosition'].value.copy(sun);
+
+        // Fog for atmospheric depth
+        this.scene.fog = new THREE.Fog(0x8a9aaa, 100, 4000);
+
+        // Terrain with multi-octave Perlin noise
+        const terrainGeo = new THREE.PlaneGeometry(8000, 8000, 200, 200);
+        const pos = terrainGeo.attributes.position;
+
+        for(let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const y = pos.getY(i);
+            // Two octaves of noise for terrain variety
+            const z1 = this.noise(x * 0.005, y * 0.005) * 300;  // Large features
+            const z2 = this.noise(x * 0.02, y * 0.02) * 50;     // Small details
+            pos.setZ(i, z1 + z2);
+        }
+
+        terrainGeo.computeVertexNormals();
+
+        const terrainMat = new THREE.MeshStandardMaterial({
+            color: 0x6a7863,
+            roughness: 0.9,
+            metalness: 0.1
+        });
+
+        this.terrain = new THREE.Mesh(terrainGeo, terrainMat);
+        this.terrain.rotation.x = -Math.PI / 2;
+        this.terrain.receiveShadow = true;
+        this.surfaceGroup.add(this.terrain);
+
+        // Water/Ocean surface
+        const waterGeo = new THREE.PlaneGeometry(8000, 8000);
+        const waterMat = new THREE.MeshStandardMaterial({
+            color: 0x42628a,
+            transparent: true,
+            opacity: 0.85,
+            roughness: 0.2,
+            metalness: 0.5
+        });
+
+        this.water = new THREE.Mesh(waterGeo, waterMat);
+        this.water.rotation.x = -Math.PI / 2;
+        this.water.position.y = 20;
+        this.water.receiveShadow = true;
+        this.surfaceGroup.add(this.water);
+
+        // Add directional light for terrain shadows
+        const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        sunLight.position.copy(sun).multiplyScalar(1000);
+        sunLight.castShadow = true;
+        this.surfaceGroup.add(sunLight);
+
+        // Ambient light for general illumination
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        this.surfaceGroup.add(ambientLight);
+    }
+
+    show(visible) {
+        this.surfaceGroup.visible = visible;
+        if (this.scene.fog) {
+            this.scene.fog.far = visible ? 4000 : 100000;
+        }
+    }
+
+    update(params) {
+        // Update ocean roughness based on parameters
+        if (this.water) {
+            this.water.material.roughness = THREE.MathUtils.clamp(
+                params.oceanRoughness * 0.4,
+                0.1,
+                1.0
+            );
+        }
+
+        // Update sky turbidity based on cloud coverage
+        if (this.sky) {
+            this.sky.material.uniforms['turbidity'].value = THREE.MathUtils.lerp(
+                5,
+                15,
+                params.cloudCoverage
+            );
+        }
+    }
+
+    cleanup() {
+        if (this.surfaceGroup) {
+            this.surfaceGroup.traverse(child => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(m => m.dispose && m.dispose());
+                    } else if (child.material.dispose) {
+                        child.material.dispose();
+                    }
+                }
+            });
+            this.scene.remove(this.surfaceGroup);
+        }
+        if (this.scene.fog) {
+            this.scene.fog = null;
+        }
+    }
+}
+
+// =====================================================================================
 // MAIN APPLICATION CLASS
 // =====================================================================================
 class Application {
