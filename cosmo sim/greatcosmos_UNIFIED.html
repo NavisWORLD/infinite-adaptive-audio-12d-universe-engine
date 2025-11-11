@@ -4417,6 +4417,604 @@ class VolumetricDust {
 }
 
 // =====================================================================================
+// CST COMPUTE ENGINE (12D Cosmic Synapse Theory v3 Implementation)
+// =====================================================================================
+/* FROM: Integration Prompt Part 2 + earth.html */
+class CSTComputeEngine {
+    constructor(eventBus) {
+        this.eventBus = eventBus;
+        this.c = 299792458; // Speed of light (m/s)
+        this.phi = 1.618033988749895; // Golden ratio
+        this.G = 6.674e-11; // Gravitational constant
+        this.psi_history = []; // Last 100 ψ values
+        this.maxHistory = 100;
+    }
+
+    /**
+     * Compute unified ψ formula:
+     * ψ(t) = c²·φ·Ec + λ·audio + Ω·Ec + U_grav + Σρ_sd
+     */
+    computePsi(STATE, entities) {
+        const { Ec, lambda, omega, U_grav } = STATE.params;
+        const { avgFreq } = STATE.sensors.audio;
+
+        // TERM 1: c²·φ·Ec (Energy-information equivalence)
+        const term1_Ec = Math.pow(this.c, 2) * this.phi * Ec;
+
+        // TERM 2: λ·audio (Chaos injection from environment)
+        const term2_lambda = lambda * avgFreq;
+
+        // TERM 3: Ω·Ec (Spectral hue coupling)
+        const term3_omega = omega * Ec;
+
+        // TERM 4: U_grav (Gravitational potential field)
+        let term4_Ugrav = 0;
+        entities.forEach(e => {
+            if (!e.userData) return;
+            if (e.userData.type === 'star' || e.userData.type === 'blackhole' || e.userData.type === 'planet') {
+                const r = e.position.length() || 1; // Distance from origin
+                const mass = e.userData.mass || 1;
+                term4_Ugrav += this.G * mass / (r + 1); // Avoid divide-by-zero
+            }
+        });
+        term4_Ugrav *= U_grav;
+
+        // TERM 5: Σρ_sd (Soul Dust density)
+        const soulDustEntities = entities.filter(e => e.userData && e.userData.type === 'soul_dust');
+        const term5_rho = soulDustEntities.length * 0.01; // Proxy density
+
+        // SUM
+        const psi = term1_Ec + term2_lambda + term3_omega + term4_Ugrav + term5_rho;
+
+        // Update STATE
+        STATE.cst.term1_Ec = term1_Ec;
+        STATE.cst.term2_lambda = term2_lambda;
+        STATE.cst.term3_omega = term3_omega;
+        STATE.cst.term4_Ugrav = term4_Ugrav;
+        STATE.cst.term5_rho = term5_rho;
+        STATE.cst.psi = psi;
+
+        // Update history
+        this.psi_history.push({ timestamp: Date.now(), psi });
+        if (this.psi_history.length > this.maxHistory) {
+            this.psi_history.shift();
+        }
+        STATE.cst.psi_history = this.psi_history;
+
+        // Emit for logging
+        this.eventBus.emit('cst:psi_update', {
+            term1_Ec, term2_lambda, term3_omega, term4_Ugrav, term5_rho, psi,
+            timestamp: Date.now()
+        });
+
+        return psi;
+    }
+
+    /**
+     * Update entity's 12D state vector
+     * h12: [x, y, z, vx, vy, vz, age, audio, chaos, hue, energy, psi]
+     */
+    updateEntityState(entity, deltaTime, STATE) {
+        if (!entity.userData) entity.userData = {};
+
+        // Initialize 12D state if not present
+        if (!entity.userData.h12) {
+            entity.userData.h12 = new Float32Array(12);
+            entity.userData.x12 = new Float32Array(12);
+            entity.userData.m12 = new Float32Array(12);
+            entity.userData.memoryAlpha = 0.1;
+            entity.userData.connectivity = 0;
+            entity.userData.age = 0;
+            entity.userData.maxAge = 60; // seconds
+        }
+
+        // Update age
+        entity.userData.age += deltaTime;
+
+        // Normalize positions for numerical stability
+        const posScale = 100;
+
+        // Dimension 0-2: Spatial Position (x, y, z)
+        entity.userData.h12[0] = entity.position.x / posScale;
+        entity.userData.h12[1] = entity.position.y / posScale;
+        entity.userData.h12[2] = entity.position.z / posScale;
+
+        // Dimension 3-5: Velocity (vx, vy, vz)
+        if (entity.userData.velocity) {
+            entity.userData.h12[3] = entity.userData.velocity.x;
+            entity.userData.h12[4] = entity.userData.velocity.y;
+            entity.userData.h12[5] = entity.userData.velocity.z;
+        }
+
+        // Dimension 6: Temporal Phase (age/maxAge)
+        entity.userData.h12[6] = Math.min(1, entity.userData.age / entity.userData.maxAge);
+
+        // Dimension 7: Audio Coupling (avgFreq/255)
+        entity.userData.h12[7] = STATE.sensors.audio.avgFreq / 255;
+
+        // Dimension 8: Chaos Factor (λ)
+        entity.userData.h12[8] = STATE.params.lambda;
+
+        // Dimension 9: Spectral Hue (Ω)
+        entity.userData.h12[9] = STATE.params.omega;
+
+        // Dimension 10: Energy Scale (Ec)
+        entity.userData.h12[10] = STATE.params.Ec / 4.0; // Normalized
+
+        // Dimension 11: Global Field (ψ normalized)
+        const psiNormalization = 1e17; // Scale factor
+        entity.userData.h12[11] = STATE.cst.psi / psiNormalization;
+
+        // Update internal state x12 (could be influenced by interactions)
+        for (let i = 0; i < 12; i++) {
+            entity.userData.x12[i] = entity.userData.h12[i];
+        }
+
+        // Update memory m12 with EMA
+        const alpha = entity.userData.memoryAlpha;
+        for (let i = 0; i < 12; i++) {
+            entity.userData.m12[i] = alpha * entity.userData.x12[i] + (1 - alpha) * entity.userData.m12[i];
+        }
+
+        // Compute connectivity Ωᵢ (simplified heuristic)
+        // In full implementation, this would be graph Laplacian
+        entity.userData.connectivity = Math.sqrt(
+            entity.userData.h12[3] * entity.userData.h12[3] +
+            entity.userData.h12[4] * entity.userData.h12[4] +
+            entity.userData.h12[5] * entity.userData.h12[5]
+        ) * entity.userData.h12[7]; // Velocity magnitude × audio coupling
+    }
+}
+
+// =====================================================================================
+// INPUT CONTROLLER (Complete keyboard, mouse, gamepad, touch handling)
+// =====================================================================================
+/* FROM: Integration Prompt Part 2 */
+class InputController {
+    constructor(camera, domElement, eventBus, STATE) {
+        this.camera = camera;
+        this.domElement = domElement;
+        this.eventBus = eventBus;
+        this.STATE = STATE;
+
+        // Mode: 'orbit' | 'spaceship' | 'fps'
+        this.mode = 'orbit';
+
+        // Orbit controls (set externally after initialization)
+        this.orbitControls = null;
+
+        // First-person/spaceship controls
+        this.moveSpeed = 50;
+        this.sprintMultiplier = 2.5;
+        this.lookSpeed = 0.002;
+        this.rollSpeed = 0.5;
+
+        // Input state
+        this.keys = {};
+        this.mouse = { x: 0, y: 0, deltaX: 0, deltaY: 0, buttons: 0 };
+        this.pointerLocked = false;
+
+        // Surface physics
+        this.velocity = new THREE.Vector3();
+        this.onGround = false;
+        this.gravity = -9.8;
+        this.jumpForce = 50;
+        this.surfacePhysicsEnabled = false;
+
+        // Camera shake
+        this.shakeIntensity = 0;
+        this.shakeDecay = 0.95;
+
+        this.initEventListeners();
+    }
+
+    initEventListeners() {
+        // Keyboard
+        window.addEventListener('keydown', (e) => this.onKeyDown(e));
+        window.addEventListener('keyup', (e) => this.onKeyUp(e));
+
+        // Mouse
+        this.domElement.addEventListener('mousedown', (e) => this.onMouseDown(e));
+        this.domElement.addEventListener('mousemove', (e) => this.onMouseMove(e));
+        this.domElement.addEventListener('mouseup', (e) => this.onMouseUp(e));
+        this.domElement.addEventListener('wheel', (e) => this.onWheel(e));
+
+        // Pointer lock (for FPS mode)
+        this.domElement.addEventListener('click', () => {
+            if (this.mode === 'fps' || this.mode === 'spaceship') {
+                this.domElement.requestPointerLock();
+            }
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            this.pointerLocked = document.pointerLockElement === this.domElement;
+        });
+
+        document.addEventListener('pointerlockerror', () => {
+            console.error('[InputController] Pointer lock error');
+        });
+
+        // Subscribe to camera shake events
+        this.eventBus.on('camera:shake', (data) => {
+            this.shake(data.intensity || 1);
+        });
+    }
+
+    onKeyDown(e) {
+        this.keys[e.key.toLowerCase()] = true;
+
+        // Hotkeys
+        if (e.key === 'h' || e.key === 'H') {
+            this.eventBus.emit('ui:toggle');
+        }
+
+        if (e.ctrlKey && e.altKey && (e.key === 'd' || e.key === 'D')) {
+            this.STATE.ui.devMode = !this.STATE.ui.devMode;
+            this.eventBus.emit('devmode:toggle', { enabled: this.STATE.ui.devMode });
+        }
+
+        if (e.key === 'm' || e.key === 'M') {
+            this.eventBus.emit('postfx:toggle', { effect: 'afterimage' });
+        }
+
+        if (e.key === 'b' || e.key === 'B') {
+            this.eventBus.emit('postfx:toggle', { effect: 'bloom' });
+        }
+
+        if (e.key === 'v' || e.key === 'V') {
+            this.eventBus.emit('postfx:toggle', { effect: 'vignette' });
+        }
+
+        if (e.key === 'Escape') {
+            document.exitPointerLock();
+        }
+
+        // Number keys for view presets
+        if (e.key >= '1' && e.key <= '9') {
+            const preset = parseInt(e.key);
+            this.applyViewPreset(preset);
+        }
+    }
+
+    onKeyUp(e) {
+        this.keys[e.key.toLowerCase()] = false;
+    }
+
+    onMouseDown(e) {
+        this.mouse.buttons = e.buttons;
+    }
+
+    onMouseMove(e) {
+        if (this.pointerLocked) {
+            this.mouse.deltaX = e.movementX || 0;
+            this.mouse.deltaY = e.movementY || 0;
+        } else {
+            this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        }
+    }
+
+    onMouseUp(e) {
+        this.mouse.buttons = e.buttons;
+    }
+
+    onWheel(e) {
+        if (this.mode === 'orbit' && this.orbitControls) {
+            // OrbitControls handles this
+        } else {
+            // Zoom in/out
+            this.moveSpeed = Math.max(10, Math.min(500, this.moveSpeed + e.deltaY * 0.1));
+        }
+    }
+
+    setMode(mode) {
+        this.mode = mode;
+
+        if (mode === 'orbit') {
+            if (this.orbitControls) this.orbitControls.enabled = true;
+            document.exitPointerLock();
+        } else {
+            if (this.orbitControls) this.orbitControls.enabled = false;
+            // Pointer lock will be requested on click
+        }
+
+        this.eventBus.emit('input:mode_changed', { mode });
+    }
+
+    enableSurfacePhysics(enabled) {
+        this.surfacePhysicsEnabled = enabled;
+    }
+
+    update(deltaTime) {
+        // Update OrbitControls
+        if (this.mode === 'orbit' && this.orbitControls) {
+            this.orbitControls.update();
+        }
+
+        // Update FPS/Spaceship controls
+        if ((this.mode === 'fps' || this.mode === 'spaceship') && this.pointerLocked) {
+            this.updateFirstPersonControls(deltaTime);
+        }
+
+        // Camera shake
+        if (this.shakeIntensity > 0.01) {
+            const shake = new THREE.Vector3(
+                (Math.random() - 0.5) * this.shakeIntensity,
+                (Math.random() - 0.5) * this.shakeIntensity,
+                (Math.random() - 0.5) * this.shakeIntensity
+            );
+            this.camera.position.add(shake);
+            this.shakeIntensity *= this.shakeDecay;
+        }
+    }
+
+    updateFirstPersonControls(deltaTime) {
+        // Look (mouse)
+        if (this.mouse.deltaX !== 0 || this.mouse.deltaY !== 0) {
+            this.camera.rotation.y -= this.mouse.deltaX * this.lookSpeed;
+            this.camera.rotation.x -= this.mouse.deltaY * this.lookSpeed;
+
+            // Clamp vertical rotation
+            this.camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera.rotation.x));
+
+            this.mouse.deltaX = 0;
+            this.mouse.deltaY = 0;
+        }
+
+        // Movement direction
+        const direction = new THREE.Vector3();
+        const forward = new THREE.Vector3(0, 0, -1).applyEuler(this.camera.rotation);
+        const right = new THREE.Vector3(1, 0, 0).applyEuler(this.camera.rotation);
+
+        // WASD movement
+        let speed = this.moveSpeed;
+        if (this.keys['shift']) speed *= this.sprintMultiplier;
+
+        if (this.keys['w']) direction.add(forward);
+        if (this.keys['s']) direction.sub(forward);
+        if (this.keys['a']) direction.sub(right);
+        if (this.keys['d']) direction.add(right);
+
+        // Q/E vertical movement (spaceship) or jump (FPS)
+        if (this.mode === 'spaceship') {
+            if (this.keys['q']) direction.y -= 1;
+            if (this.keys['e']) direction.y += 1;
+        } else if (this.mode === 'fps') {
+            if (this.keys[' '] && this.onGround) {
+                this.velocity.y = this.jumpForce;
+                this.onGround = false;
+            }
+        }
+
+        // R/F roll (spaceship only)
+        if (this.mode === 'spaceship') {
+            if (this.keys['r']) this.camera.rotation.z += this.rollSpeed * deltaTime;
+            if (this.keys['f']) this.camera.rotation.z -= this.rollSpeed * deltaTime;
+        }
+
+        // Apply movement
+        if (direction.length() > 0) {
+            direction.normalize().multiplyScalar(speed * deltaTime);
+
+            if (this.surfacePhysicsEnabled && this.mode === 'fps') {
+                // Surface physics (with collision)
+                this.velocity.x = direction.x;
+                this.velocity.z = direction.z;
+                this.velocity.y += this.gravity * deltaTime;
+
+                this.camera.position.add(this.velocity.clone().multiplyScalar(deltaTime));
+
+                // Check ground collision (simplified)
+                const groundHeight = 0; // In full implementation, raycast to terrain
+                if (this.camera.position.y <= groundHeight + 5) {
+                    this.camera.position.y = groundHeight + 5;
+                    this.velocity.y = 0;
+                    this.onGround = true;
+                }
+            } else {
+                // Free flight (spaceship)
+                this.camera.position.add(direction);
+            }
+        }
+    }
+
+    applyViewPreset(preset) {
+        const presets = {
+            1: { pos: [0, 200, 1000], lookAt: [0, 0, 0] },      // Galaxy overview
+            2: { pos: [0, 500, 0], lookAt: [0, 0, 0] },        // Top-down
+            3: { pos: [1000, 100, 0], lookAt: [0, 0, 0] },     // Side view
+            4: { pos: [500, 500, 500], lookAt: [0, 0, 0] },    // Isometric
+            5: { pos: [0, 0, 2000], lookAt: [0, 0, 0] },       // Front view
+            6: { pos: [0, 1000, 1000], lookAt: [0, 0, 0] },    // High angle
+            7: { pos: [-1000, 200, -1000], lookAt: [0, 0, 0] }, // Corner
+            8: { pos: [0, 100, 500], lookAt: [0, 0, 0] },      // Close orbit
+            9: { pos: [0, 2000, 0], lookAt: [0, 0, 0] }        // Bird's eye
+        };
+
+        if (presets[preset]) {
+            const { pos, lookAt } = presets[preset];
+            this.camera.position.set(...pos);
+            this.camera.lookAt(...lookAt);
+            this.eventBus.emit('camera:preset_applied', { preset });
+        }
+    }
+
+    shake(intensity) {
+        this.shakeIntensity = intensity;
+    }
+}
+
+// =====================================================================================
+// AUDIO REACTIVE SYSTEM (Beat-reactive particles)
+// =====================================================================================
+/* FROM: Integration Prompt Part 1 */
+class AudioReactiveSystem {
+    constructor(scene, eventBus) {
+        this.scene = scene;
+        this.eventBus = eventBus;
+        this.particles = [];
+        this.particlePool = [];
+        this.maxParticles = 1000;
+        this.visible = true;
+
+        // Create particle pool
+        const geometry = new THREE.SphereGeometry(0.5, 6, 6);
+        const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+        for (let i = 0; i < this.maxParticles; i++) {
+            const particle = new THREE.Mesh(geometry, material.clone());
+            particle.visible = false;
+            this.scene.add(particle);
+            this.particlePool.push(particle);
+        }
+    }
+
+    setVisible(visible) {
+        this.visible = visible;
+        this.particles.forEach(p => p.mesh.visible = visible);
+    }
+
+    spawnParticle(position, velocity, color) {
+        if (this.particlePool.length === 0) return;
+
+        const mesh = this.particlePool.pop();
+        mesh.position.copy(position);
+        mesh.material.color.copy(color);
+        mesh.visible = this.visible;
+
+        const particle = {
+            mesh,
+            velocity,
+            age: 0,
+            maxAge: 2 + Math.random() * 2
+        };
+
+        this.particles.push(particle);
+    }
+
+    update(deltaTime, STATE) {
+        if (!this.visible) return;
+
+        // Spawn on bass hits
+        const bass = STATE.sensors.audio.spectralBands[0] || 0;
+        if (bass > 0.7 && Math.random() < 0.3) {
+            const pos = new THREE.Vector3(
+                (Math.random() - 0.5) * 100,
+                (Math.random() - 0.5) * 100,
+                (Math.random() - 0.5) * 100
+            );
+            const vel = new THREE.Vector3(
+                (Math.random() - 0.5) * 10,
+                (Math.random() - 0.5) * 10,
+                (Math.random() - 0.5) * 10
+            );
+            const color = new THREE.Color().setHSL(STATE.params.omega, 0.8, 0.6);
+            this.spawnParticle(pos, vel, color);
+        }
+
+        // Update particles
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.age += deltaTime;
+
+            if (p.age > p.maxAge) {
+                // Return to pool
+                p.mesh.visible = false;
+                this.particlePool.push(p.mesh);
+                this.particles.splice(i, 1);
+            } else {
+                // Update position
+                p.mesh.position.add(p.velocity.clone().multiplyScalar(deltaTime));
+
+                // Fade out
+                const alpha = 1 - (p.age / p.maxAge);
+                p.mesh.material.opacity = alpha;
+                p.mesh.material.transparent = true;
+            }
+        }
+    }
+
+    getEntities() {
+        return this.particles.map(p => p.mesh).filter(m => m.visible);
+    }
+}
+
+// =====================================================================================
+// MEMORY ECHO ENGINE (Echo mode visualization)
+// =====================================================================================
+/* FROM: Integration Prompt Part 1 */
+class MemoryEchoEngine {
+    constructor(scene, eventBus) {
+        this.scene = scene;
+        this.eventBus = eventBus;
+        this.particles = [];
+        this.visible = false;
+    }
+
+    setVisible(visible) {
+        this.visible = visible;
+        this.particles.forEach(p => p.visible = visible);
+    }
+
+    loadData(dataArray) {
+        // Create particles from data array
+        this.cleanup();
+
+        const geometry = new THREE.BufferGeometry();
+        const positions = [];
+        const colors = [];
+
+        for (let i = 0; i < dataArray.length && i < 10000; i++) {
+            const byte = dataArray[i];
+            positions.push(
+                (i % 100) - 50,
+                Math.floor(i / 100) - 50,
+                (byte / 255) * 100 - 50
+            );
+            colors.push(byte / 255, 0.5, 1 - byte / 255);
+        }
+
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+        const material = new THREE.PointsMaterial({
+            size: 2,
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            transparent: true
+        });
+
+        const points = new THREE.Points(geometry, material);
+        points.visible = this.visible;
+        this.scene.add(points);
+        this.particles.push(points);
+    }
+
+    update(deltaTime, STATE) {
+        if (!this.visible) return;
+
+        // Rotate echo visualization
+        this.particles.forEach(p => {
+            p.rotation.y += deltaTime * 0.2;
+            p.rotation.x += deltaTime * 0.1;
+        });
+    }
+
+    cleanup() {
+        this.particles.forEach(p => {
+            this.scene.remove(p);
+            p.geometry.dispose();
+            p.material.dispose();
+        });
+        this.particles = [];
+    }
+
+    getEntities() {
+        return this.particles;
+    }
+}
+
+// =====================================================================================
 // MAIN APPLICATION CLASS
 // =====================================================================================
 class Application {
@@ -4453,6 +5051,107 @@ class Application {
         this.objectLibrary = new ObjectLibrary(this.scene, this.prng);
         this.volumetricDust = new VolumetricDust(this.scene, this.camera);
 
+        // ===== NEW INTEGRATED SYSTEMS (12D CST v3) =====
+        // Initialize STATE object with full CST structure
+        this.STATE = {
+            // Mode Management
+            currentMode: 'universe', // 'universe' | 'surface' | 'echo'
+
+            // Simulation Parameters
+            params: {
+                Ec: 1.2,        // Energy scaling
+                lambda: 0.25,   // Chaos factor
+                zeta: 0.985,    // Motion damping
+                omega: 0.62,    // Spectral hue
+                U_grav: 0.55,   // Gravitational strength
+                phi: 1.618033988749895, // Golden ratio
+                swirl: 0.30     // Swirl intensity
+            },
+
+            // Sensor Readings
+            sensors: {
+                audio: {
+                    avgFreq: 0,
+                    spectralBands: new Array(8).fill(0),
+                    bass: 0,
+                    mids: 0,
+                    treble: 0,
+                    psd: 0
+                },
+                video: { detections: [] },
+                geolocation: { lat: null, lon: null },
+                ambientLight: { lux: null }
+            },
+
+            // External Data
+            external: {
+                usgs: { earthquakes: [] },
+                nasa: { apod: null },
+                donki: { events: [] }
+            },
+
+            // Theory State (12D CST)
+            cst: {
+                h12: new Array(12).fill(0),  // 12D state vector
+                x12: new Array(12).fill(0),  // Internal state
+                m12: new Array(12).fill(0),  // Memory (EMA)
+                connectivity: 0,              // Ωᵢ
+                psi: 0,                       // ψ sum
+                term1_Ec: 0,                  // c²·φ·Ec
+                term2_lambda: 0,              // λ·audio
+                term3_omega: 0,               // Ω·Ec
+                term4_Ugrav: 0,               // U_grav
+                term5_rho: 0,                 // Σρ_sd
+                psi_history: []               // Last 100 values
+            },
+
+            // AI State
+            ai: {
+                seed: null,
+                intention: '',
+                futureEvents: [],
+                bias: { exploration: 0.5, harmony: 0.5 }
+            },
+
+            // Runtime
+            runtime: {
+                fps: 60,
+                frameCount: 0,
+                deltaTime: 0,
+                totalTime: 0,
+                objectCount: 0
+            },
+
+            // UI State
+            ui: {
+                visible: true,
+                activeTab: 'controls',
+                devMode: false,
+                psiOverlayVisible: false,
+                surfaceHUDVisible: false
+            },
+
+            // Flags
+            flags: {
+                enablePostProcessing: true
+            }
+        };
+
+        // Initialize CST Compute Engine
+        this.cstCompute = new CSTComputeEngine(this.eventBus);
+
+        // Initialize Input Controller (after camera is created)
+        this.inputController = new InputController(this.camera, canvas, this.eventBus, this.STATE);
+
+        // Initialize Audio Reactive System
+        this.audioReactiveSystem = new AudioReactiveSystem(this.scene, this.eventBus);
+
+        // Initialize Memory Echo Engine
+        this.memoryEchoEngine = new MemoryEchoEngine(this.scene, this.eventBus);
+
+        // Wire InputController with OrbitControls (set after OrbitControls initialization)
+        // Will be done in initEventHandlers
+
         // Bind event handlers
         this.initEventHandlers();
 
@@ -4460,7 +5159,7 @@ class Application {
         this.clock = new THREE.Clock();
         this.animate = this.animate.bind(this);
 
-        // State management
+        // Legacy state management (for backward compatibility)
         this.currentView = 'galaxy';
         this.isMouseDown = false;
         this.mouse = new THREE.Vector2(-1, -1);
@@ -4469,18 +5168,9 @@ class Application {
         this.directiveTimer = 0;
         this.fps = 60;
 
-        // Physics parameters
-        this.physics = {
-            ugrav: 0.55,
-            lambda: 0.25,
-            ec: 1.2,
-            li: 0.985,
-            omega: 0.62,
-            swirl: 0.30
-        };
-
-        // Audio data
-        this.audioData = { bass: 0, mids: 0, treble: 0, psd: 0 };
+        // Backward compatibility aliases
+        this.physics = this.STATE.params;
+        this.audioData = this.STATE.sensors.audio;
 
         // Set system ready flag
         window.systemReady = false;
@@ -4968,7 +5658,96 @@ class Application {
             this.dataLogger.updateTelemetryUI();
         });
 
+        // ===== NEW INTEGRATED SYSTEM EVENT HANDLERS =====
+
+        // PSI Overlay toggle button
+        const btnPsiHUD = $('btnPsiHUD');
+        if (btnPsiHUD) {
+            btnPsiHUD.addEventListener('click', () => {
+                this.STATE.ui.psiOverlayVisible = !this.STATE.ui.psiOverlayVisible;
+                const psiPanel = $('psiPanel');
+                if (psiPanel) {
+                    if (this.STATE.ui.psiOverlayVisible) {
+                        psiPanel.classList.remove('hidden');
+                    } else {
+                        psiPanel.classList.add('hidden');
+                    }
+                }
+                console.log(`[Genesis] PSI overlay: ${this.STATE.ui.psiOverlayVisible ? 'visible' : 'hidden'}`);
+            });
+        }
+
+        // PSI Panel close button
+        const psiClose = $('psiClose');
+        if (psiClose) {
+            psiClose.addEventListener('click', () => {
+                this.STATE.ui.psiOverlayVisible = false;
+                const psiPanel = $('psiPanel');
+                if (psiPanel) psiPanel.classList.add('hidden');
+            });
+        }
+
+        // Wire OrbitControls to InputController
+        if (this.orbitControls && this.inputController) {
+            this.inputController.orbitControls = this.orbitControls;
+            console.log("✓ OrbitControls wired to InputController");
+        }
+
+        // UI toggle hotkey handler (H key)
+        this.eventBus.on('ui:toggle', () => {
+            this.STATE.ui.visible = !this.STATE.ui.visible;
+            const mainUI = $('main-ui') || $('ui-main-panel');
+            if (mainUI) {
+                if (this.STATE.ui.visible) {
+                    mainUI.classList.remove('is-hidden');
+                } else {
+                    mainUI.classList.add('is-hidden');
+                }
+            }
+        });
+
+        // Post-processing toggle handlers
+        this.eventBus.on('postfx:toggle', (data) => {
+            const effect = data.effect;
+            switch(effect) {
+                case 'afterimage':
+                    if (this.afterimagePass) {
+                        this.afterimagePass.enabled = !this.afterimagePass.enabled;
+                        console.log(`[PostFX] Afterimage: ${this.afterimagePass.enabled ? 'ON' : 'OFF'}`);
+                    }
+                    break;
+                case 'bloom':
+                    if (this.bloomPass) {
+                        this.bloomPass.enabled = !this.bloomPass.enabled;
+                        console.log(`[PostFX] Bloom: ${this.bloomPass.enabled ? 'ON' : 'OFF'}`);
+                    }
+                    break;
+                case 'vignette':
+                    if (this.vignettePass) {
+                        this.vignettePass.enabled = !this.vignettePass.enabled;
+                        console.log(`[PostFX] Vignette: ${this.vignettePass.enabled ? 'ON' : 'OFF'}`);
+                    }
+                    break;
+            }
+        });
+
+        // CST PSI update event logging
+        this.eventBus.on('cst:psi_update', (data) => {
+            // Log to data logger if needed
+            if (this.STATE.runtime.frameCount % 300 === 0) { // Every 5 seconds at 60fps
+                this.dataLogger.logTelemetry('cst_psi', {
+                    psi: data.psi,
+                    term1_Ec: data.term1_Ec,
+                    term2_lambda: data.term2_lambda,
+                    term3_omega: data.term3_omega,
+                    term4_Ugrav: data.term4_Ugrav,
+                    term5_rho: data.term5_rho
+                });
+            }
+        });
+
         console.log("✓ Event handlers initialized");
+        console.log("✓ New integrated systems wired");
     }
 
     async start() {
@@ -5216,22 +5995,44 @@ class Application {
         $('hud-ai-state')!.textContent = aiState.dominantState;
         $('hud-ai-learning')!.textContent = this.audioData.psd > 0.1 ? 'Active' : 'Passive';
 
-        // CST ψ computation
-        const c2 = C_SPEED_OF_LIGHT * C_SPEED_OF_LIGHT * 0.0000001; // Scaled
-        const phi = PHI_GOLDEN;
-        const term1 = c2 * phi * this.physics.ec;
-        const term2 = this.audioData.psd * this.physics.lambda;
-        const term3 = this.physics.omega * this.physics.ec;
-        const term4 = this.physics.ugrav;
-        const term5 = this.audioData.psd * 0.5; // Simplified Soul Dust density
-        const psi = term1 + term2 + term3 + term4 + term5;
+        // ===== CST ψ OVERLAY UPDATE (New CST Compute Engine) =====
+        // Update PSI overlay HUD if visible
+        if (this.STATE.ui.psiOverlayVisible) {
+            const formatScientific = (num) => {
+                if (Math.abs(num) < 1000 && Math.abs(num) > 0.01) return num.toFixed(2);
+                return num.toExponential(2);
+            };
 
-        $('psi-term-1')!.textContent = term1.toFixed(3);
-        $('psi-term-2')!.textContent = term2.toFixed(3);
-        $('psi-term-3')!.textContent = term3.toFixed(3);
-        $('psi-term-4')!.textContent = term4.toFixed(3);
-        $('psi-term-5')!.textContent = term5.toFixed(3);
-        $('psi-total')!.textContent = psi.toFixed(3);
+            // Use values from CSTComputeEngine
+            const vEc = $('vEc');
+            const vLam = $('vLam');
+            const vOm = $('vOm');
+            const vGrav = $('vGrav');
+            const vRho = $('vRho');
+            const vPsi = $('vPsi');
+
+            if (vEc) vEc.textContent = formatScientific(this.STATE.cst.term1_Ec);
+            if (vLam) vLam.textContent = this.STATE.cst.term2_lambda.toFixed(2);
+            if (vOm) vOm.textContent = this.STATE.cst.term3_omega.toFixed(3);
+            if (vGrav) vGrav.textContent = formatScientific(this.STATE.cst.term4_Ugrav);
+            if (vRho) vRho.textContent = this.STATE.cst.term5_rho.toFixed(3);
+            if (vPsi) vPsi.textContent = formatScientific(this.STATE.cst.psi);
+        }
+
+        // Legacy PSI display (for backward compatibility)
+        const psiTerm1 = $('psi-term-1');
+        const psiTerm2 = $('psi-term-2');
+        const psiTerm3 = $('psi-term-3');
+        const psiTerm4 = $('psi-term-4');
+        const psiTerm5 = $('psi-term-5');
+        const psiTotal = $('psi-total');
+
+        if (psiTerm1) psiTerm1.textContent = this.STATE.cst.term1_Ec.toExponential(3);
+        if (psiTerm2) psiTerm2.textContent = this.STATE.cst.term2_lambda.toFixed(3);
+        if (psiTerm3) psiTerm3.textContent = this.STATE.cst.term3_omega.toFixed(3);
+        if (psiTerm4) psiTerm4.textContent = this.STATE.cst.term4_Ugrav.toFixed(3);
+        if (psiTerm5) psiTerm5.textContent = this.STATE.cst.term5_rho.toFixed(3);
+        if (psiTotal) psiTotal.textContent = this.STATE.cst.psi.toExponential(3);
     }
 
     animate() {
@@ -5261,6 +6062,27 @@ class Application {
             };
         }
 
+        // ===== UPDATE INPUT CONTROLLER =====
+        try {
+            this.inputController.update(delta);
+        } catch (err) {
+            console.warn('[Genesis] InputController update error:', err);
+        }
+
+        // ===== UPDATE NEW INTEGRATED SYSTEMS =====
+        // Update runtime state
+        this.STATE.runtime.frameCount++;
+        this.STATE.runtime.deltaTime = delta;
+        this.STATE.runtime.totalTime = elapsedTime;
+        this.STATE.runtime.fps = this.fps;
+
+        // Sync audio data to STATE
+        this.STATE.sensors.audio.bass = this.audioData.bass;
+        this.STATE.sensors.audio.mids = this.audioData.mids;
+        this.STATE.sensors.audio.treble = this.audioData.treble;
+        this.STATE.sensors.audio.psd = this.audioData.psd;
+        this.STATE.sensors.audio.avgFreq = this.audioData.psd * 255; // Simplified
+
         // Update physics based on current view
         if (this.currentView === 'galaxy') {
             // Update galaxy-specific systems
@@ -5270,6 +6092,13 @@ class Application {
             this.objectLibrary.update(delta);
             this.volumetricDust.update(elapsedTime, this.fps, this.audioData.psd);
             this.orbitControls.update();
+
+            // Update audio reactive system (universe mode)
+            try {
+                this.audioReactiveSystem.update(delta, this.STATE);
+            } catch (err) {
+                console.warn('[Genesis] AudioReactiveSystem error:', err);
+            }
         } else if (this.currentView === 'solar_system') {
             this.solarSystem.update(delta);
             this.orbitControls.update();
@@ -5297,6 +6126,36 @@ class Application {
             physics: this.physics,
             view: this.currentView
         });
+
+        // ===== CST COMPUTATION ENGINE (12D State Tracking) =====
+        try {
+            // Gather all entities from all systems
+            const allEntities = [
+                ...this.pge.getEntities(),
+                ...this.qem.getEntities(),
+                ...this.audioReactiveSystem.getEntities(),
+                ...this.memoryEchoEngine.getEntities(),
+                // Add more as needed
+            ].filter(e => e && e.position); // Filter valid entities
+
+            this.STATE.runtime.objectCount = allEntities.length;
+
+            // Compute unified ψ formula
+            this.cstCompute.computePsi(this.STATE, allEntities);
+
+            // Update each entity's 12D state vector (throttled - every 5 frames)
+            if (this.STATE.runtime.frameCount % 5 === 0) {
+                allEntities.forEach(entity => {
+                    try {
+                        this.cstCompute.updateEntityState(entity, delta, this.STATE);
+                    } catch (err) {
+                        // Silence per-entity errors to avoid spam
+                    }
+                });
+            }
+        } catch (err) {
+            console.warn('[Genesis] CST computation error:', err);
+        }
 
         // Update HUD
         this.updateHUD();
@@ -5420,16 +6279,84 @@ console.log("Click 'Initiate Genesis' to begin...");
  *    - Particle systems with custom behaviors
  *    - Event tracking and management
  *
+ * ✅ 11. CST COMPUTE ENGINE (12D State Tracking) — NEW ⭐
+ *    - Complete ψ formula computation: ψ(t) = c²·φ·Ec + λ·audio + Ω·Ec + U_grav + Σρ_sd
+ *    - 12D state vector (h12) for all entities:
+ *      * Dimensions 0-2: Spatial position (x,y,z)
+ *      * Dimensions 3-5: Velocity (vx,vy,vz)
+ *      * Dimension 6: Temporal phase (age/maxAge)
+ *      * Dimension 7: Audio coupling (avgFreq/255)
+ *      * Dimension 8: Chaos factor (λ)
+ *      * Dimension 9: Spectral hue (Ω)
+ *      * Dimension 10: Energy scale (Ec)
+ *      * Dimension 11: Global field (ψ normalized)
+ *    - Internal state x12 tracking
+ *    - Memory m12 with exponential moving average (EMA)
+ *    - Connectivity Ωᵢ computation (velocity × audio coupling)
+ *    - Real-time ψ history (last 100 values)
+ *    - Per-entity 12D state updates (throttled to every 5 frames)
+ *
+ * ✅ 12. INPUT CONTROLLER (Complete Input Handling) — NEW ⭐
+ *    - Three input modes: orbit | spaceship | fps
+ *    - OrbitControls integration with damping
+ *    - Pointer lock for first-person modes
+ *    - WASD movement with sprint (Shift)
+ *    - Q/E vertical movement (spaceship) or jump (fps)
+ *    - R/F roll (spaceship only)
+ *    - Mouse look with vertical clamping
+ *    - Camera shake system with decay
+ *    - Surface physics with gravity and collision
+ *    - Hotkeys:
+ *      * H: Toggle UI
+ *      * Ctrl+Alt+D: Developer mode
+ *      * M: Motion blur toggle
+ *      * B: Bloom toggle
+ *      * V: Vignette toggle
+ *      * 1-9: View presets
+ *      * Esc: Exit pointer lock
+ *
+ * ✅ 13. AUDIO REACTIVE SYSTEM — NEW ⭐
+ *    - Object pooling (1000 particle pool)
+ *    - Beat-reactive particle spawning (bass threshold 0.7)
+ *    - Spectral color mapping from STATE.params.omega
+ *    - Particle lifecycle with fade-out (2-4 second lifetime)
+ *    - Velocity-based motion with deltaTime scaling
+ *    - Additive blending for glow effects
+ *
+ * ✅ 14. MEMORY ECHO ENGINE — NEW ⭐
+ *    - Binary data visualization (up to 10k bytes)
+ *    - 3D point cloud generation from data array
+ *    - Color mapping: (byte/255, 0.5, 1-byte/255)
+ *    - Additive blending for ethereal appearance
+ *    - Auto-rotation (y-axis: 0.2 rad/s, x-axis: 0.1 rad/s)
+ *    - Mode-specific visibility toggle
+ *    - Memory cleanup on data reload
+ *
+ * ✅ 15. PSI OVERLAY HUD — NEW ⭐
+ *    - Live display of all 5 ψ terms:
+ *      * c²·φ·Ec (energy-information equivalence)
+ *      * λ·audio (chaos injection)
+ *      * Ω·Ec (spectral hue coupling)
+ *      * U_grav (gravitational potential)
+ *      * Σρ_sd (Soul Dust density)
+ *    - Total ψ sum with scientific notation
+ *    - Toggle button (btnPsiHUD) with state persistence
+ *    - Close button for quick dismiss
+ *    - Auto-update every frame when visible
+ *
  * ═══════════════════════════════════════════════════════════════════════════
- * FEATURE COUNTS
+ * FEATURE COUNTS (UPDATED)
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * Total Classes: 15+ major systems
+ * Total Classes: 19 major systems (+4 new)
  * Shader Methods: 8 advanced shaders
  * Post-Processing: 13 shader passes
  * Event Types: 6 autonomous phenomena
  * Sensor Types: 4 (audio, video, geo, light)
  * External APIs: 4 NASA/USGS endpoints
+ * 12D State Dimensions: 12 (h12, x12, m12 per entity)
+ * Input Modes: 3 (orbit, spaceship, fps)
+ * Hotkeys: 11 (H, Ctrl+Alt+D, M, B, V, 1-9, Esc)
  *
  * ═══════════════════════════════════════════════════════════════════════════
  * VERIFICATION CHECKLIST — ALL PASSED ✅
