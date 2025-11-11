@@ -1754,6 +1754,85 @@
         getCelestialObjects() {
             return this.celestialObjects;
         }
+
+        populateUniverse() {
+            console.log('[ProceduralGen] 🌌 Beginning universe population...');
+
+            const startTime = performance.now();
+
+            // Configuration
+            const config = {
+                stars: { count: 20, minRadius: 80, maxRadius: 200, spread: 10000 },
+                planets: { count: 40, minRadius: 20, maxRadius: 80, spread: 8000 },
+                blackHoles: { count: 3, minRadius: 80, maxRadius: 150, spread: 12000 }
+            };
+
+            // Helper function for random position
+            const randomPosition = (spread) => {
+                return new THREE.Vector3(
+                    (Math.random() - 0.5) * spread,
+                    (Math.random() - 0.5) * spread,
+                    (Math.random() - 0.5) * spread
+                );
+            };
+
+            // Clear existing objects
+            this.clearUniverse();
+
+            // Generate stars
+            console.log(`[ProceduralGen] ⭐ Generating ${config.stars.count} stars...`);
+            for (let i = 0; i < config.stars.count; i++) {
+                const hue = Math.random(); // Random color
+                const energy = 0.5 + Math.random() * 0.5; // Energy 0.5-1.0
+
+                // Use the existing createStar method
+                this.createStar(hue, energy);
+            }
+
+            // Generate planets
+            console.log(`[ProceduralGen] 🪐 Generating ${config.planets.count} planets...`);
+            for (let i = 0; i < config.planets.count; i++) {
+                const hue = Math.random(); // Random color
+                const gravity = 0.3 + Math.random() * 0.4; // Gravity 0.3-0.7
+
+                // Use the existing createPlanet method
+                this.createPlanet(hue, gravity);
+            }
+
+            // Generate black holes
+            console.log(`[ProceduralGen] 🕳️  Generating ${config.blackHoles.count} black holes...`);
+            for (let i = 0; i < config.blackHoles.count; i++) {
+                const gravity = 0.5 + Math.random() * 0.5; // Gravity 0.5-1.0
+                const energy = 0.7 + Math.random() * 0.3; // Energy 0.7-1.0
+
+                // Use the existing createBlackHole method
+                this.createBlackHole(gravity, energy);
+            }
+
+            const endTime = performance.now();
+            const duration = (endTime - startTime).toFixed(2);
+
+            console.log(`[ProceduralGen] ✅ Universe populated with ${this.celestialObjects.length} objects in ${duration}ms`);
+            console.log(`[ProceduralGen] 📊 Breakdown:`, {
+                stars: config.stars.count,
+                planets: config.planets.count,
+                blackHoles: config.blackHoles.count,
+                total: this.celestialObjects.length
+            });
+
+            // Emit event
+            if (this.eventBus) {
+                this.eventBus.emit('procedural:universe_populated', {
+                    objectCount: this.celestialObjects.length,
+                    breakdown: {
+                        stars: config.stars.count,
+                        planets: config.planets.count,
+                        blackHoles: config.blackHoles.count
+                    },
+                    duration: duration
+                });
+            }
+        }
     }
 
     // --- Sub-system classes ---
@@ -2485,6 +2564,9 @@
             // Initialize quantum and procedural systems
             this.quantumEvents = new QuantumEventManager(this.eventBus, this, this.scene, this.camera);
             this.proceduralGen = new ProceduralGenerationEngine(this.scene, this.eventBus);
+
+            // CRITICAL: Populate the universe with celestial objects
+            this.proceduralGen.populateUniverse();
 
             // Legacy systems (keep for compatibility)
             this.audio = new AudioManager(this.ui.audioToggle, this.ui.audioStatus);
