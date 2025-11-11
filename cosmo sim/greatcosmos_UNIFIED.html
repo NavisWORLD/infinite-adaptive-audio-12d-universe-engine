@@ -1861,30 +1861,221 @@ class MachineLearningCore {
     }
 }
 
-// Minimal CosmicAwarenessAgent placeholder
+/**
+ * Cosmic Awareness Agent - Sentient AI with intention generation and learning
+ * Analyzes sensory inputs and external data to generate creative intentions
+ */
 class CosmicAwarenessAgent {
     constructor(eventBus, prng) {
         this.eventBus = eventBus;
         this.prng = prng;
+
+        // Learning preferences
         this.preferences = {
             floraBias: 0.5,
-            blackHoleBias: 0.5
+            blackHoleBias: 0.5,
+            nebulaIntensity: 0.5,
+            planetDensity: 0.5
         };
+
+        // Sensory data cache
+        this.latestData = {
+            audio: 0,
+            light: 500,
+            ml: [],
+            usgs: null,
+            apod: null,
+            donki: null,
+            neo: null,
+            location: null
+        };
+
+        // Autonomous behavior state
+        this.autonomousEventTimer = 0;
+        this.lastIntention = "Observing the Void.";
+        this.futureEvents = [];
+
+        // Subscribe to sensory inputs
+        this.initEventSubscriptions();
+    }
+
+    initEventSubscriptions() {
+        this.eventBus.subscribe('audio:data', (data) => {
+            this.latestData.audio = data.avgFreq || 0;
+            this.updateIntention();
+        });
+
+        this.eventBus.subscribe('light:updated', (data) => {
+            this.latestData.light = data.lux;
+            this.updateIntention();
+        });
+
+        this.eventBus.subscribe('video:frame', (videoElement) => {
+            // ML object detection would happen here with ml5.js
+            // For now just acknowledge video input
+        });
+
+        this.eventBus.subscribe('external:usgs', (data) => {
+            this.latestData.usgs = data.features?.[0];
+            this.updateIntention();
+        });
+
+        this.eventBus.subscribe('external:apod', (data) => {
+            this.latestData.apod = data.title;
+            this.updateIntention();
+        });
+
+        this.eventBus.subscribe('external:donki', (data) => {
+            this.latestData.donki = data;
+        });
+
+        this.eventBus.subscribe('external:neo', (data) => {
+            this.latestData.neo = data;
+        });
+
+        this.eventBus.subscribe('location:updated', (data) => {
+            this.latestData.location = data;
+        });
+    }
+
+    updateIntention() {
+        let intention = "Observing the Void.";
+
+        // Generate context-aware intentions based on sensory data
+        if (this.latestData.usgs && this.latestData.usgs.properties.mag > 5.0) {
+            intention = `Manifesting gravitational anomaly from seismic event (mag ${this.latestData.usgs.properties.mag.toFixed(1)}).`;
+            this.preferences.blackHoleBias = Math.min(1.0, this.preferences.blackHoleBias + 0.1);
+        } else if (this.latestData.audio > 80) {
+            intention = "Manifesting high-frequency audio energy into cosmic structures.";
+            this.preferences.nebulaIntensity = Math.min(1.0, this.preferences.nebulaIntensity + 0.05);
+        } else if (this.latestData.light < 50) {
+            intention = "Weaving a cosmos from shadows and low light.";
+        } else if (this.latestData.light > 1000) {
+            intention = "Channeling brilliant illumination into stellar formations.";
+        } else if (this.latestData.apod) {
+            intention = `Synthesizing cosmos inspired by: ${this.latestData.apod}`;
+        } else if (this.latestData.donki && this.latestData.donki.length > 0) {
+            intention = `Responding to solar flare activity - ${this.latestData.donki.length} events detected.`;
+        } else {
+            intention = "Contemplating the cosmic fabric in tranquil observation.";
+        }
+
+        if (intention !== this.lastIntention) {
+            this.lastIntention = intention;
+            this.eventBus.publish('ai:intentionUpdate', intention);
+            this.eventBus.publish('genesis:log', { name: "AI Intention", value: intention, type: "data" });
+        }
+    }
+
+    learnFromInteraction(interactionType, outcome) {
+        // Simple preference learning based on user interactions
+        switch (interactionType) {
+            case 'spawn:flora':
+                this.preferences.floraBias = Math.min(1.0, this.preferences.floraBias + 0.05);
+                break;
+            case 'spawn:blackhole':
+                this.preferences.blackHoleBias = Math.min(1.0, this.preferences.blackHoleBias + 0.05);
+                break;
+            case 'spawn:nebula':
+                this.preferences.nebulaIntensity = Math.min(1.0, this.preferences.nebulaIntensity + 0.05);
+                break;
+            case 'spawn:planet':
+                this.preferences.planetDensity = Math.min(1.0, this.preferences.planetDensity + 0.05);
+                break;
+        }
+
+        this.eventBus.publish('logger:ledger', {
+            type: 'AI_LEARNING',
+            message: `Learned from ${interactionType}, updated preferences`,
+            preferences: { ...this.preferences }
+        });
+    }
+
+    scheduleFutureEvent(eventType, delay) {
+        const event = {
+            type: eventType,
+            scheduledTime: Date.now() + delay,
+            executed: false
+        };
+        this.futureEvents.push(event);
+        this.eventBus.publish('logger:ledger', {
+            type: 'AI_SCHEDULE',
+            message: `Scheduled ${eventType} for ${delay}ms in future`
+        });
+    }
+
+    updateAutonomousBehavior(delta) {
+        this.autonomousEventTimer += delta;
+
+        // Check for scheduled future events
+        const now = Date.now();
+        this.futureEvents = this.futureEvents.filter(event => {
+            if (!event.executed && now >= event.scheduledTime) {
+                this.executeAutonomousEvent(event.type);
+                event.executed = true;
+                return false;
+            }
+            return !event.executed;
+        });
+
+        // Periodic autonomous creation
+        if (this.autonomousEventTimer > 30) {
+            this.autonomousEventTimer = 0;
+
+            // Decide what to create based on preferences and random chance
+            const roll = this.prng();
+            if (roll < this.preferences.blackHoleBias * 0.3) {
+                this.executeAutonomousEvent('create:blackhole');
+            } else if (roll < 0.5) {
+                this.executeAutonomousEvent('create:comet');
+            } else {
+                this.executeAutonomousEvent('create:nebula');
+            }
+        }
+    }
+
+    executeAutonomousEvent(eventType) {
+        this.eventBus.publish('ai:autonomousEvent', { type: eventType });
+        this.eventBus.publish('genesis:log', {
+            name: "Autonomous Event",
+            value: eventType,
+            type: "success"
+        });
     }
 
     generateSeed(overrideData = null) {
         const timestamp = Date.now();
-        const seedString = `${timestamp}_${Math.random()}`;
+
+        // Incorporate sensory data into seed generation
+        const sensorInfluence = Math.floor(
+            this.latestData.audio * 100 +
+            this.latestData.light +
+            (this.latestData.location?.lat || 0) * 1000
+        );
+
+        const seedString = `${timestamp}_${sensorInfluence}_${Math.random()}`;
         const seed = cyrb128(seedString);
 
-        this.eventBus.publish('ai:seed', { seed, seedString });
+        this.eventBus.publish('ai:seed', { seed, seedString, sensorInfluence });
         this.eventBus.publish('logger:ledger', {
             type: 'GENESIS_SEED',
             message: `Generated seed: ${seedString}`,
-            seed: seed
+            seed: seed,
+            preferences: { ...this.preferences }
         });
 
         return seed;
+    }
+
+    getInfluencedParameters() {
+        // Return universe generation parameters influenced by AI preferences
+        return {
+            planetCount: Math.floor(3 + this.preferences.planetDensity * 7),
+            blackHoleChance: this.preferences.blackHoleBias,
+            floraChance: this.preferences.floraBias,
+            nebulaIntensity: this.preferences.nebulaIntensity,
+            intention: this.lastIntention
+        };
     }
 }
 
