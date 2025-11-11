@@ -987,6 +987,203 @@ import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 
 // =====================================================================================
+// COMPREHENSIVE FEATURE MATRIX - Source File Analysis
+// =====================================================================================
+/*
+ * This matrix documents all unique features found across the 6 source files,
+ * serving as a complete integration checklist for the unified engine.
+ *
+ * SOURCE FILES ANALYZED:
+ * 1. greatcosmos.HTML (~1,330 lines) - Original synthesis with AI Life
+ * 2. lostcosmo's.html (~3,110 lines) - Sensor suite and AI awareness
+ * 3. DARkcosmo.HTML (~4,932 lines) - Advanced CST v3 with telemetry
+ * 4. earth.html (~657 lines) - Surface world simulation
+ * 5. imdone.html (~588 lines) - VibraLight multi-attractor system
+ * 6. jecosmo.HTML (~1,330 lines) - Scaled solar system variant
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * CORE ARCHITECTURE
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * [✓] EventBus - Channel-based pub/sub (DARkcosmo, lostcosmo's)
+ * [✓] DataLogger - Dual-channel: Genesis Ledger + Live Telemetry (DARkcosmo)
+ * [✓] UIManager - Tab-based controls (all files)
+ * [ ] STATE Management - Global 12D state vectors (h12, x12, m12)
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * SENSORY INPUT SYSTEMS (FROM: lostcosmo's.html)
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * [✓] Audio FFT Analysis - Bass/mid/treble separation, spectral centroid
+ * [ ] Video ML Detection - ml5.js COCO-SSD object detection from camera
+ * [ ] Geolocation - GPS coordinates with watchPosition
+ * [ ] AmbientLightSensor - Real-world light level readings
+ * [ ] Bio-frequency Display - Live sensor visualization pulses
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * EXTERNAL DATA INTEGRATION (FROM: lostcosmo's.html, DARkcosmo.HTML)
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * [ ] USGS Earthquake Feed - 4.5+ magnitude events → particle spawning
+ * [ ] NASA APOD - Astronomy Picture of the Day → seed influence
+ * [ ] NASA DONKI - Solar flare data → godray exposure bump
+ * [ ] NASA NEO - Near-earth objects → transient markers
+ * [ ] NASA Solar System Reference - Real planet data integration
+ * [ ] API Rate Limiting - Backoff strategy for NASA endpoints
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * AI & COGNITIVE SYSTEMS (FROM: lostcosmo's.html, DARkcosmo.HTML)
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * [ ] CosmicAwarenessAgent - Deterministic seed generation from all inputs
+ * [ ] Intention Generation - AI formulates "intention" from observed patterns
+ * [ ] Preference Learning - Flora bias, black hole bias adaptation
+ * [ ] Future Event Scheduling - Autonomous timed events
+ * [ ] MachineLearningCore - ml5.js wrapper for COCO-SSD
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * PROCEDURAL GENERATION ENGINE (FROM: DARkcosmo.HTML, greatcosmos.HTML)
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * [✓] Star Creation - Black body temperature → RGB, procedural texture
+ * [ ] Star Corona - Physically-inspired shell shader (FROM: DARkcosmo)
+ * [ ] Star Photosphere - Limb darkening + granulation shader (FROM: DARkcosmo)
+ * [ ] Lensflare - Three.js addon integration with colored elements
+ * [✓] Planet Creation - Orbital mechanics with N-body physics
+ * [ ] Planet Atmosphere - Rayleigh/Mie scattering shader (FROM: DARkcosmo)
+ * [ ] Planet Rings - Saturn-style ring geometry (FROM: DARkcosmo)
+ * [ ] L-System Flora - Procedural vegetation on planet surfaces (FROM: DARkcosmo)
+ * [ ] Asteroid Belts - Multiple belt regions with thousands of rocks (FROM: DARkcosmo)
+ * [✓] Black Hole Creation - Gravitational mass point
+ * [ ] Accretion Disk - Animated shader with noise and color gradients (FROM: DARkcosmo)
+ * [ ] Nebula Generation - Volumetric cloud shader (FROM: DARkcosmo)
+ * [ ] Genesis Light Lattice - Connecting lines between bodies (FROM: DARkcosmo)
+ * [ ] Hidden Echo Particle - Clickable anomaly detection (FROM: DARkcosmo)
+ * [ ] Knowledge Monoliths - SSR-enabled reflective objects (FROM: DARkcosmo)
+ * [✓] Starfield - Background stars (10k-100k points)
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * PARTICLE SYSTEMS (FROM: All files - different approaches)
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * [✓] QuantumEventManager - 10k "Soul Dust" particles, frequency-to-RGB
+ * [ ] Particle Coalescence - Proximity-based merging (FROM: DARkcosmo)
+ * [ ] Critical Threshold Detection - Ψ_cluster > Ψ_critical (FROM: DARkcosmo)
+ * [ ] Multi-Attractor System - Multiple black holes (FROM: imdone.html)
+ * [ ] CosmosParticleSystem - Mouse interaction gravity (FROM: greatcosmos.HTML)
+ * [ ] AILifeParticleSystem - Autonomous formations (FROM: greatcosmos.HTML)
+ * [ ] Custom Particle Shaders - Glowing vertex/fragment shaders (FROM: imdone.html)
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * SURFACE WORLD SIMULATION (FROM: earth.html)
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * [ ] SurfaceManager - Complete terrain system
+ * [ ] Perlin Noise Terrain - Multi-octave height mapping
+ * [ ] Sky Dome - Three.js Sky addon with sun positioning
+ * [ ] Ocean/Water Plane - Transparent water surface
+ * [ ] Fog System - Distance-based atmospheric fog
+ * [ ] Collision Detection - Ground collision for player
+ * [ ] Vegetation - Procedural plant placement
+ * [ ] Sentinels + Motes - Surface entities
+ * [ ] Surface HUD - Ocean roughness, cloud coverage, vegetation readouts
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * POST-PROCESSING PIPELINE (FROM: DARkcosmo.HTML)
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * [✓] RenderPass - Base scene rendering
+ * [✓] UnrealBloomPass - Glow/bloom effect
+ * [ ] AfterimagePass - Motion blur/trail effect
+ * [ ] Godray Shader - Volumetric light rays
+ * [ ] Lensing Shader - Gravitational lensing distortion
+ * [ ] Pixelation Shader - Retro pixelated mode
+ * [ ] Brightness/Contrast Shader - Exposure control
+ * [ ] Vignette Shader - Edge darkening
+ * [ ] Toon Shader - Cel-shaded anime mode with edge detection
+ * [ ] Color Filter Shader - Matrix-based color grading
+ * [ ] Swirl Shader - Radial distortion effect
+ * [ ] FXAA Shader - Anti-aliasing
+ * [ ] Film Grain Shader - Analog film simulation
+ * [ ] RGB Shift Shader - Chromatic aberration
+ * [ ] SSR (Screen-Space Reflections) - Reflective surfaces
+ * [ ] BokehPass - Depth-of-field blur
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * PLAYER CONTROLS & CAMERA MODES (FROM: All files)
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * [✓] OrbitControls - Standard orbit navigation
+ * [ ] PointerLockControls - First-person/ship flight (FROM: earth.html, greatcosmos)
+ * [ ] SpaceshipController - 3rd person ship with aura shader (FROM: greatcosmos, DARkcosmo)
+ * [ ] Headlamp System - Volumetric spotlight beam (FROM: DARkcosmo)
+ * [ ] Cockpit View - Internal ship camera (FROM: greatcosmos)
+ * [ ] Surface Flight - Terrain collision avoidance (FROM: earth.html)
+ * [ ] Mouse Interaction - Click-to-pull gravity (FROM: greatcosmos)
+ * [ ] View Mode Switching - Galaxy/Solar/Ship/Cockpit/Surface (FROM: All)
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * CST v3 12D THEORY IMPLEMENTATION (FROM: DARkcosmo.HTML, earth.html)
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * [ ] Ψ Formula Computation - Complete 12D CST equation evaluation
+ * [ ] PSI Overlay HUD - Live term display (c²·φ·Ec, λ, Ω·Ec, U_grav, Σρ_sd, ψ)
+ * [ ] 12D State Vectors - h12[], x12[], m12[] per entity
+ * [ ] Connectivity (Ωᵢ) - Inter-entity connection strength
+ * [ ] Energy Scaling (Ec) - Master energy parameter
+ * [ ] Chaos Factor (λ) - Audio-driven or baseline
+ * [ ] Spectral Hue (Ω) - Color/frequency mapping
+ * [ ] Gravitational Strength (U_grav) - Simulation gravity
+ * [ ] Motion Damping (ζ) - Velocity decay
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * AUDIO SYSTEMS (FROM: All files - different implementations)
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * [✓] AudioManager - Microphone FFT analysis
+ * [ ] ProceduralAudioEngine - Spatial 3D sound synthesis (FROM: DARkcosmo)
+ * [ ] SoundBrush - Audio-reactive drawing tool (FROM: lostcosmo's)
+ * [ ] PSD (Power Spectral Density) - Advanced spectral analysis (FROM: imdone.html)
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * SPECIAL FEATURES & EASTER EGGS (FROM: Various)
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * [ ] Directive Prime - Dramatic final sequence (FROM: greatcosmos.HTML)
+ * [ ] Memory Echo Modal - Data upload for ROM simulation (FROM: lostcosmo's)
+ * [ ] Anomaly Scanner - Toggle effect (FROM: lostcosmo's, DARkcosmo)
+ * [ ] Particlizer - Image/video → particle conversion (FROM: lostcosmo's)
+ * [ ] "Particlize Self" - Camera feed → particles (FROM: lostcosmo's)
+ * [ ] Developer Mode - Password-protected features (FROM: lostcosmo's)
+ * [ ] Cosmic Web View - Alternative visualization (FROM: DARkcosmo)
+ * [ ] Focus Earth - Camera snap to Earth (FROM: DARkcosmo)
+ * [ ] Quality Presets - Anime/Low/Medium/High/Ultra (FROM: All)
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * DATA PERSISTENCE & EXPORT (FROM: lostcosmo's, DARkcosmo)
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * [✓] Genesis Ledger Download - NFT-style JSON export
+ * [✓] Telemetry Download - Machine-readable event stream
+ * [ ] Telemetry Filtering - Live search/filter UI
+ * [ ] Event History Buffer - Last 100 events cached
+ * [ ] UUID Tracking - Unique IDs for all generated entities
+ * [ ] Telemetry Tokens - Structured event logging (SDT_*, GENESIS_*)
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * UI COMPONENTS (FROM: All files)
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * [✓] Tab System - Multiple content panels (7 tabs in unified)
+ * [✓] Slider Controls - Physics parameter adjustment
+ * [✓] Mode Buttons - Universe/Surface/Echo switching
+ * [✓] Toggle Switches - Feature enable/disable
+ * [ ] Seed Visualizer - Data stream pulse indicators (FROM: lostcosmo's)
+ * [ ] AI Intention Display - Live intention text (FROM: lostcosmo's)
+ * [ ] FPS Hint Modal - Pointer lock notification
+ * [ ] Blocker Screen - Initial loading/final message
+ * [ ] HUD Readouts - Live stats (FPS, chaos, objects, etc.)
+ * [ ] Log Panel - Scrolling message feed
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * INTEGRATION STATUS KEY
+ * ═══════════════════════════════════════════════════════════════════════════════════
+ * [✓] = Currently implemented in unified file (basic/functional)
+ * [ ] = Not yet implemented (pending expansion)
+ * (FROM: filename) = Source file with most complete implementation
+ *
+ * TOTAL FEATURES IDENTIFIED: 100+
+ * CURRENT IMPLEMENTATION: ~20% (core foundation)
+ * TARGET: 100% integration preserving all unique features
+ */
+
+// =====================================================================================
 // GLOBAL CONSTANTS & CST v3 PARAMETERS
 // =====================================================================================
 const PHI = (1 + Math.sqrt(5)) / 2; // Golden ratio φ
