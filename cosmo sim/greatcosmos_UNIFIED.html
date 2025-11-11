@@ -983,6 +983,11 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+import { AfterimagePass } from 'three/addons/postprocessing/AfterimagePass.js';
+import { FilmPass } from 'three/addons/postprocessing/FilmPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+import { RGBShiftShader } from 'three/addons/shaders/RGBShiftShader.js';
+import { SSRPass } from 'three/addons/postprocessing/SSRPass.js';
 import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 
@@ -2715,9 +2720,10 @@ class Application {
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.0;
 
-        // Post-processing
+        // Post-processing - Complete pipeline from DARkcosmo.HTML
         this.composer = new EffectComposer(this.renderer);
-        this.composer.addPass(new RenderPass(this.scene, this.camera));
+        const renderPass = new RenderPass(this.scene, this.camera);
+        this.composer.addPass(renderPass);
 
         // Bloom pass
         this.bloomPass = new UnrealBloomPass(
@@ -2727,6 +2733,274 @@ class Application {
             0.85
         );
         this.composer.addPass(this.bloomPass);
+
+        // Afterimage pass for motion blur effect
+        this.afterimagePass = new AfterimagePass();
+        this.afterimagePass.uniforms['damp'].value = 0.96;
+        this.composer.addPass(this.afterimagePass);
+
+        // Godray shader - Volumetric light rays
+        const godrayShader = {
+            uniforms: {
+                tDiffuse: { value: null },
+                lightPosition: { value: new THREE.Vector2(0.5, 0.5) },
+                exposure: { value: 0.18 },
+                decay: { value: 0.97 },
+                density: { value: 0.96 },
+                weight: { value: 0.4 },
+                samples: { value: 100 }
+            },
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform vec2 lightPosition;
+                uniform float exposure;
+                uniform float decay;
+                uniform float density;
+                uniform float weight;
+                uniform int samples;
+                varying vec2 vUv;
+                const int MAX_SAMPLES = 100;
+                void main() {
+                    vec2 texCoord = vUv;
+                    vec2 deltaTexCoord = texCoord - lightPosition;
+                    deltaTexCoord *= 1.0 / float(samples) * density;
+                    float illuminationDecay = 1.0;
+                    vec4 color = texture2D(tDiffuse, texCoord);
+                    for(int i=0; i < MAX_SAMPLES; i++) {
+                        if(i >= samples) break;
+                        texCoord -= deltaTexCoord;
+                        vec4 sampledColor = texture2D(tDiffuse, texCoord);
+                        sampledColor *= illuminationDecay * weight;
+                        color += sampledColor;
+                        illuminationDecay *= decay;
+                    }
+                    gl_FragColor = color * exposure;
+                }`
+        };
+        this.godrayPass = new ShaderPass(godrayShader);
+        this.godrayPass.enabled = false;
+        this.composer.addPass(this.godrayPass);
+
+        // Gravitational lensing shader for black holes
+        const lensingShader = {
+            uniforms: {
+                tDiffuse: { value: null },
+                center: { value: new THREE.Vector2(0.5, 0.5) },
+                scale: { value: 50.0 },
+                strength: { value: 0.05 }
+            },
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                varying vec2 vUv;
+                uniform vec2 center;
+                uniform float scale;
+                uniform float strength;
+                void main() {
+                    vec2 toCenter = center - vUv;
+                    float dist = length(toCenter);
+                    vec2 uv = vUv - toCenter * (1.0 - dist * scale) * strength / dist;
+                    gl_FragColor = texture2D(tDiffuse, uv);
+                }`
+        };
+        this.lensingPass = new ShaderPass(lensingShader);
+        this.lensingPass.enabled = false;
+        this.composer.addPass(this.lensingPass);
+
+        // Pixelation shader for retro mode
+        const pixelationShader = {
+            uniforms: {
+                tDiffuse: { value: null },
+                resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+                pixelSize: { value: 8.0 }
+            },
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform vec2 resolution;
+                uniform float pixelSize;
+                varying vec2 vUv;
+                void main() {
+                    vec2 newUv = floor(vUv * resolution / pixelSize) * pixelSize / resolution;
+                    gl_FragColor = texture2D(tDiffuse, newUv);
+                }`
+        };
+        this.pixelationPass = new ShaderPass(pixelationShader);
+        this.pixelationPass.enabled = false;
+        this.composer.addPass(this.pixelationPass);
+
+        // Brightness/contrast shader
+        const brightnessShader = {
+            uniforms: {
+                tDiffuse: { value: null },
+                brightness: { value: 1.0 },
+                contrast: { value: 1.0 }
+            },
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform float brightness;
+                uniform float contrast;
+                varying vec2 vUv;
+                void main() {
+                    vec4 texel = texture2D(tDiffuse, vUv);
+                    texel.rgb *= brightness;
+                    texel.rgb = (texel.rgb - 0.5) * contrast + 0.5;
+                    gl_FragColor = texel;
+                }`
+        };
+        this.brightnessPass = new ShaderPass(brightnessShader);
+        this.composer.addPass(this.brightnessPass);
+
+        // Vignette shader for edge darkening
+        const vignetteShader = {
+            uniforms: {
+                tDiffuse: { value: null },
+                offset: { value: 1.0 },
+                darkness: { value: 1.0 }
+            },
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform float offset;
+                uniform float darkness;
+                varying vec2 vUv;
+                void main() {
+                    vec2 uv = (vUv - 0.5) * vec2(offset);
+                    float vig = 1.0 - dot(uv, uv);
+                    vec4 color = texture2D(tDiffuse, vUv);
+                    gl_FragColor = vec4(color.rgb * pow(vig, darkness), color.a);
+                }`
+        };
+        this.vignettePass = new ShaderPass(vignetteShader);
+        this.composer.addPass(this.vignettePass);
+
+        // Toon shader with edge detection
+        const toonShader = {
+            uniforms: {
+                tDiffuse: { value: null },
+                resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+                outlineColor: { value: new THREE.Color(0x000000) },
+                levels: { value: 3.0 }
+            },
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform vec2 resolution;
+                uniform vec3 outlineColor;
+                uniform float levels;
+                varying vec2 vUv;
+
+                float luma(vec3 color) { return dot(color, vec3(0.299, 0.587, 0.114)); }
+
+                void main() {
+                    vec2 texel = 1.0 / resolution;
+                    float centerLuma = luma(texture2D(tDiffuse, vUv).rgb);
+                    float up = luma(texture2D(tDiffuse, vUv + vec2(0.0, texel.y)).rgb);
+                    float down = luma(texture2D(tDiffuse, vUv - vec2(0.0, texel.y)).rgb);
+                    float left = luma(texture2D(tDiffuse, vUv - vec2(texel.x, 0.0)).rgb);
+                    float right = luma(texture2D(tDiffuse, vUv + vec2(texel.x, 0.0)).rgb);
+
+                    float outline = abs(up - centerLuma) + abs(down - centerLuma) + abs(left - centerLuma) + abs(right - centerLuma);
+                    outline = step(0.1, outline);
+
+                    vec4 color = texture2D(tDiffuse, vUv);
+                    color.rgb = floor(color.rgb * levels) / levels;
+
+                    gl_FragColor = mix(color, vec4(outlineColor, 1.0), outline);
+                }`
+        };
+        this.toonPass = new ShaderPass(toonShader);
+        this.toonPass.enabled = false;
+        this.composer.addPass(this.toonPass);
+
+        // Color filter shader for color grading
+        const colorShader = {
+            uniforms: {
+                'tDiffuse': { value: null },
+                'colorMatrix': { value: new THREE.Matrix3() }
+            },
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform mat3 colorMatrix;
+                varying vec2 vUv;
+                void main() {
+                    vec4 c = texture2D(tDiffuse, vUv);
+                    gl_FragColor = vec4(colorMatrix * c.rgb, c.a);
+                }`
+        };
+        this.colorFilterPass = new ShaderPass(colorShader);
+        this.composer.addPass(this.colorFilterPass);
+
+        // Swirl shader for distortion effects
+        const swirlShader = {
+            uniforms: {
+                tDiffuse: { value: null },
+                center: { value: new THREE.Vector2(0.5, 0.5) },
+                angle: { value: 0.0 },
+                radius: { value: 0.5 },
+                time: { value: 0.0 }
+            },
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform vec2 center;
+                uniform float angle;
+                uniform float radius;
+                uniform float time;
+                varying vec2 vUv;
+                void main() {
+                    vec2 coord = vUv - center;
+                    float dist = length(coord);
+                    if (dist < radius) {
+                        float percent = (radius - dist) / radius;
+                        float theta = percent * percent * angle * 8.0;
+                        float c = cos(theta);
+                        float s = sin(theta);
+                        coord = vec2(dot(coord, vec2(c, -s)), dot(coord, vec2(s, c)));
+                    }
+                    coord += center;
+                    gl_FragColor = texture2D(tDiffuse, coord);
+                }`
+        };
+        this.swirlPass = new ShaderPass(swirlShader);
+        this.swirlPass.enabled = false;
+        this.composer.addPass(this.swirlPass);
+
+        // FXAA anti-aliasing
+        this.fxaaPass = new ShaderPass(FXAAShader);
+        this.fxaaPass.material.uniforms['resolution'].value.set(1 / window.innerWidth, 1 / window.innerHeight);
+        this.composer.addPass(this.fxaaPass);
+
+        // Film grain and scanlines
+        this.filmPass = new FilmPass(0.15, 0.025, 648, false);
+        this.filmPass.renderToScreen = false;
+        this.composer.addPass(this.filmPass);
+
+        // Chromatic aberration / RGB shift
+        this.rgbShiftPass = new ShaderPass(RGBShiftShader);
+        this.rgbShiftPass.uniforms['amount'].value = 0.0015;
+        this.rgbShiftPass.enabled = false;
+        this.composer.addPass(this.rgbShiftPass);
+
+        // Screen-space reflections (SSR) - experimental
+        try {
+            this.ssrPass = new SSRPass({
+                renderer: this.renderer,
+                scene: this.scene,
+                camera: this.camera,
+                width: window.innerWidth,
+                height: window.innerHeight,
+                selects: null
+            });
+            this.ssrPass.enabled = false;
+            this.composer.addPass(this.ssrPass);
+        } catch (e) {
+            console.warn('SSRPass initialization failed, disabling SSR.', e);
+            this.ssrPass = null;
+        }
 
         // Controls
         this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
