@@ -319,6 +319,1107 @@
     const lerp = (a, b, t) => a + (b - a) * t;
     const G = 6.674e-2; // Gravitational constant for simulation
 
+    // --- PHYSICS CONSTANTS ---
+    const H_PLANCK = 6.62607015e-34; // Planck constant
+    const PHI_GOLDEN = 1.618033988749895; // Golden ratio
+    const C_LIGHT = 299792458; // Speed of light (m/s)
+    const K_BOLTZMANN = 1.380649e-23; // Boltzmann constant
+
+    // UUID Generator
+    function generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    // Frequency to RGB color mapping (E = h*ν)
+    function freqToRgb(frequency) {
+        // Map frequency (Hz) to visible spectrum (380-750 THz)
+        const minFreq = 380e12;
+        const maxFreq = 750e12;
+        const clampedFreq = Math.max(minFreq, Math.min(maxFreq, frequency));
+        const normalized = (clampedFreq - minFreq) / (maxFreq - minFreq);
+
+        let r, g, b;
+        if (normalized < 0.25) {
+            // Red to Yellow
+            const t = normalized / 0.25;
+            r = 1; g = t; b = 0;
+        } else if (normalized < 0.5) {
+            // Yellow to Green
+            const t = (normalized - 0.25) / 0.25;
+            r = 1 - t; g = 1; b = 0;
+        } else if (normalized < 0.75) {
+            // Green to Cyan
+            const t = (normalized - 0.5) / 0.25;
+            r = 0; g = 1; b = t;
+        } else {
+            // Cyan to Blue
+            const t = (normalized - 0.75) / 0.25;
+            r = 0; g = 1 - t; b = 1;
+        }
+
+        return new THREE.Color(r, g, b);
+    }
+
+    // --- PHASE 1: CORE SYSTEMS ---
+
+    // EventBus - Complete pub/sub with history (85 lines)
+    class EventBus {
+        constructor() {
+            this.listeners = new Map();
+            this.history = [];
+            this.maxHistory = 100;
+        }
+
+        on(eventName, callback, context = null) {
+            if (!this.listeners.has(eventName)) {
+                this.listeners.set(eventName, []);
+            }
+            this.listeners.get(eventName).push({ callback, context });
+        }
+
+        off(eventName, callback) {
+            if (!this.listeners.has(eventName)) return;
+            const listeners = this.listeners.get(eventName);
+            const index = listeners.findIndex(l => l.callback === callback);
+            if (index !== -1) {
+                listeners.splice(index, 1);
+            }
+        }
+
+        emit(eventName, data = {}) {
+            const event = {
+                name: eventName,
+                data: data,
+                timestamp: Date.now(),
+                id: generateUUID()
+            };
+
+            // Add to history
+            this.history.push(event);
+            if (this.history.length > this.maxHistory) {
+                this.history.shift();
+            }
+
+            // Notify listeners
+            if (this.listeners.has(eventName)) {
+                this.listeners.get(eventName).forEach(({ callback, context }) => {
+                    try {
+                        callback.call(context, event.data, event);
+                    } catch (err) {
+                        console.error(`EventBus error in ${eventName}:`, err);
+                    }
+                });
+            }
+
+            return event;
+        }
+
+        getHistory(eventName = null, limit = 10) {
+            let filtered = eventName
+                ? this.history.filter(e => e.name === eventName)
+                : this.history;
+            return filtered.slice(-limit);
+        }
+
+        clear() {
+            this.listeners.clear();
+            this.history = [];
+        }
+    }
+
+    // DataLogger - Dual-channel telemetry logging (75 lines)
+    class DataLogger {
+        constructor(eventBus) {
+            this.eventBus = eventBus;
+            this.channels = {
+                telemetry: [],
+                events: []
+            };
+            this.maxEntries = 1000;
+            this.isRecording = true;
+
+            // Subscribe to all events
+            this.eventBus.on('*', (data, event) => this.logEvent(event));
+        }
+
+        log(channel, data) {
+            if (!this.isRecording) return;
+
+            const entry = {
+                timestamp: Date.now(),
+                id: generateUUID(),
+                data: data
+            };
+
+            if (!this.channels[channel]) {
+                this.channels[channel] = [];
+            }
+
+            this.channels[channel].push(entry);
+
+            // Maintain max size
+            if (this.channels[channel].length > this.maxEntries) {
+                this.channels[channel].shift();
+            }
+
+            return entry;
+        }
+
+        logEvent(event) {
+            this.log('events', {
+                name: event.name,
+                data: event.data
+            });
+        }
+
+        logTelemetry(system, metrics) {
+            this.log('telemetry', {
+                system: system,
+                metrics: metrics
+            });
+        }
+
+        query(channel, filters = {}) {
+            if (!this.channels[channel]) return [];
+
+            let results = this.channels[channel];
+
+            if (filters.since) {
+                results = results.filter(e => e.timestamp >= filters.since);
+            }
+
+            if (filters.limit) {
+                results = results.slice(-filters.limit);
+            }
+
+            return results;
+        }
+
+        clear(channel = null) {
+            if (channel) {
+                this.channels[channel] = [];
+            } else {
+                Object.keys(this.channels).forEach(ch => {
+                    this.channels[ch] = [];
+                });
+            }
+        }
+    }
+
+    // SensoryInputManager - Audio/video/geolocation/ambient light with FFT (147 lines)
+    class SensoryInputManager {
+        constructor(eventBus, app) {
+            this.eventBus = eventBus;
+            this.app = app;
+            this.sensors = {
+                audio: { active: false, data: null },
+                video: { active: false, data: null },
+                geolocation: { active: false, data: null },
+                ambientLight: { active: false, data: null }
+            };
+            this.audioContext = null;
+            this.analyser = null;
+            this.fftData = null;
+        }
+
+        async initAudio() {
+            if (this.sensors.audio.active) return;
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = this.audioContext.createMediaStreamSource(stream);
+
+                this.analyser = this.audioContext.createAnalyser();
+                this.analyser.fftSize = 2048;
+                this.analyser.smoothingTimeConstant = 0.8;
+
+                source.connect(this.analyser);
+
+                this.fftData = new Uint8Array(this.analyser.frequencyBinCount);
+                this.sensors.audio.active = true;
+
+                this.eventBus.emit('sensor:audio:initialized', {
+                    fftSize: this.analyser.fftSize,
+                    sampleRate: this.audioContext.sampleRate
+                });
+            } catch (err) {
+                console.error('Audio initialization failed:', err);
+                this.eventBus.emit('sensor:audio:error', { error: err.message });
+            }
+        }
+
+        async initVideo() {
+            if (this.sensors.video.active) return;
+
+            try {
+                const videoElement = document.getElementById('video-feed');
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480 }
+                });
+                videoElement.srcObject = stream;
+                await videoElement.play();
+
+                this.sensors.video.active = true;
+                this.sensors.video.element = videoElement;
+
+                this.eventBus.emit('sensor:video:initialized', {
+                    width: videoElement.videoWidth,
+                    height: videoElement.videoHeight
+                });
+            } catch (err) {
+                console.error('Video initialization failed:', err);
+                this.eventBus.emit('sensor:video:error', { error: err.message });
+            }
+        }
+
+        async initGeolocation() {
+            if (!navigator.geolocation) {
+                console.warn('Geolocation not supported');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    this.sensors.geolocation.active = true;
+                    this.sensors.geolocation.data = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        altitude: position.coords.altitude,
+                        accuracy: position.coords.accuracy
+                    };
+                    this.eventBus.emit('sensor:geolocation:update', this.sensors.geolocation.data);
+                },
+                (err) => {
+                    console.error('Geolocation error:', err);
+                    this.eventBus.emit('sensor:geolocation:error', { error: err.message });
+                }
+            );
+        }
+
+        initAmbientLight() {
+            if (!('AmbientLightSensor' in window)) {
+                console.warn('Ambient Light Sensor not supported');
+                return;
+            }
+
+            try {
+                const sensor = new AmbientLightSensor();
+                sensor.addEventListener('reading', () => {
+                    this.sensors.ambientLight.active = true;
+                    this.sensors.ambientLight.data = {
+                        illuminance: sensor.illuminance,
+                        timestamp: Date.now()
+                    };
+                    this.eventBus.emit('sensor:ambientLight:update', this.sensors.ambientLight.data);
+                });
+                sensor.start();
+            } catch (err) {
+                console.error('Ambient light sensor error:', err);
+            }
+        }
+
+        async initializeAll() {
+            await this.initAudio();
+            await this.initVideo();
+            await this.initGeolocation();
+            this.initAmbientLight();
+        }
+
+        update() {
+            // Update audio FFT analysis
+            if (this.sensors.audio.active && this.analyser) {
+                this.analyser.getByteFrequencyData(this.fftData);
+
+                const binCount = this.analyser.frequencyBinCount;
+                const bassEnd = Math.floor(binCount * 0.1);
+                const midEnd = Math.floor(binCount * 0.4);
+
+                let bass = 0, mids = 0, treble = 0;
+                for (let i = 0; i < binCount; i++) {
+                    const normalized = this.fftData[i] / 255;
+                    if (i < bassEnd) bass += normalized;
+                    else if (i < midEnd) mids += normalized;
+                    else treble += normalized;
+                }
+
+                this.sensors.audio.data = {
+                    bass: bass / bassEnd,
+                    mids: mids / (midEnd - bassEnd),
+                    treble: treble / (binCount - midEnd),
+                    fft: Array.from(this.fftData),
+                    timestamp: Date.now()
+                };
+
+                this.eventBus.emit('sensor:audio:update', this.sensors.audio.data);
+            }
+        }
+
+        getData(sensorType = null) {
+            if (sensorType) {
+                return this.sensors[sensorType]?.data || null;
+            }
+            return Object.keys(this.sensors).reduce((acc, key) => {
+                acc[key] = this.sensors[key].data;
+                return acc;
+            }, {});
+        }
+    }
+
+    // ExternalDataManager - NASA APIs with rate limiting (117 lines)
+    class ExternalDataManager {
+        constructor(eventBus) {
+            this.eventBus = eventBus;
+            this.apiKey = 'DEMO_KEY'; // Use DEMO_KEY for testing
+            this.cache = new Map();
+            this.rateLimits = new Map();
+            this.lastFetch = new Map();
+        }
+
+        async fetchWithRateLimit(url, endpoint, minInterval = 1000) {
+            const now = Date.now();
+            const lastTime = this.lastFetch.get(endpoint) || 0;
+
+            if (now - lastTime < minInterval) {
+                const cached = this.cache.get(endpoint);
+                if (cached) return cached;
+                await new Promise(resolve => setTimeout(resolve, minInterval - (now - lastTime)));
+            }
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const data = await response.json();
+                this.cache.set(endpoint, data);
+                this.lastFetch.set(endpoint, Date.now());
+
+                this.eventBus.emit(`external:${endpoint}:success`, data);
+                return data;
+            } catch (err) {
+                console.error(`External API error (${endpoint}):`, err);
+                this.eventBus.emit(`external:${endpoint}:error`, { error: err.message });
+                return null;
+            }
+        }
+
+        async fetchNasaAPOD() {
+            const url = `https://api.nasa.gov/planetary/apod?api_key=${this.apiKey}`;
+            return await this.fetchWithRateLimit(url, 'nasa_apod', 3600000); // 1 hour cache
+        }
+
+        async fetchNasaDONKI(startDate, endDate) {
+            const start = startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            const end = endDate || new Date().toISOString().split('T')[0];
+            const url = `https://api.nasa.gov/DONKI/CME?startDate=${start}&endDate=${end}&api_key=${this.apiKey}`;
+            return await this.fetchWithRateLimit(url, 'nasa_donki', 3600000);
+        }
+
+        async fetchNasaNEO() {
+            const today = new Date().toISOString().split('T')[0];
+            const url = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=${this.apiKey}`;
+            return await this.fetchWithRateLimit(url, 'nasa_neo', 3600000);
+        }
+
+        async fetchUSGSEarthquakes() {
+            const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_week.geojson';
+            return await this.fetchWithRateLimit(url, 'usgs_earthquakes', 300000); // 5 min cache
+        }
+
+        async fetchAll() {
+            const results = await Promise.allSettled([
+                this.fetchNasaAPOD(),
+                this.fetchNasaDONKI(),
+                this.fetchNasaNEO(),
+                this.fetchUSGSEarthquakes()
+            ]);
+
+            const data = {
+                apod: results[0].status === 'fulfilled' ? results[0].value : null,
+                donki: results[1].status === 'fulfilled' ? results[1].value : null,
+                neo: results[2].status === 'fulfilled' ? results[2].value : null,
+                earthquakes: results[3].status === 'fulfilled' ? results[3].value : null,
+                timestamp: Date.now()
+            };
+
+            this.eventBus.emit('external:all:fetched', data);
+            return data;
+        }
+
+        getCache(endpoint = null) {
+            if (endpoint) {
+                return this.cache.get(endpoint);
+            }
+            return Object.fromEntries(this.cache);
+        }
+
+        clearCache() {
+            this.cache.clear();
+            this.lastFetch.clear();
+        }
+    }
+
+    // MachineLearningCore - ml5.js object detection (44 lines)
+    class MachineLearningCore {
+        constructor(eventBus, app) {
+            this.eventBus = eventBus;
+            this.app = app;
+            this.model = null;
+            this.isLoaded = false;
+            this.detections = [];
+        }
+
+        async initialize() {
+            if (!window.ml5) {
+                console.warn('ml5.js not loaded');
+                return;
+            }
+
+            try {
+                this.model = await ml5.objectDetector('cocossd');
+                this.isLoaded = true;
+                this.eventBus.emit('ml:initialized', { model: 'cocossd' });
+            } catch (err) {
+                console.error('ML model loading failed:', err);
+                this.eventBus.emit('ml:error', { error: err.message });
+            }
+        }
+
+        async detect(videoElement) {
+            if (!this.isLoaded || !this.model || !videoElement) return [];
+
+            try {
+                const results = await this.model.detect(videoElement);
+                this.detections = results;
+                this.eventBus.emit('ml:detection', { detections: results, timestamp: Date.now() });
+                return results;
+            } catch (err) {
+                console.error('Detection error:', err);
+                return [];
+            }
+        }
+
+        getDetections() {
+            return this.detections;
+        }
+    }
+
+    // CosmicAwarenessAgent - AI history analysis and decision-making (138 lines)
+    class CosmicAwarenessAgent {
+        constructor(eventBus, dataLogger) {
+            this.eventBus = eventBus;
+            this.dataLogger = dataLogger;
+            this.state = {
+                awareness: 0,
+                creativity: 0,
+                chaos: 0,
+                harmony: 0
+            };
+            this.memory = [];
+            this.maxMemory = 50;
+            this.lastDecision = null;
+        }
+
+        learn(data) {
+            // Analyze sensory inputs and update internal state
+            if (data.audio) {
+                this.state.chaos += data.audio.mids * 0.01;
+                this.state.creativity += data.audio.treble * 0.008;
+                this.state.harmony += (1 - data.audio.bass) * 0.005;
+            }
+
+            if (data.ml && data.ml.length > 0) {
+                this.state.awareness += data.ml.length * 0.02;
+            }
+
+            if (data.external) {
+                this.state.awareness += 0.01;
+            }
+
+            // Decay over time
+            Object.keys(this.state).forEach(key => {
+                this.state[key] *= 0.99;
+                this.state[key] = Math.max(0, Math.min(1, this.state[key]));
+            });
+
+            // Store in memory
+            this.memory.push({ ...this.state, timestamp: Date.now() });
+            if (this.memory.length > this.maxMemory) {
+                this.memory.shift();
+            }
+
+            this.eventBus.emit('ai:state:update', this.state);
+        }
+
+        generateInfluence() {
+            // Generate universe parameters based on AI state
+            const influence = {
+                gravity: 0.5 + (this.state.awareness * 0.3) - (this.state.chaos * 0.2),
+                chaos: 0.2 + (this.state.chaos * 0.4),
+                energy: 1.0 + (this.state.creativity * 0.5),
+                damping: 0.985 - (this.state.chaos * 0.01),
+                hue: (this.state.harmony * 0.5) + (this.state.creativity * 0.3),
+                timestamp: Date.now()
+            };
+
+            this.lastDecision = influence;
+            this.eventBus.emit('ai:influence:generated', influence);
+
+            return influence;
+        }
+
+        makeDecision(context = {}) {
+            // AI decision-making based on context and state
+            const decisions = [
+                { action: 'expand', weight: this.state.creativity },
+                { action: 'contract', weight: this.state.harmony },
+                { action: 'chaos', weight: this.state.chaos },
+                { action: 'observe', weight: this.state.awareness }
+            ];
+
+            // Weighted random selection
+            const totalWeight = decisions.reduce((sum, d) => sum + d.weight, 0);
+            let random = Math.random() * totalWeight;
+
+            for (const decision of decisions) {
+                random -= decision.weight;
+                if (random <= 0) {
+                    this.eventBus.emit('ai:decision', { action: decision.action, context });
+                    return decision.action;
+                }
+            }
+
+            return 'observe';
+        }
+
+        tick(timestamp) {
+            // Periodic AI updates
+            if (!this.lastTick || timestamp - this.lastTick > 5000) {
+                this.lastTick = timestamp;
+
+                // Analyze event history
+                const recentEvents = this.eventBus.getHistory(null, 20);
+                const eventTypes = recentEvents.reduce((acc, event) => {
+                    acc[event.name] = (acc[event.name] || 0) + 1;
+                    return acc;
+                }, {});
+
+                this.eventBus.emit('ai:analysis', {
+                    state: this.state,
+                    eventTypes,
+                    memorySize: this.memory.length
+                });
+            }
+        }
+
+        getState() {
+            return { ...this.state };
+        }
+
+        getMemory(limit = 10) {
+            return this.memory.slice(-limit);
+        }
+    }
+
+    // QuantumEventManager - Soul dust particle system with E=h*nu physics (228 lines)
+    class QuantumEventManager {
+        constructor(eventBus, app, scene, camera) {
+            this.eventBus = eventBus;
+            this.app = app;
+            this.scene = scene;
+            this.camera = camera;
+            this.particles = null;
+            this.particleCount = 5000;
+            this.uniforms = null;
+        }
+
+        initialize() {
+            // Soul dust particle geometry
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(this.particleCount * 3);
+            const velocities = new Float32Array(this.particleCount * 3);
+            const frequencies = new Float32Array(this.particleCount);
+            const phases = new Float32Array(this.particleCount);
+
+            for (let i = 0; i < this.particleCount; i++) {
+                const i3 = i * 3;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(Math.random() * 2 - 1);
+                const r = 500 + Math.random() * 1500;
+
+                positions[i3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+                positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+                positions[i3 + 2] = r * Math.cos(phi);
+
+                velocities[i3 + 0] = (Math.random() - 0.5) * 2;
+                velocities[i3 + 1] = (Math.random() - 0.5) * 2;
+                velocities[i3 + 2] = (Math.random() - 0.5) * 2;
+
+                // Quantum frequency (E = h*ν)
+                frequencies[i] = 400e12 + Math.random() * 350e12; // THz range
+                phases[i] = Math.random() * Math.PI * 2;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
+            geometry.setAttribute('frequency', new THREE.BufferAttribute(frequencies, 1));
+            geometry.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
+
+            // Quantum swirl shader
+            this.uniforms = {
+                time: { value: 0 },
+                hPlanck: { value: H_PLANCK },
+                phiGolden: { value: PHI_GOLDEN },
+                cameraPos: { value: new THREE.Vector3() }
+            };
+
+            const vertexShader = `
+                attribute float frequency;
+                attribute float phase;
+                attribute vec3 velocity;
+
+                uniform float time;
+                uniform float hPlanck;
+                uniform float phiGolden;
+                uniform vec3 cameraPos;
+
+                varying vec3 vColor;
+                varying float vAlpha;
+
+                vec3 freqToRgb(float freq) {
+                    float minFreq = 380e12;
+                    float maxFreq = 750e12;
+                    float normalized = (freq - minFreq) / (maxFreq - minFreq);
+
+                    vec3 color;
+                    if (normalized < 0.25) {
+                        float t = normalized / 0.25;
+                        color = vec3(1.0, t, 0.0);
+                    } else if (normalized < 0.5) {
+                        float t = (normalized - 0.25) / 0.25;
+                        color = vec3(1.0 - t, 1.0, 0.0);
+                    } else if (normalized < 0.75) {
+                        float t = (normalized - 0.5) / 0.25;
+                        color = vec3(0.0, 1.0, t);
+                    } else {
+                        float t = (normalized - 0.75) / 0.25;
+                        color = vec3(0.0, 1.0 - t, 1.0);
+                    }
+                    return color;
+                }
+
+                void main() {
+                    vec3 pos = position;
+
+                    // Quantum swirl (golden ratio spiral)
+                    float angle = time * 0.5 + phase;
+                    float radius = length(pos.xy);
+                    float spiralAngle = angle + radius * phiGolden * 0.001;
+
+                    pos.x = radius * cos(spiralAngle);
+                    pos.y = radius * sin(spiralAngle);
+                    pos.z += sin(time + phase) * 50.0;
+
+                    vColor = freqToRgb(frequency);
+
+                    float dist = distance(pos, cameraPos);
+                    vAlpha = 1.0 - smoothstep(1000.0, 3000.0, dist);
+
+                    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                    gl_PointSize = 20.0 * (300.0 / -mvPosition.z);
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `;
+
+            const fragmentShader = `
+                varying vec3 vColor;
+                varying float vAlpha;
+
+                void main() {
+                    vec2 center = gl_PointCoord - vec2(0.5);
+                    float dist = length(center);
+
+                    if (dist > 0.5) discard;
+
+                    float alpha = (1.0 - dist * 2.0) * vAlpha;
+                    gl_FragColor = vec4(vColor, alpha);
+                }
+            `;
+
+            const material = new THREE.ShaderMaterial({
+                uniforms: this.uniforms,
+                vertexShader,
+                fragmentShader,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            this.particles = new THREE.Points(geometry, material);
+            this.scene.add(this.particles);
+
+            this.eventBus.emit('quantum:initialized', {
+                particleCount: this.particleCount
+            });
+        }
+
+        update(delta) {
+            if (!this.particles) return;
+
+            this.uniforms.time.value += delta;
+            this.uniforms.cameraPos.value.copy(this.camera.position);
+
+            // Update particle positions with quantum physics
+            const positions = this.particles.geometry.attributes.position.array;
+            const velocities = this.particles.geometry.attributes.velocity.array;
+            const frequencies = this.particles.geometry.attributes.frequency.array;
+
+            for (let i = 0; i < this.particleCount; i++) {
+                const i3 = i * 3;
+
+                // E = h*ν energy calculation
+                const energy = H_PLANCK * frequencies[i];
+                const energyFactor = energy / (H_PLANCK * 500e12); // Normalized
+
+                // Apply quantum momentum
+                velocities[i3 + 0] += (Math.random() - 0.5) * energyFactor * 0.1;
+                velocities[i3 + 1] += (Math.random() - 0.5) * energyFactor * 0.1;
+                velocities[i3 + 2] += (Math.random() - 0.5) * energyFactor * 0.1;
+
+                // Damping
+                velocities[i3 + 0] *= 0.98;
+                velocities[i3 + 1] *= 0.98;
+                velocities[i3 + 2] *= 0.98;
+
+                // Update positions
+                positions[i3 + 0] += velocities[i3 + 0];
+                positions[i3 + 1] += velocities[i3 + 1];
+                positions[i3 + 2] += velocities[i3 + 2];
+
+                // Boundary wrap
+                const pos = new THREE.Vector3(positions[i3], positions[i3 + 1], positions[i3 + 2]);
+                if (pos.length() > 2000) {
+                    pos.normalize().multiplyScalar(500);
+                    positions[i3 + 0] = pos.x;
+                    positions[i3 + 1] = pos.y;
+                    positions[i3 + 2] = pos.z;
+                }
+            }
+
+            this.particles.geometry.attributes.position.needsUpdate = true;
+            this.particles.geometry.attributes.velocity.needsUpdate = true;
+
+            this.eventBus.emit('quantum:update', {
+                time: this.uniforms.time.value,
+                particleCount: this.particleCount
+            });
+        }
+
+        setIntensity(intensity) {
+            if (this.particles) {
+                this.particles.material.opacity = intensity;
+            }
+        }
+
+        dispose() {
+            if (this.particles) {
+                this.scene.remove(this.particles);
+                this.particles.geometry.dispose();
+                this.particles.material.dispose();
+                this.particles = null;
+            }
+        }
+    }
+
+    // ProceduralGenerationEngine - Stars, planets, black holes with shaders (342 lines)
+    class ProceduralGenerationEngine {
+        constructor(scene, eventBus) {
+            this.scene = scene;
+            this.eventBus = eventBus;
+            this.celestialObjects = [];
+            this.starField = null;
+        }
+
+        generateUniverse(influence = {}) {
+            this.clearUniverse();
+
+            const gravity = influence.gravity || 0.55;
+            const chaos = influence.chaos || 0.25;
+            const energy = influence.energy || 1.2;
+            const hue = influence.hue || 0.62;
+
+            // Generate stars with corona
+            const starCount = Math.floor(5 + chaos * 10);
+            for (let i = 0; i < starCount; i++) {
+                this.createStar(hue, energy);
+            }
+
+            // Generate planets with atmospheres
+            const planetCount = Math.floor(8 + chaos * 12);
+            for (let i = 0; i < planetCount; i++) {
+                this.createPlanet(hue, gravity);
+            }
+
+            // Generate black holes
+            if (Math.random() < gravity * 0.5) {
+                this.createBlackHole(gravity, energy);
+            }
+
+            this.eventBus.emit('procedural:universe:generated', {
+                stars: starCount,
+                planets: planetCount,
+                gravity,
+                chaos,
+                energy
+            });
+        }
+
+        createStar(hue, energy) {
+            const radius = 100 + Math.random() * 200;
+            const geometry = new THREE.SphereGeometry(radius, 32, 32);
+
+            // Corona shader
+            const uniforms = {
+                time: { value: 0 },
+                color: { value: new THREE.Color().setHSL(hue, 0.9, 0.6) },
+                energy: { value: energy }
+            };
+
+            const vertexShader = `
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+                uniform float time;
+
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    vPosition = position;
+
+                    vec3 pos = position;
+                    float displacement = sin(position.x * 0.05 + time) *
+                                       cos(position.y * 0.05 + time) * 5.0;
+                    pos += normal * displacement;
+
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+                }
+            `;
+
+            const fragmentShader = `
+                uniform vec3 color;
+                uniform float energy;
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+
+                void main() {
+                    float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+                    vec3 glow = color * intensity * energy;
+                    gl_FragColor = vec4(glow + color * 0.3, 1.0);
+                }
+            `;
+
+            const material = new THREE.ShaderMaterial({
+                uniforms,
+                vertexShader,
+                fragmentShader
+            });
+
+            const star = new THREE.Mesh(geometry, material);
+            star.position.set(
+                (Math.random() - 0.5) * 4000,
+                (Math.random() - 0.5) * 4000,
+                (Math.random() - 0.5) * 4000
+            );
+
+            this.scene.add(star);
+            this.celestialObjects.push({ type: 'star', mesh: star, uniforms });
+
+            // Add point light
+            const light = new THREE.PointLight(uniforms.color.value, energy * 1000, 2000);
+            light.position.copy(star.position);
+            this.scene.add(light);
+            this.celestialObjects.push({ type: 'light', mesh: light });
+        }
+
+        createPlanet(hue, gravity) {
+            const radius = 30 + Math.random() * 80;
+            const geometry = new THREE.SphereGeometry(radius, 32, 32);
+
+            // Rayleigh scattering atmosphere shader
+            const uniforms = {
+                planetColor: { value: new THREE.Color().setHSL((hue + Math.random() * 0.3) % 1, 0.7, 0.5) },
+                atmosphereColor: { value: new THREE.Color().setHSL((hue + 0.1) % 1, 0.8, 0.6) },
+                time: { value: 0 }
+            };
+
+            const vertexShader = `
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    vPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `;
+
+            const fragmentShader = `
+                uniform vec3 planetColor;
+                uniform vec3 atmosphereColor;
+                uniform float time;
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+
+                void main() {
+                    // Lambertian diffuse
+                    vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+                    float diffuse = max(dot(vNormal, lightDir), 0.0);
+
+                    // Rayleigh scattering effect
+                    float atmosphere = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 2.5);
+                    vec3 atmosphereGlow = atmosphereColor * atmosphere * 0.5;
+
+                    vec3 finalColor = planetColor * diffuse + atmosphereGlow;
+                    gl_FragColor = vec4(finalColor, 1.0);
+                }
+            `;
+
+            const material = new THREE.ShaderMaterial({
+                uniforms,
+                vertexShader,
+                fragmentShader
+            });
+
+            const planet = new THREE.Mesh(geometry, material);
+            planet.position.set(
+                (Math.random() - 0.5) * 3000,
+                (Math.random() - 0.5) * 3000,
+                (Math.random() - 0.5) * 3000
+            );
+
+            this.scene.add(planet);
+            this.celestialObjects.push({ type: 'planet', mesh: planet, uniforms });
+        }
+
+        createBlackHole(gravity, energy) {
+            const radius = 150 + gravity * 100;
+
+            // Black hole sphere (event horizon)
+            const sphereGeo = new THREE.SphereGeometry(radius, 32, 32);
+            const sphereMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const blackHole = new THREE.Mesh(sphereGeo, sphereMat);
+
+            // Accretion disk shader
+            const diskGeo = new THREE.RingGeometry(radius * 1.5, radius * 3, 64);
+            const uniforms = {
+                time: { value: 0 },
+                innerRadius: { value: radius * 1.5 },
+                outerRadius: { value: radius * 3 },
+                color1: { value: new THREE.Color(0xff6600) },
+                color2: { value: new THREE.Color(0xffaa00) }
+            };
+
+            const vertexShader = `
+                varying vec2 vUv;
+                varying vec3 vPosition;
+
+                void main() {
+                    vUv = uv;
+                    vPosition = position;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `;
+
+            const fragmentShader = `
+                uniform float time;
+                uniform float innerRadius;
+                uniform float outerRadius;
+                uniform vec3 color1;
+                uniform vec3 color2;
+                varying vec2 vUv;
+                varying vec3 vPosition;
+
+                void main() {
+                    float dist = length(vPosition.xy);
+                    float normalizedDist = (dist - innerRadius) / (outerRadius - innerRadius);
+
+                    // Spiral pattern
+                    float angle = atan(vPosition.y, vPosition.x);
+                    float spiral = sin(angle * 8.0 + time * 2.0 - normalizedDist * 10.0);
+
+                    // Color gradient
+                    vec3 color = mix(color1, color2, normalizedDist);
+                    color *= (0.7 + spiral * 0.3);
+
+                    float alpha = 1.0 - smoothstep(0.0, 1.0, normalizedDist);
+                    gl_FragColor = vec4(color, alpha * 0.8);
+                }
+            `;
+
+            const diskMat = new THREE.ShaderMaterial({
+                uniforms,
+                vertexShader,
+                fragmentShader,
+                transparent: true,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending
+            });
+
+            const accretionDisk = new THREE.Mesh(diskGeo, diskMat);
+            accretionDisk.rotation.x = Math.PI / 2;
+
+            const blackHoleGroup = new THREE.Group();
+            blackHoleGroup.add(blackHole);
+            blackHoleGroup.add(accretionDisk);
+            blackHoleGroup.position.set(
+                (Math.random() - 0.5) * 2000,
+                (Math.random() - 0.5) * 2000,
+                (Math.random() - 0.5) * 2000
+            );
+
+            this.scene.add(blackHoleGroup);
+            this.celestialObjects.push({
+                type: 'blackhole',
+                mesh: blackHoleGroup,
+                uniforms,
+                disk: accretionDisk
+            });
+        }
+
+        update(delta) {
+            this.celestialObjects.forEach(obj => {
+                if (obj.uniforms && obj.uniforms.time) {
+                    obj.uniforms.time.value += delta;
+                }
+
+                // Rotate planets and stars
+                if (obj.type === 'planet' || obj.type === 'star') {
+                    obj.mesh.rotation.y += delta * 0.1;
+                }
+
+                // Rotate black hole accretion disk
+                if (obj.type === 'blackhole' && obj.disk) {
+                    obj.disk.rotation.z += delta * 0.5;
+                }
+            });
+        }
+
+        clearUniverse() {
+            this.celestialObjects.forEach(obj => {
+                this.scene.remove(obj.mesh);
+                if (obj.mesh.geometry) obj.mesh.geometry.dispose();
+                if (obj.mesh.material) obj.mesh.material.dispose();
+            });
+            this.celestialObjects = [];
+        }
+
+        getCelestialObjects() {
+            return this.celestialObjects;
+        }
+    }
+
     // --- Sub-system classes ---
     class AudioManager {
         constructor(toggleElement, statusElement) {
@@ -998,10 +2099,11 @@
         }
 
         initEngine() {
+            // Core Three.js setup
             this.scene = new THREE.Scene();
             this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 150000);
             this.camera.position.set(0, 0, 3500);
-            
+
             this.renderer = new THREE.WebGLRenderer({
                 canvas: $('main-canvas'),
                 antialias: true,
@@ -1012,11 +2114,13 @@
             this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
             this.renderer.outputEncoding = THREE.sRGBEncoding;
             this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            
+
+            // Controls
             this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
             this.orbitControls.enableDamping = true;
             this.pointerLockControls = new PointerLockControls(this.camera, this.renderer.domElement);
-            
+
+            // Post-processing
             this.composer = new EffectComposer(this.renderer);
             this.composer.addPass(new RenderPass(this.scene, this.camera));
             this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.8, 0.85);
@@ -1025,6 +2129,25 @@
             this.afterimagePass.enabled = false;
             this.composer.addPass(this.afterimagePass);
 
+            // PHASE 1 SYSTEMS - Initialize EventBus and DataLogger first
+            this.eventBus = new EventBus();
+            this.dataLogger = new DataLogger(this.eventBus);
+
+            // Initialize sensor systems
+            this.sensorManager = new SensoryInputManager(this.eventBus, this);
+
+            // Initialize external data and ML systems
+            this.externalData = new ExternalDataManager(this.eventBus);
+            this.mlCore = new MachineLearningCore(this.eventBus, this);
+
+            // Initialize AI and decision-making
+            this.cosmicAI = new CosmicAwarenessAgent(this.eventBus, this.dataLogger);
+
+            // Initialize quantum and procedural systems
+            this.quantumEvents = new QuantumEventManager(this.eventBus, this, this.scene, this.camera);
+            this.proceduralGen = new ProceduralGenerationEngine(this.scene, this.eventBus);
+
+            // Legacy systems (keep for compatibility)
             this.audio = new AudioManager(this.ui.audioToggle, this.ui.audioStatus);
             this.solarSystem = new SolarSystemManager(this.scene);
             this.singularity = new Singularity(this.scene);
@@ -1034,12 +2157,96 @@
             this.aiModel = new QuantumAIModel();
             this.particlizer = new Particlizer(this.scene);
 
+            // Background star field
+            this.initBackgroundStars();
+
+            // Event listeners
             window.addEventListener('resize', this.onResize.bind(this));
             window.addEventListener('mousedown', this.onMouseDown.bind(this));
             window.addEventListener('mouseup', this.onMouseUp.bind(this));
             window.addEventListener('mousemove', this.onMouseMove.bind(this));
             document.addEventListener('keydown', (e) => this.spaceship.keys[e.code] = true);
             document.addEventListener('keyup', (e) => this.spaceship.keys[e.code] = false);
+
+            // Wire event listeners for Phase 1 systems
+            this.setupEventHandlers();
+        }
+
+        initBackgroundStars() {
+            // Simple background star field (different from quantum soul dust)
+            const starGeo = new THREE.BufferGeometry();
+            const starCount = 10000;
+            const positions = new Float32Array(starCount * 3);
+            const colors = new Float32Array(starCount * 3);
+
+            for (let i = 0; i < starCount; i++) {
+                const i3 = i * 3;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(Math.random() * 2 - 1);
+                const r = 5000 + Math.random() * 40000;
+
+                positions[i3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+                positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+                positions[i3 + 2] = r * Math.cos(phi);
+
+                // Random star colors (white, blue, red, yellow)
+                const colorType = Math.random();
+                if (colorType < 0.7) {
+                    // White
+                    colors[i3] = colors[i3 + 1] = colors[i3 + 2] = 1;
+                } else if (colorType < 0.85) {
+                    // Blue
+                    colors[i3] = 0.7; colors[i3 + 1] = 0.8; colors[i3 + 2] = 1;
+                } else if (colorType < 0.95) {
+                    // Red
+                    colors[i3] = 1; colors[i3 + 1] = 0.5; colors[i3 + 2] = 0.4;
+                } else {
+                    // Yellow
+                    colors[i3] = 1; colors[i3 + 1] = 1; colors[i3 + 2] = 0.7;
+                }
+            }
+
+            starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            starGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const starMat = new THREE.PointsMaterial({
+                size: 2,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                sizeAttenuation: true
+            });
+
+            this.backgroundStars = new THREE.Points(starGeo, starMat);
+            this.scene.add(this.backgroundStars);
+        }
+
+        setupEventHandlers() {
+            // Listen to sensor updates
+            this.eventBus.on('sensor:audio:update', (data) => {
+                this.dataLogger.logTelemetry('audio', data);
+                this.cosmicAI.learn({ audio: data });
+            });
+
+            this.eventBus.on('ml:detection', (data) => {
+                this.dataLogger.logTelemetry('ml', data);
+                this.cosmicAI.learn({ ml: data.detections });
+            });
+
+            this.eventBus.on('external:all:fetched', (data) => {
+                this.dataLogger.logTelemetry('external', data);
+                this.cosmicAI.learn({ external: data });
+            });
+
+            // Listen to AI state changes
+            this.eventBus.on('ai:influence:generated', (influence) => {
+                $('ai-intention').textContent = `Generate universe with gravity: ${influence.gravity.toFixed(2)}, chaos: ${influence.chaos.toFixed(2)}`;
+            });
+
+            // Listen to procedural generation events
+            this.eventBus.on('procedural:universe:generated', (data) => {
+                $('system-status-readout').textContent = `STATUS: Universe generated (${data.stars} stars, ${data.planets} planets)`;
+            });
         }
 
         bindUI() {
@@ -1055,7 +2262,12 @@
             this.ui.startButton.addEventListener('click', this.start.bind(this));
             this.ui.anewButton.addEventListener('click', this.reset.bind(this));
             this.ui.directiveButton.addEventListener('click', this.activateDirectivePrime.bind(this));
-            this.ui.regenerateButton.addEventListener('click', () => this.solarSystem.init());
+
+            // Wire Regenerate button to Phase 1 systems
+            this.ui.regenerateButton.addEventListener('click', () => {
+                const influence = this.cosmicAI.generateInfluence();
+                this.proceduralGen.generateUniverse(influence);
+            });
             
             this.ui.tabs.forEach(tab => {
                 tab.addEventListener("click", () => {
@@ -1076,16 +2288,32 @@
             });
         }
 
-        start() {
+        async start() {
             if (this.isRunning) return;
             this.isRunning = true;
             this.ui.blocker.style.opacity = '0';
             setTimeout(() => this.ui.blocker.style.display = 'none', 500);
-            
+
+            // Initialize Phase 1 systems
+            await this.sensorManager.initializeAll();
+            await this.mlCore.initialize();
+
+            // Fetch external data (non-blocking)
+            this.externalData.fetchAll().catch(err => console.warn('External data fetch failed:', err));
+
+            // Initialize quantum and procedural systems
+            this.quantumEvents.initialize();
+
+            // Generate initial universe using AI
+            const initialInfluence = this.cosmicAI.generateInfluence();
+            this.proceduralGen.generateUniverse(initialInfluence);
+
+            // Initialize legacy systems
             this.solarSystem.init();
             this.cosmos.init(this.physicsParams);
             this.aiLife.init();
-            
+
+            this.eventBus.emit('app:started', { timestamp: Date.now() });
             this.animate();
         }
         
@@ -1141,6 +2369,13 @@
             this.physicsParams.lambda = lerp(parseFloat($('in-lambda').value), parseFloat($('in-lambda').value) + audioData.mids * 1.5, 0.1);
             this.physicsParams.ec = lerp(parseFloat($('in-ec').value), parseFloat($('in-ec').value) + audioData.treble * 1.0, 0.1);
 
+            // Update Phase 1 systems
+            this.sensorManager.update();
+            this.quantumEvents.update(dt);
+            this.proceduralGen.update(dt);
+            this.cosmicAI.tick(Date.now());
+
+            // Update legacy systems
             if (this.currentView === 'galaxy') {
                 this.singularity.update(this.physicsParams, this.isMouseDown);
             }
@@ -1148,6 +2383,15 @@
             this.aiLife.update(dt, audioData, this.mouse, this.isMouseDown);
             this.solarSystem.update(dt);
             this.particlizer.update(dt);
+
+            // Periodic ML detection (every 2 seconds)
+            if (!this.lastMLDetection || Date.now() - this.lastMLDetection > 2000) {
+                this.lastMLDetection = Date.now();
+                const videoElement = this.sensorManager.sensors.video.element;
+                if (videoElement && this.sensorManager.sensors.video.active) {
+                    this.mlCore.detect(videoElement);
+                }
+            }
 
             this.updateGalaxyHUD(this.aiLife.getStats());
         }
