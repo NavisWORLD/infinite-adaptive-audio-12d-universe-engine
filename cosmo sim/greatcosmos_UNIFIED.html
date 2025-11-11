@@ -1848,16 +1848,53 @@ class ExternalDataManager {
     }
 }
 
-// Minimal MachineLearningCore placeholder
+/**
+ * Machine Learning Core - Object detection using ml5.js COCO-SSD
+ * Processes video frames and publishes detected objects
+ */
 class MachineLearningCore {
     constructor(eventBus) {
         this.eventBus = eventBus;
-        this.model = null;
+        this.detector = null;
+        this.isDetecting = false;
+        this.isInitialized = false;
     }
 
     async init() {
-        // Placeholder for ml5.js initialization
-        console.log('ML5 initialization disabled in minimal build');
+        try {
+            this.detector = await ml5.objectDetector('cocossd', () => {
+                this.eventBus.publish('genesis:log', { name: 'ML Core', value: 'Online', type: 'success' });
+                this.isInitialized = true;
+
+                // Subscribe to video frames
+                this.eventBus.subscribe('video:frame', (videoElement) => this.detect(videoElement));
+            });
+        } catch (err) {
+            console.warn('Failed to load ML5 model:', err);
+            this.eventBus.publish('genesis:log', { name: 'ML Core', value: 'Error', type: 'error' });
+        }
+    }
+
+    detect(videoElement) {
+        if (this.isDetecting || !this.isInitialized || !this.detector) return;
+
+        this.isDetecting = true;
+        this.detector.detect(videoElement, (err, results) => {
+            this.isDetecting = false;
+            if (err) return;
+
+            if (results && results.length > 0) {
+                const labels = results.map(r => r.label);
+                this.eventBus.publish('ml:objectsDetected', labels);
+
+                // Publish telemetry for ML detections
+                this.eventBus.publish('telemetry:append', {
+                    type: 'ml',
+                    tokens: labels,
+                    t: Date.now()
+                });
+            }
+        });
     }
 }
 
@@ -4934,11 +4971,31 @@ class Application {
         console.log("✓ Event handlers initialized");
     }
 
-    start() {
+    async start() {
         const blocker = $('blocker');
         const loadingMsg = $('loading-message');
 
         loadingMsg.style.display = 'block';
+
+        // Initialize sensors (audio, video, geolocation, ambient light)
+        console.log('Initializing sensors...');
+        await this.sensory.initializeAll();
+
+        // Initialize Machine Learning Core
+        console.log('Loading ML models...');
+        await this.mlCore.init();
+
+        // Fetch initial external data
+        console.log('Fetching cosmic data...');
+        await Promise.allSettled([
+            this.externalData.fetchEarthquakeData(),
+            this.externalData.fetchAPOD(),
+            this.externalData.fetchNASADONKI(),
+            this.externalData.fetchNASANEO()
+        ]);
+
+        // Start periodic data fetching
+        this.startPeriodicDataFetching();
 
         blocker.style.opacity = '0';
         setTimeout(() => {
@@ -4962,6 +5019,28 @@ class Application {
         }
 
         console.log("✓ System started");
+    }
+
+    startPeriodicDataFetching() {
+        // Fetch earthquake data every 5 minutes
+        setInterval(() => {
+            this.externalData.fetchEarthquakeData();
+        }, 5 * 60 * 1000);
+
+        // Fetch NASA APOD once per day (24 hours)
+        setInterval(() => {
+            this.externalData.fetchAPOD();
+        }, 24 * 60 * 60 * 1000);
+
+        // Fetch NASA DONKI solar flare data every 30 minutes
+        setInterval(() => {
+            this.externalData.fetchNASADONKI();
+        }, 30 * 60 * 1000);
+
+        // Fetch NASA NEO data every hour
+        setInterval(() => {
+            this.externalData.fetchNASANEO();
+        }, 60 * 60 * 1000);
     }
 
     regenerate() {
