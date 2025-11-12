@@ -7,12 +7,28 @@
 
     <!-- Font Imports -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&family=Roboto+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-    
+
     <!-- External Dependencies -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FIX: Removed Tailwind CDN - all styles are inline for production -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
-    
+
+    <!-- FIX: Suppress benign TensorFlow.js duplicate backend registration warnings -->
+    <script>
+        (function() {
+            const originalWarn = console.warn;
+            console.warn = function(...args) {
+                const msg = args.join(' ');
+                // Filter out benign TensorFlow.js warnings about duplicate backend registration
+                if (msg.includes('backend was already registered') ||
+                    msg.includes('Platform browser has already been set')) {
+                    return; // Suppress these specific warnings
+                }
+                originalWarn.apply(console, args);
+            };
+        })();
+    </script>
+
     <!-- Import Map for Three.js ES Modules -->
     <script type="importmap">
     {
@@ -424,6 +440,62 @@
     const $ = (id) => document.getElementById(id);
     const lerp = (a, b, t) => a + (b - a) * t;
     const G = 6.674e-2; // Gravitational constant for simulation
+
+    // FIX: Storage utility with graceful degradation for tracking prevention
+    const SafeStorage = {
+        _memoryStore: {},
+        _storageAvailable: null,
+
+        _checkStorage() {
+            if (this._storageAvailable !== null) return this._storageAvailable;
+            try {
+                const test = '__storage_test__';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                this._storageAvailable = true;
+                return true;
+            } catch (e) {
+                console.info('[Storage] localStorage blocked by tracking prevention - using memory fallback');
+                this._storageAvailable = false;
+                return false;
+            }
+        },
+
+        getItem(key) {
+            if (this._checkStorage()) {
+                try {
+                    return localStorage.getItem(key);
+                } catch (e) {
+                    return this._memoryStore[key] || null;
+                }
+            }
+            return this._memoryStore[key] || null;
+        },
+
+        setItem(key, value) {
+            if (this._checkStorage()) {
+                try {
+                    localStorage.setItem(key, value);
+                } catch (e) {
+                    this._memoryStore[key] = value;
+                }
+            } else {
+                this._memoryStore[key] = value;
+            }
+        },
+
+        removeItem(key) {
+            if (this._checkStorage()) {
+                try {
+                    localStorage.removeItem(key);
+                } catch (e) {
+                    delete this._memoryStore[key];
+                }
+            } else {
+                delete this._memoryStore[key];
+            }
+        }
+    };
 
     // --- PHYSICS CONSTANTS ---
     const H_PLANCK = 6.62607015e-34; // Planck constant
@@ -3457,7 +3529,8 @@
             });
             this.renderer.setSize(window.innerWidth, window.innerHeight);
             this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-            this.renderer.outputEncoding = THREE.sRGBEncoding;
+            // FIX: Changed from deprecated outputEncoding to outputColorSpace
+            this.renderer.outputColorSpace = THREE.SRGBColorSpace;
             this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
             // Controls
@@ -3880,14 +3953,15 @@
             // Initialize new unified systems (from merge)
             const seed = cyrb128(Date.now().toString() + navigator.userAgent);
             this.prng = sfc32(...seed);
-            this.surfaceManager = new SurfaceManager(this.bus, this.scene, this.prng);
-            this.objectLibrary = new ObjectLibrary(this.bus, this.scene, this.prng);
+            // FIX: Changed this.bus to this.eventBus to match the EventBus instance initialized above
+            this.surfaceManager = new SurfaceManager(this.eventBus, this.scene, this.prng);
+            this.objectLibrary = new ObjectLibrary(this.eventBus, this.scene, this.prng);
             this.volumetricDust = new VolumetricDust(this.scene, this.camera);
-            this.audioReactive = new AudioReactiveSystem(this.scene, this.bus);
-            this.memoryEcho = new MemoryEcho(this.scene, this.camera, this.bus);
-            this.soundBrush = new SoundBrush(this.scene, this.camera, this.bus);
-            this.psiOverlay = new PsiOverlay(this.bus, this.camera);
-            this.atmosphericEntry = new AtmosphericEntryEffect(this.camera, this.bus);
+            this.audioReactive = new AudioReactiveSystem(this.scene, this.eventBus);
+            this.memoryEcho = new MemoryEcho(this.scene, this.camera, this.eventBus);
+            this.soundBrush = new SoundBrush(this.scene, this.camera, this.eventBus);
+            this.psiOverlay = new PsiOverlay(this.eventBus, this.camera);
+            this.atmosphericEntry = new AtmosphericEntryEffect(this.camera, this.eventBus);
 
             // Initialize ProceduralAudioEngine
             const audioListener = this.camera.children.find(c => c.type === 'AudioListener');
@@ -4246,6 +4320,16 @@
             this.isRunning = true;
             this.ui.blocker.style.opacity = '0';
             setTimeout(() => this.ui.blocker.style.display = 'none', 500);
+
+            // FIX: Resume Tone.js AudioContext after user gesture
+            if (typeof Tone !== 'undefined' && Tone.context) {
+                try {
+                    await Tone.start();
+                    console.log('[Audio] Tone.js AudioContext started successfully');
+                } catch (err) {
+                    console.warn('[Audio] Failed to start Tone.js context:', err);
+                }
+            }
 
             // Initialize Phase 1 systems
             await this.sensorManager.initializeAll();
