@@ -1505,6 +1505,36 @@
                 this.createBlackHole(gravity, energy);
             }
 
+            // Add nebulas
+            if (Math.random() < 0.7) {
+                const nebulaPos = new THREE.Vector3(
+                    (Math.random() - 0.5) * 10000,
+                    (Math.random() - 0.5) * 10000,
+                    (Math.random() - 0.5) * 10000
+                );
+                this.createNebula(nebulaPos, 1000 + Math.random() * 2000, hue + 0.3);
+            }
+
+            // Add asteroid belts
+            if (Math.random() < 0.5) {
+                const beltPos = new THREE.Vector3(
+                    (Math.random() - 0.5) * 6000,
+                    (Math.random() - 0.5) * 6000,
+                    (Math.random() - 0.5) * 6000
+                );
+                this.createAsteroidBelt(beltPos, 500, 1200, 100);
+            }
+
+            // Add distant galaxies
+            if (Math.random() < 0.3) {
+                const galaxyPos = new THREE.Vector3(
+                    (Math.random() - 0.5) * 15000,
+                    (Math.random() - 0.5) * 15000,
+                    (Math.random() - 0.5) * 15000
+                );
+                this.createGalaxy(galaxyPos, 3 + Math.floor(Math.random() * 3), 5000);
+            }
+
             this.eventBus.emit('procedural:universe:generated', {
                 stars: starCount,
                 planets: planetCount,
@@ -1765,6 +1795,135 @@
             return this.celestialObjects;
         }
 
+        createNebula(position, size, colorHue) {
+            const particleCount = 1000;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            const sizes = new Float32Array(particleCount);
+
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const r = size * Math.pow(Math.random(), 0.33); // Clustered center
+
+                positions[i3] = position.x + r * Math.sin(phi) * Math.cos(theta);
+                positions[i3 + 1] = position.y + r * Math.sin(phi) * Math.sin(theta);
+                positions[i3 + 2] = position.z + r * Math.cos(phi);
+
+                const color = new THREE.Color().setHSL(colorHue + Math.random() * 0.1, 0.8, 0.6);
+                colors[i3] = color.r;
+                colors[i3 + 1] = color.g;
+                colors[i3 + 2] = color.b;
+
+                sizes[i] = 10 + Math.random() * 20;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+            const material = new THREE.PointsMaterial({
+                size: 15,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            const nebula = new THREE.Points(geometry, material);
+            this.scene.add(nebula);
+            this.celestialObjects.push({ type: 'nebula', mesh: nebula });
+
+            console.log('[ProceduralGen] 🌫️ Nebula created at', position);
+            return nebula;
+        }
+
+        createAsteroidBelt(centerPos, innerRadius, outerRadius, count) {
+            const asteroids = [];
+
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const radius = innerRadius + Math.random() * (outerRadius - innerRadius);
+                const size = 2 + Math.random() * 8;
+
+                const geometry = new THREE.DodecahedronGeometry(size, 0);
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0x666666,
+                    roughness: 0.9,
+                    metalness: 0.1
+                });
+
+                const asteroid = new THREE.Mesh(geometry, material);
+                asteroid.position.set(
+                    centerPos.x + Math.cos(angle) * radius,
+                    centerPos.y + (Math.random() - 0.5) * 50,
+                    centerPos.z + Math.sin(angle) * radius
+                );
+
+                asteroid.rotation.set(
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI
+                );
+
+                this.scene.add(asteroid);
+                asteroids.push(asteroid);
+            }
+
+            this.celestialObjects.push({ type: 'asteroidBelt', meshes: asteroids });
+            console.log('[ProceduralGen] ☄️ Asteroid belt created with', count, 'asteroids');
+            return asteroids;
+        }
+
+        createGalaxy(position, armCount, particleCount) {
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                const arm = i % armCount;
+                const armAngle = (arm / armCount) * Math.PI * 2;
+                const spinAngle = (i / particleCount) * Math.PI * 8;
+                const radius = Math.pow(Math.random(), 2) * 5000;
+                const angle = armAngle + spinAngle * 0.5;
+
+                positions[i3] = position.x + Math.cos(angle) * radius;
+                positions[i3 + 1] = position.y + (Math.random() - 0.5) * radius * 0.1;
+                positions[i3 + 2] = position.z + Math.sin(angle) * radius;
+
+                const colorValue = 0.8 + Math.random() * 0.2;
+                colors[i3] = colorValue;
+                colors[i3 + 1] = colorValue * 0.9;
+                colors[i3 + 2] = colorValue;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 3,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            const galaxy = new THREE.Points(geometry, material);
+            galaxy.rotation.x = Math.random() * Math.PI;
+            galaxy.rotation.y = Math.random() * Math.PI;
+
+            this.scene.add(galaxy);
+            this.celestialObjects.push({ type: 'galaxy', mesh: galaxy });
+
+            console.log('[ProceduralGen] 🌌 Galaxy created with', particleCount, 'stars');
+            return galaxy;
+        }
+
         populateUniverse() {
             console.log('[ProceduralGen] 🌌 Beginning universe population...');
 
@@ -1850,6 +2009,88 @@
             guaranteedStar.position.set(0, 0, -2000);
             this.scene.add(guaranteedStar);
             console.log('[GUARANTEE] Red sphere at (0, 0, -2000)');
+        }
+    }
+
+    // ProceduralAudioEngine - Generates procedural audio effects
+    class ProceduralAudioEngine {
+        constructor(listener) {
+            this.listener = listener;
+            this.sounds = new Map();
+            this.audioContext = null;
+
+            if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
+                this.audioContext = new (AudioContext || webkitAudioContext)();
+            }
+        }
+
+        createAmbientDrone(frequency = 220) {
+            if (!this.audioContext) return null;
+
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
+
+            oscillator.type = 'sine';
+            oscillator.frequency.value = frequency;
+            gainNode.gain.value = 0.1;
+
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+
+            oscillator.start();
+
+            this.sounds.set('ambient', { oscillator, gainNode });
+            return { oscillator, gainNode };
+        }
+
+        createWarpSound() {
+            if (!this.audioContext) return;
+
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
+
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.setValueAtTime(100, this.audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(1000, this.audioContext.currentTime + 0.5);
+
+            gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.5);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+
+            oscillator.start();
+            oscillator.stop(this.audioContext.currentTime + 0.5);
+        }
+
+        createExplosionSound() {
+            if (!this.audioContext) return;
+
+            const bufferSize = this.audioContext.sampleRate * 0.5;
+            const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize / 5));
+            }
+
+            const source = this.audioContext.createBufferSource();
+            const gainNode = this.audioContext.createGain();
+
+            source.buffer = buffer;
+            gainNode.gain.value = 0.3;
+
+            source.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+
+            source.start();
+        }
+
+        stopAll() {
+            this.sounds.forEach(sound => {
+                if (sound.oscillator) sound.oscillator.stop();
+            });
+            this.sounds.clear();
         }
     }
 
@@ -2570,6 +2811,171 @@
             this.afterimagePass.enabled = false;
             this.composer.addPass(this.afterimagePass);
 
+            // Advanced post-processing effects
+            // God Rays Shader Pass
+            const godrayShader = {
+                uniforms: {
+                    tDiffuse: { value: null },
+                    lightPosition: { value: new THREE.Vector2(0.5, 0.5) },
+                    exposure: { value: 0.18 },
+                    decay: { value: 0.97 },
+                    density: { value: 0.96 },
+                    weight: { value: 0.4 },
+                    samples: { value: 100 }
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D tDiffuse;
+                    uniform vec2 lightPosition;
+                    uniform float exposure;
+                    uniform float decay;
+                    uniform float density;
+                    uniform float weight;
+                    uniform int samples;
+                    varying vec2 vUv;
+                    const int MAX_SAMPLES = 100;
+
+                    void main() {
+                        vec2 texCoord = vUv;
+                        vec2 deltaTexCoord = texCoord - lightPosition;
+                        deltaTexCoord *= 1.0 / float(samples) * density;
+                        float illuminationDecay = 1.0;
+                        vec4 color = texture2D(tDiffuse, texCoord);
+
+                        for(int i=0; i < MAX_SAMPLES; i++) {
+                            if(i >= samples) break;
+                            texCoord -= deltaTexCoord;
+                            vec4 sampledColor = texture2D(tDiffuse, texCoord);
+                            sampledColor *= illuminationDecay * weight;
+                            color += sampledColor;
+                            illuminationDecay *= decay;
+                        }
+
+                        gl_FragColor = color * exposure;
+                    }
+                `
+            };
+            this.godrayPass = new ShaderPass(godrayShader);
+            this.composer.addPass(this.godrayPass);
+
+            // Gravitational Lensing Shader Pass
+            const lensingShader = {
+                uniforms: {
+                    tDiffuse: { value: null },
+                    center: { value: new THREE.Vector2(0.5, 0.5) },
+                    scale: { value: 50.0 },
+                    strength: { value: 0.05 }
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D tDiffuse;
+                    varying vec2 vUv;
+                    uniform vec2 center;
+                    uniform float scale;
+                    uniform float strength;
+
+                    void main() {
+                        vec2 toCenter = center - vUv;
+                        float dist = length(toCenter);
+                        vec2 uv = vUv - toCenter * (1.0 - dist * scale) * strength / dist;
+                        gl_FragColor = texture2D(tDiffuse, uv);
+                    }
+                `
+            };
+            this.lensingPass = new ShaderPass(lensingShader);
+            this.composer.addPass(this.lensingPass);
+
+            // Vignette Shader Pass
+            const vignetteShader = {
+                uniforms: {
+                    tDiffuse: { value: null },
+                    darkness: { value: 1.0 }
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D tDiffuse;
+                    uniform float darkness;
+                    varying vec2 vUv;
+
+                    void main() {
+                        vec4 color = texture2D(tDiffuse, vUv);
+                        vec2 center = vUv - 0.5;
+                        float vignette = 1.0 - dot(center, center) * darkness;
+                        color.rgb *= vignette;
+                        gl_FragColor = color;
+                    }
+                `
+            };
+            this.vignettePass = new ShaderPass(vignetteShader);
+            this.composer.addPass(this.vignettePass);
+
+            // Film Grain Shader Pass
+            const filmShader = {
+                uniforms: {
+                    tDiffuse: { value: null },
+                    time: { value: 0 },
+                    grayscale: { value: 0 },
+                    nIntensity: { value: 0.35 },
+                    sIntensity: { value: 0.95 },
+                    sCount: { value: 4096 }
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D tDiffuse;
+                    uniform float time;
+                    uniform bool grayscale;
+                    uniform float nIntensity;
+                    uniform float sIntensity;
+                    uniform float sCount;
+                    varying vec2 vUv;
+
+                    float rand(vec2 co) {
+                        return fract(sin(dot(co.xy, vec2(12.9898,78.233))) * 43758.5453);
+                    }
+
+                    void main() {
+                        vec4 cTextureScreen = texture2D(tDiffuse, vUv);
+                        float dx = rand(vUv + time);
+                        vec3 cResult = cTextureScreen.rgb + cTextureScreen.rgb * clamp(0.1 + dx, 0.0, 1.0);
+                        vec2 sc = vec2(sin(vUv.y * sCount), cos(vUv.y * sCount));
+                        cResult += cTextureScreen.rgb * vec3(sc.x, sc.y, sc.x) * sIntensity;
+                        cResult = cTextureScreen.rgb + clamp(nIntensity, 0.0,1.0) * (cResult - cTextureScreen.rgb);
+                        if(grayscale) {
+                            cResult = vec3(cResult.r * 0.3 + cResult.g * 0.59 + cResult.b * 0.11);
+                        }
+                        gl_FragColor = vec4(clamp(cResult, 0.0, 1.0), cTextureScreen.a);
+                    }
+                `
+            };
+            this.filmPass = new ShaderPass(filmShader);
+            this.composer.addPass(this.filmPass);
+
+            console.log('[PostProcessing] Advanced shader passes initialized');
+
             // PHASE 1 SYSTEMS - Initialize EventBus and DataLogger first
             this.eventBus = new EventBus();
             this.dataLogger = new DataLogger(this.eventBus);
@@ -2611,6 +3017,11 @@
             this.spaceship = new SpaceshipController(this.scene);
             this.aiModel = new QuantumAIModel();
             this.particlizer = new Particlizer(this.scene);
+
+            // Initialize ProceduralAudioEngine
+            const audioListener = this.camera.children.find(c => c.type === 'AudioListener');
+            this.proceduralAudio = new ProceduralAudioEngine(audioListener);
+            console.log('[ProceduralAudio] Engine initialized');
 
             // Background star field
             this.initBackgroundStars();
@@ -2841,6 +3252,43 @@
             this.quantumEvents.update(dt);
             this.proceduralGen.update(dt);
             this.cosmicAI.tick(Date.now());
+
+            // Update post-processing shader uniforms
+            const elapsed = this.clock.getElapsedTime();
+
+            if (this.filmPass && this.filmPass.uniforms.time) {
+                this.filmPass.uniforms.time.value = elapsed;
+            }
+
+            if (this.godrayPass && this.proceduralGen.celestialObjects.length > 0) {
+                // Update god ray position to track active star
+                const starObj = this.proceduralGen.celestialObjects.find(obj => obj.type === 'star');
+                if (starObj && starObj.mesh) {
+                    const starScreenPos = starObj.mesh.position.clone();
+                    starScreenPos.project(this.camera);
+                    this.godrayPass.uniforms.lightPosition.value.set(
+                        (starScreenPos.x + 1) / 2,
+                        (starScreenPos.y + 1) / 2
+                    );
+                }
+            }
+
+            if (this.lensingPass) {
+                // Update lensing effect based on nearest black hole
+                const blackHole = this.proceduralGen.celestialObjects.find(obj => obj.type === 'blackhole');
+                if (blackHole && blackHole.mesh) {
+                    const bhScreenPos = blackHole.mesh.position.clone();
+                    bhScreenPos.project(this.camera);
+                    this.lensingPass.uniforms.center.value.set(
+                        (bhScreenPos.x + 1) / 2,
+                        (bhScreenPos.y + 1) / 2
+                    );
+
+                    // Adjust strength based on distance
+                    const distance = this.camera.position.distanceTo(blackHole.mesh.position);
+                    this.lensingPass.uniforms.strength.value = Math.max(0, 0.1 - distance / 10000);
+                }
+            }
 
             // Compute CST 12D state vectors and ψ
             const allEntities = [
