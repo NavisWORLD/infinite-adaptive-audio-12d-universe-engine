@@ -1032,7 +1032,10 @@
 
     <!-- Psi Overlay (from earth.html) -->
     <div id="psi-overlay" class="ui-hidden">
-        <h4>CST Ψ — Live Terms</h4>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h4 style="margin: 0;">CST Ψ — Live Terms</h4>
+            <button id="btnPsiHUD" class="btn" style="padding: 2px 8px; font-size: 0.6rem;">Toggle</button>
+        </div>
         <div class="psi-term">
             <span class="psi-term-label">c²·φ·Ec:</span>
             <span class="psi-term-value" id="psi-term1">--</span>
@@ -1070,6 +1073,12 @@
             <span id="surface-biome" class="text-right">--</span>
             <span class="text-slate-400">Temperature:</span>
             <span id="surface-temp" class="text-right">-- °C</span>
+            <span class="text-slate-400">Ocean Roughness:</span>
+            <span id="hudOcean" class="text-right">--</span>
+            <span class="text-slate-400">Cloud Coverage:</span>
+            <span id="hudCloud" class="text-right">--</span>
+            <span class="text-slate-400">Vegetation:</span>
+            <span id="hudVeg" class="text-right">--</span>
         </div>
     </div>
 
@@ -2131,6 +2140,14 @@ class UIManager {
         this.eventBus = eventBus;
         this.activeTab = 'controls';
 
+        // System references (will be set by Application after initialization)
+        this.pge = null;
+        this.qem = null;
+        this.surfaceManager = null;
+        this.audioReactive = null;
+        this.memoryEchoEngine = null;
+        this.dataLogger = null;
+
         // Initialize tabs
         this.initTabs();
 
@@ -2139,6 +2156,18 @@ class UIManager {
 
         // Initialize sliders
         this.initSliders();
+    }
+
+    /**
+     * Set system references for mode switching
+     */
+    setSystems(systems) {
+        this.pge = systems.pge;
+        this.qem = systems.qem;
+        this.surfaceManager = systems.surfaceManager;
+        this.audioReactive = systems.audioReactive;
+        this.memoryEchoEngine = systems.memoryEchoEngine;
+        this.dataLogger = systems.dataLogger;
     }
 
     initTabs() {
@@ -2285,6 +2314,66 @@ class UIManager {
         if (spawnMotesBtn) {
             spawnMotesBtn.addEventListener('click', () => {
                 this.eventBus.publish('surface:spawnMotes', { count: 20 });
+            });
+        }
+
+        // Memory Echo Modal - Data Upload
+        const dataUpload = document.getElementById('data-upload');
+        const dataStatus = document.getElementById('data-status');
+        const modalConfirm = document.getElementById('modal-confirm-button');
+        const modalCancel = document.getElementById('modal-cancel-button');
+
+        if (dataUpload) {
+            dataUpload.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    if (dataStatus) {
+                        dataStatus.textContent = `Loaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                        dataStatus.className = 'text-sm text-green-400 mb-4';
+                    }
+                    if (modalConfirm) {
+                        modalConfirm.disabled = false;
+                    }
+                    // Publish file for MemoryEchoEngine to process
+                    this.eventBus.publish('ui:dataProvided', { file });
+                    this.log(`Data catalyst loaded: ${file.name}`, 'data');
+                }
+            });
+        }
+
+        if (modalConfirm) {
+            modalConfirm.addEventListener('click', () => {
+                // Hide modal
+                const modal = document.getElementById('datamodal');
+                if (modal) modal.classList.add('ui-hidden');
+
+                // Switch to echo mode
+                this.eventBus.publish('ui:enterEcho', {});
+                _applyMode('echo', {
+                    pge: this.pge,
+                    qem: this.qem,
+                    surfaceManager: this.surfaceManager,
+                    audioReactive: this.audioReactive,
+                    memoryEchoEngine: this.memoryEchoEngine,
+                    eventBus: this.eventBus,
+                    dataLogger: this.dataLogger
+                });
+                this.log('Entering Memory Echo mode...', 'warn');
+            });
+        }
+
+        if (modalCancel) {
+            modalCancel.addEventListener('click', () => {
+                const modal = document.getElementById('datamodal');
+                if (modal) modal.classList.add('ui-hidden');
+                if (dataStatus) {
+                    dataStatus.textContent = 'Awaiting file...';
+                    dataStatus.className = 'text-sm text-yellow-400 mb-4';
+                }
+                if (modalConfirm) {
+                    modalConfirm.disabled = true;
+                }
+                this.log('Memory Echo cancelled', 'info');
             });
         }
     }
@@ -2817,7 +2906,7 @@ class SurfaceManager {
         this.sky = new Sky();
         this.sky.scale.setScalar(450000);
         this.surfaceGroup.add(this.sky);
-        
+
         const sun = new THREE.Vector3();
         const uniforms = this.sky.material.uniforms;
         uniforms['turbidity'].value = 10;
@@ -2828,6 +2917,10 @@ class SurfaceManager {
         const theta = THREE.MathUtils.degToRad(180);
         sun.setFromSphericalCoords(1, phi, theta);
         uniforms['sunPosition'].value.copy(sun);
+
+        // Add environmental fog
+        this.scene.fog = new THREE.Fog(0xa0a0b0, 100, 8000);
+        this.scene.fog.isFog = false; // Will be enabled when surface mode is active
         
         // Terrain generation using Perlin noise
         const terrainGeo = new THREE.PlaneGeometry(8000, 8000, 200, 200);
@@ -2940,8 +3033,15 @@ class SurfaceManager {
      */
     setVisible(visible) {
         this.surfaceGroup.visible = visible;
+        // Enable/disable fog when switching modes
         if (this.scene.fog) {
-            this.scene.fog.isFog = visible;
+            if (visible) {
+                // Enable fog for surface mode
+                this.scene.fog.color.setHex(0xa0a0b0);
+                this.scene.fog.near = 100;
+                this.scene.fog.far = 8000;
+            }
+            // Fog will naturally not render when objects are hidden
         }
     }
     
@@ -3405,7 +3505,7 @@ class MemoryEchoEngine {
         
         // File upload handling
         this.initFileUpload();
-        
+
         // Keyboard input
         document.addEventListener('keydown', (e) => {
             this.keys[e.key.toLowerCase()] = true;
@@ -3413,7 +3513,20 @@ class MemoryEchoEngine {
         document.addEventListener('keyup', (e) => {
             this.keys[e.key.toLowerCase()] = false;
         });
-        
+
+        // Subscribe to UI events
+        this.eventBus.subscribe('ui:dataProvided', (data) => {
+            if (data.file) {
+                this.loadData(data.file);
+            }
+        });
+
+        this.eventBus.subscribe('ui:enterEcho', () => {
+            if (this.data) {
+                this.enter();
+            }
+        });
+
         // Subscribe to mode changes
         this.eventBus.subscribe('mode:changed', (data) => {
             if (data.mode === 'echo' && this.data) {
@@ -3684,8 +3797,24 @@ class MemoryEchoEngine {
         if (this.dataLogger) {
             this.dataLogger.logLedger('info', 'MemoryEcho', 'Returned to void.');
         }
-        
+
         this.eventBus.publish('memoryEcho:exited', {});
+    }
+
+    /**
+     * Set visibility for mode switching
+     */
+    setVisible(visible) {
+        this.echoGroup.visible = visible;
+        if (visible && this.data) {
+            // Auto-enter echo mode when made visible
+            if (!this.isActive) {
+                this.enter();
+            }
+        } else if (!visible && this.isActive) {
+            // Auto-exit when hidden
+            this.exit();
+        }
     }
     
     initAudioSearch() {
@@ -5911,7 +6040,18 @@ class Application {
         this.audioReactive = new AudioReactiveSystem(this.scene, this.eventBus, this.camera);
         this.memoryEchoEngine = new MemoryEchoEngine(this.scene, this.camera, this.eventBus, this.dataLogger);
         this.cstCompute = new CSTComputeEngine(this.eventBus);
-        
+        this.psiOverlay = new PsiOverlay(this.eventBus, this.camera, this.scene);
+
+        // Set system references in UIManager for mode switching
+        this.uiManager.setSystems({
+            pge: this.pge,
+            qem: this.qem,
+            surfaceManager: this.surfaceManager,
+            audioReactive: this.audioReactive,
+            memoryEchoEngine: this.memoryEchoEngine,
+            dataLogger: this.dataLogger
+        });
+
         // Wire surface spawn events
         this.eventBus.subscribe('surface:spawnSentinels', (data) => {
             if (this.surfaceManager) {
@@ -6264,6 +6404,14 @@ class Application {
                     }
                 }
             }
+
+            // Publish engine:update event for PsiOverlay and other systems
+            this.eventBus.publish('engine:update', {
+                delta: delta,
+                elapsedTime: elapsedTime,
+                fps: STATE.runtime.fps || 60,
+                now: currentTime
+            });
 
             // 1. UPDATE INPUT
             try {
@@ -6664,6 +6812,125 @@ class CSTComputeEngine {
         entity.userData.psi = energyTerm + audioTerm + spectralTerm + chaosTerm;
 
         return entity.userData.psi;
+    }
+}
+
+// =====================================================================================
+// PSI OVERLAY - Live CST ψ Computation Display
+// FROM: earth.html
+// =====================================================================================
+/**
+ * PsiOverlay - Real-time display of CST ψ formula terms
+ * Computes and displays: c²·φ·Ec, λ, Ω·Ec, U_grav, Σρ_sd, ψ
+ */
+class PsiOverlay {
+    constructor(eventBus, camera, scene) {
+        this.eventBus = eventBus;
+        this.camera = camera;
+        this.scene = scene;
+        this.audioLevel = 0;
+        this.fps = 60;
+        this.phi = 1.618033988749895; // Golden ratio
+        this.c = 299792458; // Speed of light (m/s)
+
+        // DOM elements
+        this.elements = {
+            term1: document.getElementById('psi-term1'),
+            term2: document.getElementById('psi-term2'),
+            term3: document.getElementById('psi-term3'),
+            term4: document.getElementById('psi-term4'),
+            term5: document.getElementById('psi-term5'),
+            sum: document.getElementById('psi-sum')
+        };
+
+        // Subscribe to events
+        this.eventBus.subscribe('audio:update', (data) => {
+            if (data.avgAmp !== undefined) {
+                this.audioLevel = data.avgAmp;
+            }
+        });
+
+        this.eventBus.subscribe('audio:spectral', (data) => {
+            if (data.avgAmp !== undefined) {
+                this.audioLevel = data.avgAmp;
+            }
+        });
+
+        this.eventBus.subscribe('engine:update', (data) => {
+            if (data.fps !== undefined) {
+                this.fps = data.fps || 60;
+            }
+            this.update();
+        });
+    }
+
+    /**
+     * Update PSI overlay with live CST computation
+     */
+    update() {
+        if (!this.camera || !STATE) return;
+
+        // Get camera position length
+        const camPos = this.camera.position;
+        const camPosLen = camPos.length();
+
+        // Get orbit distance (camera to origin)
+        const orbitDist = camPosLen;
+
+        // CST ψ Formula Terms:
+
+        // Term 1: c² · φ · Ec (scaled down for display)
+        const Ec = STATE.params.Ec || 1.2;
+        const term1_full = Math.pow(this.c, 2) * this.phi * Ec;
+        const term1 = term1_full * 1e-15; // Scale to reasonable display range
+
+        // Term 2: λ (chaos factor influenced by audio)
+        const lambda = STATE.params.lambda || 0.25;
+        const term2 = lambda * (this.audioLevel + 0.1);
+
+        // Term 3: Ω·Ec (spectral hue energy)
+        const omega = STATE.params.omega || 0.62;
+        const Om = omega * (camPosLen * camPosLen * 0.00001);
+        const term3 = Om;
+
+        // Term 4: U_grav (gravitational potential)
+        const U = -1.0 / Math.max(1, camPosLen * camPosLen);
+        const term4 = U * 100; // Scale for display
+
+        // Term 5: Σρ_sd (Soul Dust density, proxy from FPS and audio)
+        const rho_proxy = Math.min(2, Math.max(0, (60 / this.fps) * 0.6 + this.audioLevel * 0.4));
+        const term5 = rho_proxy;
+
+        // Sum: ψ
+        const psi = term1 + term2 + term3 + term4 + term5;
+
+        // Update DOM elements with formatted values
+        if (this.elements.term1) {
+            this.elements.term1.textContent = term1.toExponential(3);
+        }
+        if (this.elements.term2) {
+            this.elements.term2.textContent = term2.toFixed(4);
+        }
+        if (this.elements.term3) {
+            this.elements.term3.textContent = term3.toFixed(4);
+        }
+        if (this.elements.term4) {
+            this.elements.term4.textContent = term4.toFixed(6);
+        }
+        if (this.elements.term5) {
+            this.elements.term5.textContent = term5.toFixed(4);
+        }
+        if (this.elements.sum) {
+            this.elements.sum.textContent = psi.toExponential(3);
+        }
+
+        // Also update STATE for other systems
+        if (STATE.cst) {
+            STATE.cst.psi_overlay = {
+                term1, term2, term3, term4, term5, psi,
+                timestamp: Date.now()
+            };
+        }
     }
 }
 
