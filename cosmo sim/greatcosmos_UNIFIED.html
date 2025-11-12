@@ -858,10 +858,11 @@
                         <label>View Mode</label>
                         <select id="view-mode-select" class="w-full bg-slate-800 text-slate-200 rounded-md p-2 mt-1 text-sm border border-slate-600">
                             <option value="orbit">Orbit</option>
-                            <option value="first-person">First Person</option>
-                            <option value="enhanced-fp">Spaceship (3rd Person)</option>
-                            <option value="cockpit-view">Spaceship (Cockpit)</option>
+                            <option value="fps">First-Person (Surface)</option>
+                            <option value="spaceship">Spaceship (Flight)</option>
+                            <option value="cockpit">Cockpit</option>
                             <option value="cinematic">Cinematic</option>
+                            <option value="echo">Echo (Memory Artifacts)</option>
                         </select>
                     </div>
 
@@ -1038,28 +1039,28 @@
         </div>
         <div class="psi-term">
             <span class="psi-term-label">c²·φ·Ec:</span>
-            <span class="psi-term-value" id="psi-term1">--</span>
+            <span class="psi-term-value" id="vEc">--</span>
         </div>
         <div class="psi-term">
             <span class="psi-term-label">λ (audio):</span>
-            <span class="psi-term-value" id="psi-term2">--</span>
+            <span class="psi-term-value" id="vLam">--</span>
         </div>
         <div class="psi-term">
             <span class="psi-term-label">Ω·Ec:</span>
-            <span class="psi-term-value" id="psi-term3">--</span>
+            <span class="psi-term-value" id="vOm">--</span>
         </div>
         <div class="psi-term">
             <span class="psi-term-label">U_grav:</span>
-            <span class="psi-term-value" id="psi-term4">--</span>
+            <span class="psi-term-value" id="vGrav">--</span>
         </div>
         <div class="psi-term">
             <span class="psi-term-label">Σρ_sd:</span>
-            <span class="psi-term-value" id="psi-term5">--</span>
+            <span class="psi-term-value" id="vRho">--</span>
         </div>
         <div class="psi-sum">
             <div class="psi-term">
                 <span class="psi-term-label">ψ (sum):</span>
-                <span class="psi-term-value" id="psi-sum">--</span>
+                <span class="psi-term-value" id="vPsi">--</span>
             </div>
         </div>
     </div>
@@ -2479,24 +2480,24 @@ class UIManager {
      */
     updatePsiOverlay(STATE) {
         const { term1_Ec, term2_lambda, term3_omega, term4_Ugrav, term5_rho, psi } = STATE.cst;
-        
-        const term1El = document.getElementById('psi-term1');
-        if (term1El) term1El.textContent = this.formatScientific(term1_Ec);
-        
-        const term2El = document.getElementById('psi-term2');
-        if (term2El) term2El.textContent = term2_lambda.toFixed(2);
-        
-        const term3El = document.getElementById('psi-term3');
-        if (term3El) term3El.textContent = term3_omega.toFixed(3);
-        
-        const term4El = document.getElementById('psi-term4');
-        if (term4El) term4El.textContent = this.formatScientific(term4_Ugrav);
-        
-        const term5El = document.getElementById('psi-term5');
-        if (term5El) term5El.textContent = term5_rho.toFixed(3);
-        
-        const sumEl = document.getElementById('psi-sum');
-        if (sumEl) sumEl.textContent = this.formatScientific(psi);
+
+        const vEcEl = document.getElementById('vEc');
+        if (vEcEl) vEcEl.textContent = this.formatScientific(term1_Ec);
+
+        const vLamEl = document.getElementById('vLam');
+        if (vLamEl) vLamEl.textContent = term2_lambda.toFixed(2);
+
+        const vOmEl = document.getElementById('vOm');
+        if (vOmEl) vOmEl.textContent = term3_omega.toFixed(3);
+
+        const vGravEl = document.getElementById('vGrav');
+        if (vGravEl) vGravEl.textContent = this.formatScientific(term4_Ugrav);
+
+        const vRhoEl = document.getElementById('vRho');
+        if (vRhoEl) vRhoEl.textContent = term5_rho.toFixed(3);
+
+        const vPsiEl = document.getElementById('vPsi');
+        if (vPsiEl) vPsiEl.textContent = this.formatScientific(psi);
     }
 
     /**
@@ -2576,17 +2577,24 @@ class InputController {
         this.keys = {};
         this.mouse = { x: 0, y: 0, deltaX: 0, deltaY: 0, buttons: 0 };
         this.pointerLocked = false;
-        
+
         // Surface physics
         this.velocity = new THREE.Vector3();
         this.onGround = false;
         this.gravity = -9.8;
         this.jumpForce = 50;
         this.surfacePhysicsEnabled = false;
-        
+
         // Camera shake
         this.shakeIntensity = 0;
         this.shakeDecay = 0.95;
+
+        // Cinematic mode
+        this.cinematicTime = 0;
+        this.cinematicPath = [];
+
+        // Cockpit offset
+        this.cockpitOffset = new THREE.Vector3(0, 2, 5);
         
         // Subscribe to camera shake events
         this.eventBus.subscribe('camera:shake', (data) => {
@@ -2687,15 +2695,29 @@ class InputController {
     
     setMode(mode) {
         this.mode = mode;
-        
+
         if (mode === 'orbit') {
             if (this.orbitControls) this.orbitControls.enabled = true;
             document.exitPointerLock();
+        } else if (mode === 'cockpit') {
+            // Cockpit mode: camera inside spaceship, limited movement
+            if (this.orbitControls) this.orbitControls.enabled = false;
+            // Don't lock pointer in cockpit mode
+            document.exitPointerLock();
+        } else if (mode === 'cinematic') {
+            // Cinematic mode: automated camera paths
+            if (this.orbitControls) this.orbitControls.enabled = false;
+            document.exitPointerLock();
+        } else if (mode === 'echo') {
+            // Echo mode: memory artifact exploration
+            if (this.orbitControls) this.orbitControls.enabled = false;
+            document.exitPointerLock();
         } else {
+            // FPS or Spaceship modes: enable pointer lock
             if (this.orbitControls) this.orbitControls.enabled = false;
             // Pointer lock will be requested on click
         }
-        
+
         this.eventBus.publish('input:mode_changed', { mode });
     }
     
@@ -2708,12 +2730,22 @@ class InputController {
         if (this.mode === 'orbit' && this.orbitControls) {
             this.orbitControls.update();
         }
-        
+
         // Update FPS/Spaceship controls
         if ((this.mode === 'fps' || this.mode === 'spaceship') && this.pointerLocked) {
             this.updateFirstPersonControls(deltaTime);
         }
-        
+
+        // Update Cinematic mode
+        if (this.mode === 'cinematic') {
+            this.updateCinematicMode(deltaTime);
+        }
+
+        // Update Cockpit mode
+        if (this.mode === 'cockpit') {
+            this.updateCockpitMode(deltaTime);
+        }
+
         // Camera shake
         if (this.shakeIntensity > 0.01) {
             const shake = new THREE.Vector3(
@@ -2724,6 +2756,33 @@ class InputController {
             this.camera.position.add(shake);
             this.shakeIntensity *= this.shakeDecay;
         }
+    }
+
+    updateCinematicMode(deltaTime) {
+        // Smooth circular camera path around origin
+        this.cinematicTime += deltaTime * 0.2;
+        const radius = 2000;
+        const height = 500 + Math.sin(this.cinematicTime * 0.3) * 300;
+
+        this.camera.position.x = Math.cos(this.cinematicTime) * radius;
+        this.camera.position.y = height;
+        this.camera.position.z = Math.sin(this.cinematicTime) * radius;
+
+        // Look at center with slight offset
+        const lookTarget = new THREE.Vector3(
+            Math.sin(this.cinematicTime * 0.5) * 200,
+            0,
+            Math.cos(this.cinematicTime * 0.5) * 200
+        );
+        this.camera.lookAt(lookTarget);
+    }
+
+    updateCockpitMode(deltaTime) {
+        // Cockpit mode: camera follows spaceship if available
+        // Simple bobbing motion for now
+        const bobAmount = Math.sin(this.STATE.runtime.totalTime * 2) * 0.5;
+        const originalY = this.camera.position.y;
+        this.camera.position.y = originalY + bobAmount * deltaTime;
     }
     
     updateFirstPersonControls(deltaTime) {
@@ -2922,15 +2981,18 @@ class SurfaceManager {
         this.scene.fog = new THREE.Fog(0xa0a0b0, 100, 8000);
         this.scene.fog.isFog = false; // Will be enabled when surface mode is active
         
-        // Terrain generation using Perlin noise
+        // Terrain generation using multi-octave Perlin noise
         const terrainGeo = new THREE.PlaneGeometry(8000, 8000, 200, 200);
         const pos = terrainGeo.attributes.position;
         for(let i = 0; i < pos.count; i++) {
             const x = pos.getX(i);
             const y = pos.getY(i);
-            const z1 = this.noise(x * 0.005, y * 0.005) * 300;
-            const z2 = this.noise(x * 0.02, y * 0.02) * 50;
-            pos.setZ(i, z1 + z2);
+            // Multi-octave noise for realistic terrain
+            const z1 = this.noise(x * 0.003, y * 0.003) * 400;    // Large features (mountains)
+            const z2 = this.noise(x * 0.01, y * 0.01) * 120;       // Medium features (hills)
+            const z3 = this.noise(x * 0.03, y * 0.03) * 40;        // Small features (bumps)
+            const z4 = this.noise(x * 0.1, y * 0.1) * 10;          // Fine details
+            pos.setZ(i, z1 + z2 + z3 + z4);
         }
         terrainGeo.computeVertexNormals();
         const terrainMat = new THREE.MeshStandardMaterial({
@@ -2979,23 +3041,38 @@ class SurfaceManager {
     }
     
     createVegetation() {
-        // Create instanced grass/vegetation
+        // Remove old vegetation if exists
+        if (this.vegetation) {
+            this.surfaceGroup.remove(this.vegetation);
+            this.vegetation.geometry.dispose();
+            this.vegetation.material.dispose();
+        }
+
+        // Create instanced grass/vegetation with growth animation support
         const grassCount = Math.floor(5000 * this.vegetationDensity);
         const geometry = new THREE.ConeGeometry(0.5, 2, 4);
         const material = new THREE.MeshStandardMaterial({ color: 0x4a7c3f });
         const instancedMesh = new THREE.InstancedMesh(geometry, material, grassCount);
-        
+
+        // Store initial transform data for growth animation
+        this.vegetationData = [];
         const matrix = new THREE.Matrix4();
         for (let i = 0; i < grassCount; i++) {
             const x = (this.prng() - 0.5) * 7000;
             const z = (this.prng() - 0.5) * 7000;
             const y = this.getTerrainHeight(x, z) + 1;
-            const scale = 0.5 + this.prng() * 1.5;
+            const baseScale = 0.5 + this.prng() * 1.5;
             const rotation = this.prng() * Math.PI * 2;
-            
+            const growthPhase = this.prng() * Math.PI * 2; // Random phase for wave effect
+
+            // Store data for animation
+            this.vegetationData.push({
+                x, y, z, baseScale, rotation, growthPhase
+            });
+
             matrix.makeRotationY(rotation);
             matrix.setPosition(x, y, z);
-            matrix.scale(new THREE.Vector3(scale, scale, scale));
+            matrix.scale(new THREE.Vector3(baseScale, baseScale, baseScale));
             instancedMesh.setMatrixAt(i, matrix);
         }
         instancedMesh.instanceMatrix.needsUpdate = true;
@@ -3006,11 +3083,13 @@ class SurfaceManager {
     }
     
     getTerrainHeight(x, z) {
-        // Sample terrain height at position (simplified - would raycast in full implementation)
+        // Sample terrain height at position using multi-octave noise
         if (this.terrain && this.terrain.geometry) {
-            const z1 = this.noise(x * 0.005, z * 0.005) * 300;
-            const z2 = this.noise(x * 0.02, z * 0.02) * 50;
-            return z1 + z2;
+            const z1 = this.noise(x * 0.003, z * 0.003) * 400;
+            const z2 = this.noise(x * 0.01, z * 0.01) * 120;
+            const z3 = this.noise(x * 0.03, z * 0.03) * 40;
+            const z4 = this.noise(x * 0.1, z * 0.1) * 10;
+            return z1 + z2 + z3 + z4;
         }
         return 0;
     }
@@ -3044,9 +3123,16 @@ class SurfaceManager {
             // Fog will naturally not render when objects are hidden
         }
     }
+
+    /**
+     * Alias for setVisible - for consistency with other managers
+     */
+    show(visible) {
+        this.setVisible(visible);
+    }
     
     /**
-     * Update surface simulation
+     * Update surface simulation with growth animation
      */
     update(delta, STATE, camera) {
         // Update water animation
@@ -3055,7 +3141,26 @@ class SurfaceManager {
             // Simple wave animation
             this.water.position.y = 20 + Math.sin(STATE.runtime.totalTime * 0.5) * 2;
         }
-        
+
+        // Update vegetation growth animation
+        if (this.vegetation && this.vegetationData && STATE.currentMode === 'surface') {
+            const time = STATE.runtime.totalTime;
+            const matrix = new THREE.Matrix4();
+
+            for (let i = 0; i < this.vegetationData.length; i++) {
+                const data = this.vegetationData[i];
+                // Growth scale oscillates slightly over time
+                const growthFactor = 1.0 + Math.sin(time * 0.3 + data.growthPhase) * 0.15;
+                const animatedScale = data.baseScale * growthFactor * this.vegetationDensity;
+
+                matrix.makeRotationY(data.rotation);
+                matrix.setPosition(data.x, data.y, data.z);
+                matrix.scale(new THREE.Vector3(animatedScale, animatedScale, animatedScale));
+                this.vegetation.setMatrixAt(i, matrix);
+            }
+            this.vegetation.instanceMatrix.needsUpdate = true;
+        }
+
         // Update surface HUD
         if (STATE.currentMode === 'surface') {
             STATE.ui.surfaceHUDVisible = true;
@@ -3066,6 +3171,15 @@ class SurfaceManager {
             const hudVeg = document.getElementById('hudVeg');
             if (hudVeg) hudVeg.textContent = `${Math.round(this.vegetationDensity * 100)}%`;
         }
+    }
+
+    /**
+     * Update vegetation density (called when slider changes)
+     */
+    updateVegetationDensity(density) {
+        this.vegetationDensity = Math.max(0, Math.min(1, density));
+        // Recreate vegetation with new density
+        this.createVegetation();
     }
     
     /**
@@ -3816,7 +3930,14 @@ class MemoryEchoEngine {
             this.exit();
         }
     }
-    
+
+    /**
+     * Alias for setVisible - for consistency with other managers
+     */
+    show(visible) {
+        this.setVisible(visible);
+    }
+
     initAudioSearch() {
         try {
             this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -6273,6 +6394,20 @@ class Application {
             this.audioData = data;
         });
 
+        // View mode changes
+        this.eventBus.subscribe('ui:viewMode', (mode) => {
+            _applyMode(mode, {
+                pge: this.pge,
+                qem: this.qem,
+                surfaceManager: this.surfaceManager,
+                audioReactive: this.audioReactive,
+                memoryEchoEngine: this.memoryEchoEngine,
+                inputController: this.inputController,
+                eventBus: this.eventBus,
+                dataLogger: this.dataLogger
+            });
+        });
+
         // Start button
         const startButton = document.getElementById('start-button');
         const blocker = document.getElementById('blocker');
@@ -6945,8 +7080,9 @@ class PsiOverlay {
  */
 function _applyMode(mode, systems) {
     STATE.currentMode = mode;
-    
+
     switch(mode) {
+        case 'orbit':
         case 'universe':
             // Show: PGE objects, QEM particles, AudioReactive
             if (systems.pge) systems.pge.setVisible(true);
@@ -6955,17 +7091,57 @@ function _applyMode(mode, systems) {
             // Hide: Surface, MemoryEcho
             if (systems.surfaceManager) systems.surfaceManager.setVisible(false);
             if (systems.memoryEchoEngine) systems.memoryEchoEngine.setVisible(false);
+            // Update input controller
+            if (systems.inputController) systems.inputController.setMode('orbit');
             break;
-            
+
+        case 'fps':
         case 'surface':
             // Show: Surface terrain, vegetation, sentinels, motes
             if (systems.surfaceManager) systems.surfaceManager.setVisible(true);
-            // Hide: Galaxy particles (far), QEM, AudioReactive
-            if (systems.pge) systems.pge.setVisible(false);
+            // Fade: Galaxy particles (keep visible but distant)
+            if (systems.pge) systems.pge.setVisible(true);
             if (systems.qem) systems.qem.setVisible(false);
             if (systems.audioReactive) systems.audioReactive.setVisible(false);
+            if (systems.inputController) {
+                systems.inputController.setMode('fps');
+                systems.inputController.enableSurfacePhysics(true);
+            }
             break;
-            
+
+        case 'spaceship':
+            // Show: Universe for spaceship flight
+            if (systems.pge) systems.pge.setVisible(true);
+            if (systems.qem) systems.qem.setVisible(true);
+            if (systems.audioReactive) systems.audioReactive.setVisible(true);
+            if (systems.surfaceManager) systems.surfaceManager.setVisible(false);
+            if (systems.memoryEchoEngine) systems.memoryEchoEngine.setVisible(false);
+            if (systems.inputController) {
+                systems.inputController.setMode('spaceship');
+                systems.inputController.enableSurfacePhysics(false);
+            }
+            break;
+
+        case 'cockpit':
+            // Show: Universe from cockpit view
+            if (systems.pge) systems.pge.setVisible(true);
+            if (systems.qem) systems.qem.setVisible(true);
+            if (systems.audioReactive) systems.audioReactive.setVisible(true);
+            if (systems.surfaceManager) systems.surfaceManager.setVisible(false);
+            if (systems.memoryEchoEngine) systems.memoryEchoEngine.setVisible(false);
+            if (systems.inputController) systems.inputController.setMode('cockpit');
+            break;
+
+        case 'cinematic':
+            // Show: Everything for cinematic view
+            if (systems.pge) systems.pge.setVisible(true);
+            if (systems.qem) systems.qem.setVisible(true);
+            if (systems.audioReactive) systems.audioReactive.setVisible(true);
+            if (systems.surfaceManager) systems.surfaceManager.setVisible(false);
+            if (systems.memoryEchoEngine) systems.memoryEchoEngine.setVisible(false);
+            if (systems.inputController) systems.inputController.setMode('cinematic');
+            break;
+
         case 'echo':
             // Show: MemoryEcho visualization
             if (systems.memoryEchoEngine) systems.memoryEchoEngine.setVisible(true);
@@ -6974,9 +7150,28 @@ function _applyMode(mode, systems) {
             if (systems.qem) systems.qem.setVisible(false);
             if (systems.surfaceManager) systems.surfaceManager.setVisible(false);
             if (systems.audioReactive) systems.audioReactive.setVisible(false);
+            if (systems.inputController) systems.inputController.setMode('echo');
             break;
+
+        default:
+            console.warn(`Unknown mode: ${mode}, defaulting to orbit`);
+            _applyMode('orbit', systems);
+            return;
     }
-    
+
+    // Update HUD visibility
+    const surfaceHud = document.getElementById('surface-hud');
+    if (surfaceHud) {
+        surfaceHud.style.display = (mode === 'surface' || mode === 'fps') ? 'block' : 'none';
+    }
+
+    const systemStatus = document.getElementById('system-status-readout');
+    if (systemStatus) {
+        const modeText = mode.charAt(0).toUpperCase() + mode.slice(1);
+        const modeLabel = systemStatus.querySelector('.mode-label');
+        if (modeLabel) modeLabel.textContent = modeText;
+    }
+
     if (systems.eventBus) {
         systems.eventBus.publish('mode:changed', { mode });
     }
