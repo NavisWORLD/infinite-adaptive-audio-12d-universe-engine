@@ -4349,6 +4349,22 @@ class ProceduralGenerationEngine {
         this.planets = [];
         this.blackHoles = [];
         this.particles = null;
+        this.nebula = null;
+        this.asteroidBelts = [];
+        this.comets = [];
+        this.genesisLattice = null;
+
+        // Visibility flags by entity type
+        this.visibility = {
+            stars: true,
+            planets: true,
+            blackholes: true,
+            nebula: true,
+            starfield: true,
+            asteroids: true,
+            comets: true,
+            lattice: true
+        };
 
         this.eventBus.subscribe('pge:generate', () => this.generateUniverse());
     }
@@ -4356,7 +4372,7 @@ class ProceduralGenerationEngine {
     generateUniverse() {
         this.cleanup();
 
-        // Create central star
+        // Create central star with corona
         const starTemp = 3000 + this.prng() * 17000;
         const starColor = blackBodyToRGB(starTemp);
         const starSize = 15 + this.prng() * 10;
@@ -4370,38 +4386,123 @@ class ProceduralGenerationEngine {
             isGenerated: true,
             isStar: true,
             mass: starSize * 1000,
-            temperature: starTemp
+            temperature: starTemp,
+            type: 'star'
         };
-        
+
         // Initialize 12D CST state
         initialize12DState(star, 'star', {
             mass: starSize * 1000,
             radius: starSize,
             velocity: new THREE.Vector3(0, 0, 0)
         });
-        
+
         this.scene.add(star);
         this.activeStar = star;
+
+        // Add star corona (glow/pulsation)
+        this.createStarCorona(star, starColor, starTemp, starSize);
 
         // Add star light
         const starLight = new THREE.PointLight(starColor, 2, 10000, 2);
         starLight.position.copy(star.position);
         this.scene.add(starLight);
 
-        // Generate planets
+        // Generate planets with atmospheres and optional rings
         const planetCount = 3 + Math.floor(this.prng() * 7);
         for (let i = 0; i < planetCount; i++) {
             this.createPlanet(starSize, i);
         }
 
-        // Create starfield
+        // Create nebula (volumetric fog)
+        this.createNebula(starColor);
+
+        // Create starfield background
         this.createStarfield(10000, 50000, 2);
 
+        // Add asteroid belts (between some planets)
+        if (this.planets.length > 2) {
+            this.createAsteroidBelt(this.planets[1].position.length(), 50, 200);
+        }
+
+        // Add occasional black hole
+        if (this.prng() > 0.7) {
+            this.createBlackHole(new THREE.Vector3(
+                (this.prng() - 0.5) * 3000,
+                (this.prng() - 0.5) * 1000,
+                (this.prng() - 0.5) * 3000
+            ));
+        }
+
+        // Create Genesis Lattice (cosmic scaffold)
+        this.createGenesisLattice();
+
         this.eventBus.publish('logger:ledger', {
-            message: `Generated universe with ${planetCount} planets`,
+            message: `Generated universe with ${planetCount} planets, ${this.asteroidBelts.length} asteroid belts, ${this.blackHoles.length} black holes`,
             starTemp,
-            planetCount
+            planetCount,
+            asteroidBelts: this.asteroidBelts.length,
+            blackHoles: this.blackHoles.length
         });
+    }
+
+    createStarCorona(star, color, temp, size) {
+        const tNorm = (temp - 2000) / 18000; // Normalize temperature
+        const coronaGeo = new THREE.SphereGeometry(size * 1.3, 64, 64);
+        const coronaMat = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0.0 },
+                baseColor: { value: color },
+                intensity: { value: 0.6 + 0.8 * tNorm },
+                noiseScale: { value: 1.5 + 2.5 * tNorm }
+            },
+            vertexShader: `
+                varying vec3 vPos;
+                varying vec3 vNormal;
+                void main() {
+                    vPos = position;
+                    vNormal = normalize(normalMatrix * normal);
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vPos;
+                varying vec3 vNormal;
+                uniform vec3 baseColor;
+                uniform float intensity;
+                uniform float noiseScale;
+                uniform float time;
+
+                float noise(vec3 p) {
+                    return fract(sin(dot(p, vec3(12.9898, 78.233, 151.7182))) * 43758.5453);
+                }
+
+                float fbm(vec3 p) {
+                    float f = 0.0;
+                    f += 0.5000 * noise(p);
+                    p *= 2.02;
+                    f += 0.2500 * noise(p + time * 0.05);
+                    p *= 2.03;
+                    f += 0.1250 * noise(p - time * 0.04);
+                    return f;
+                }
+
+                void main() {
+                    float rim = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 3.0);
+                    float n = fbm(vPos * noiseScale);
+                    vec3 c = baseColor * (0.6 + 0.6 * n) * intensity;
+                    gl_FragColor = vec4(c, rim * (0.4 + 0.6 * n));
+                }
+            `,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+            depthWrite: false,
+            side: THREE.BackSide
+        });
+        const corona = new THREE.Mesh(coronaGeo, coronaMat);
+        corona.userData = { isGenerated: true, isStarCorona: true, type: 'corona' };
+        star.add(corona);
+        star.userData.corona = corona;
     }
 
     createPlanet(starSize, index) {
@@ -4435,9 +4536,10 @@ class ProceduralGenerationEngine {
             isGenerated: true,
             isPlanet: true,
             mass: planetSize * 100,
-            velocity: velocity
+            velocity: velocity,
+            type: 'planet'
         };
-        
+
         // Initialize 12D CST state
         initialize12DState(planet, 'planet', {
             mass: planetSize * 100,
@@ -4447,26 +4549,322 @@ class ProceduralGenerationEngine {
 
         this.scene.add(planet);
         this.planets.push(planet);
+
+        // Add atmosphere to some planets
+        if (this.prng() > 0.4) {
+            this.createPlanetAtmosphere(planet, planetSize);
+        }
+
+        // Add rings to some planets
+        if (this.prng() > 0.7 && planetSize > 5) {
+            this.createPlanetaryRings(planet, planetSize);
+        }
+    }
+
+    createPlanetAtmosphere(planet, planetSize) {
+        const atmosphereMat = new THREE.ShaderMaterial({
+            uniforms: {
+                baseColor: { value: planet.material.color.clone() },
+                intensity: { value: 0.5 }
+            },
+            vertexShader: `
+                varying vec3 vNormal;
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vNormal;
+                uniform vec3 baseColor;
+                uniform float intensity;
+                void main() {
+                    float rim = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 2.5);
+                    gl_FragColor = vec4(baseColor * intensity, rim * 0.6);
+                }
+            `,
+            blending: THREE.AdditiveBlending,
+            side: THREE.BackSide,
+            transparent: true,
+            depthWrite: false
+        });
+        const atmosphere = new THREE.Mesh(
+            new THREE.SphereGeometry(planetSize * 1.1, 32, 32),
+            atmosphereMat
+        );
+        atmosphere.userData = { isGenerated: true, isAtmosphere: true, type: 'atmosphere' };
+        planet.add(atmosphere);
+    }
+
+    createPlanetaryRings(planet, planetSize) {
+        const ringGeo = new THREE.RingGeometry(planetSize * 1.5, planetSize * 2.5, 64);
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: new THREE.Color().setHSL(this.prng(), 0.3, 0.7),
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.6
+        });
+        const rings = new THREE.Mesh(ringGeo, ringMat);
+        rings.rotation.x = Math.PI / 2 + (this.prng() - 0.5) * 0.3;
+        rings.userData = { isGenerated: true, isPlanetRing: true, type: 'rings' };
+        planet.add(rings);
+    }
+
+    createNebula(baseColor) {
+        const nebulaMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                baseColor: { value: baseColor },
+                noiseScale: { value: 2.0 + this.prng() * 3.0 },
+                density: { value: 0.3 + this.prng() * 0.4 }
+            },
+            vertexShader: `
+                varying vec3 vPosition;
+                void main() {
+                    vPosition = position;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float time;
+                uniform vec3 baseColor;
+                uniform float noiseScale;
+                uniform float density;
+                varying vec3 vPosition;
+
+                vec3 hash(vec3 p) {
+                    p = vec3(dot(p, vec3(127.1, 311.7, 74.7)),
+                             dot(p, vec3(269.5, 183.3, 246.1)),
+                             dot(p, vec3(113.5, 271.9, 124.6)));
+                    return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+                }
+
+                float noise(in vec3 p) {
+                    vec3 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f);
+                    return mix(mix(mix(dot(hash(i + vec3(0,0,0)), f - vec3(0,0,0)),
+                                       dot(hash(i + vec3(1,0,0)), f - vec3(1,0,0)), u.x),
+                                   mix(dot(hash(i + vec3(0,1,0)), f - vec3(0,1,0)),
+                                       dot(hash(i + vec3(1,1,0)), f - vec3(1,1,0)), u.x), u.y),
+                               mix(mix(dot(hash(i + vec3(0,0,1)), f - vec3(0,0,1)),
+                                       dot(hash(i + vec3(1,0,1)), f - vec3(1,0,1)), u.x),
+                                   mix(dot(hash(i + vec3(0,1,1)), f - vec3(0,1,1)),
+                                       dot(hash(i + vec3(1,1,1)), f - vec3(1,1,1)), u.x), u.y), u.z);
+                }
+
+                float fbm(vec3 p) {
+                    float f = 0.0;
+                    f += 0.5000 * noise(p); p *= 2.02;
+                    f += 0.2500 * noise(p); p *= 2.03;
+                    f += 0.1250 * noise(p);
+                    return f;
+                }
+
+                void main() {
+                    vec3 pos = vPosition / (8000.0 / noiseScale);
+                    pos.x += time * 0.01;
+                    float noiseVal = fbm(pos);
+                    gl_FragColor = vec4(baseColor * noiseVal * 2.0, noiseVal * density);
+                }
+            `,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            side: THREE.BackSide
+        });
+        const nebula = new THREE.Mesh(new THREE.SphereGeometry(8000, 32, 32), nebulaMaterial);
+        nebula.userData = { isGenerated: true, isNebula: true, type: 'nebula' };
+        this.scene.add(nebula);
+        this.nebula = nebula;
     }
 
     createStarfield(count, spread, size) {
         const positions = [];
+        const colors = [];
         for (let i = 0; i < count; i++) {
             positions.push(
                 THREE.MathUtils.randFloatSpread(spread),
                 THREE.MathUtils.randFloatSpread(spread),
                 THREE.MathUtils.randFloatSpread(spread)
             );
+            const c = new THREE.Color().setHSL(this.prng(), 0.2, 0.8 + this.prng() * 0.2);
+            colors.push(c.r, c.g, c.b);
         }
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-        const material = new THREE.PointsMaterial({ color: 0xffffff, size, transparent: true, opacity: 0.8 });
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        const material = new THREE.PointsMaterial({
+            size,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.8
+        });
         this.particles = new THREE.Points(geometry, material);
-        this.particles.userData.isGenerated = true;
+        this.particles.userData = { isGenerated: true, type: 'starfield' };
         this.scene.add(this.particles);
     }
 
+    createAsteroidBelt(radius, count, spread) {
+        const asteroids = [];
+        for (let i = 0; i < count; i++) {
+            const angle = (i / count) * Math.PI * 2;
+            const r = radius + (this.prng() - 0.5) * spread;
+            const size = 0.5 + this.prng() * 2;
+
+            const asteroid = new THREE.Mesh(
+                new THREE.DodecahedronGeometry(size, 0),
+                new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.9 })
+            );
+            asteroid.position.set(
+                Math.cos(angle) * r,
+                (this.prng() - 0.5) * 20,
+                Math.sin(angle) * r
+            );
+            asteroid.userData = {
+                isGenerated: true,
+                isAsteroid: true,
+                type: 'asteroid',
+                velocity: new THREE.Vector3(
+                    -Math.sin(angle) * 0.1,
+                    0,
+                    Math.cos(angle) * 0.1
+                )
+            };
+            this.scene.add(asteroid);
+            asteroids.push(asteroid);
+        }
+        this.asteroidBelts.push(asteroids);
+    }
+
+    createBlackHole(position) {
+        const bhSize = 8 + this.prng() * 12;
+        const blackHole = new THREE.Mesh(
+            new THREE.SphereGeometry(bhSize, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0x000000 })
+        );
+        blackHole.position.copy(position);
+        blackHole.userData = {
+            isGenerated: true,
+            isBlackHole: true,
+            type: 'blackhole',
+            mass: bhSize * 10000
+        };
+
+        initialize12DState(blackHole, 'blackhole', {
+            mass: bhSize * 10000,
+            radius: bhSize,
+            velocity: new THREE.Vector3(0, 0, 0)
+        });
+
+        // Create accretion disk
+        const diskGeo = new THREE.RingGeometry(bhSize * 1.5, bhSize * 4, 64);
+        const diskMat = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0.0 },
+                innerRadius: { value: bhSize * 1.5 },
+                outerRadius: { value: bhSize * 4 }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                varying vec3 vPosition;
+                void main() {
+                    vUv = uv;
+                    vPosition = position;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float time;
+                uniform float innerRadius;
+                uniform float outerRadius;
+                varying vec2 vUv;
+                varying vec3 vPosition;
+
+                void main() {
+                    float dist = length(vPosition);
+                    float normDist = (dist - innerRadius) / (outerRadius - innerRadius);
+
+                    // Animated turbulence
+                    float angle = atan(vPosition.y, vPosition.x) + time * 0.5;
+                    float turbulence = sin(angle * 8.0 + time) * 0.5 + 0.5;
+
+                    // Color gradient: orange -> purple
+                    vec3 innerColor = vec3(1.0, 0.4, 0.1);
+                    vec3 outerColor = vec3(0.5, 0.1, 0.8);
+                    vec3 color = mix(innerColor, outerColor, normDist) * (0.8 + turbulence * 0.4);
+
+                    float alpha = (1.0 - normDist) * 0.8;
+                    gl_FragColor = vec4(color, alpha);
+                }
+            `,
+            side: THREE.DoubleSide,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const disk = new THREE.Mesh(diskGeo, diskMat);
+        disk.rotation.x = Math.PI / 2;
+        disk.userData = { isGenerated: true, isAccretionDisk: true, type: 'accretion_disk' };
+        blackHole.add(disk);
+        blackHole.userData.accretionDisk = disk;
+
+        this.scene.add(blackHole);
+        this.blackHoles.push(blackHole);
+    }
+
+    createGenesisLattice() {
+        const latticeGroup = new THREE.Group();
+        const gridSize = 20;
+        const spacing = 500;
+        const material = new THREE.LineBasicMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.15
+        });
+
+        for (let i = -gridSize; i <= gridSize; i++) {
+            // X-axis lines
+            const geomX = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(i * spacing, -gridSize * spacing, -gridSize * spacing),
+                new THREE.Vector3(i * spacing, gridSize * spacing, gridSize * spacing)
+            ]);
+            latticeGroup.add(new THREE.Line(geomX, material));
+
+            // Y-axis lines
+            const geomY = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(-gridSize * spacing, i * spacing, -gridSize * spacing),
+                new THREE.Vector3(gridSize * spacing, i * spacing, gridSize * spacing)
+            ]);
+            latticeGroup.add(new THREE.Line(geomY, material));
+
+            // Z-axis lines
+            const geomZ = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(-gridSize * spacing, -gridSize * spacing, i * spacing),
+                new THREE.Vector3(gridSize * spacing, gridSize * spacing, i * spacing)
+            ]);
+            latticeGroup.add(new THREE.Line(geomZ, material));
+        }
+
+        latticeGroup.userData = { isGenerated: true, isGenesisLattice: true, type: 'lattice' };
+        this.scene.add(latticeGroup);
+        this.genesisLattice = latticeGroup;
+    }
+
     updatePhysics(delta) {
+        // Update animated shaders
+        if (this.activeStar && this.activeStar.userData.corona) {
+            this.activeStar.userData.corona.material.uniforms.time.value += delta;
+        }
+
+        if (this.nebula) {
+            this.nebula.material.uniforms.time.value += delta;
+        }
+
+        this.blackHoles.forEach(bh => {
+            if (bh.userData.accretionDisk) {
+                bh.userData.accretionDisk.material.uniforms.time.value += delta;
+            }
+        });
+
         // Simple gravitational physics for planets
         if (!this.activeStar) return;
 
@@ -4480,7 +4878,7 @@ class ProceduralGenerationEngine {
 
                 const distVec = body.position.clone().sub(planet.position);
                 const distSq = distVec.lengthSq();
-                if (distSq < 1) return; // Avoid division by zero
+                if (distSq < 1) return;
 
                 const forceMag = (this.G * body.userData.mass * planet.userData.mass) / distSq;
                 const force = distVec.normalize().multiplyScalar(forceMag);
@@ -4493,6 +4891,15 @@ class ProceduralGenerationEngine {
 
             // Rotate planets
             planet.rotation.y += delta * 0.1;
+        });
+
+        // Update asteroids
+        this.asteroidBelts.forEach(belt => {
+            belt.forEach(asteroid => {
+                asteroid.position.add(asteroid.userData.velocity);
+                asteroid.rotation.x += delta * 0.5;
+                asteroid.rotation.y += delta * 0.3;
+            });
         });
     }
 
@@ -4518,18 +4925,22 @@ class ProceduralGenerationEngine {
 
         this.planets = [];
         this.blackHoles = [];
+        this.asteroidBelts = [];
+        this.comets = [];
         this.activeStar = null;
+        this.nebula = null;
+        this.genesisLattice = null;
     }
 
     /**
-     * Get all entities for CST computation
-     * FROM: CLAUDE_CODE_INTEGRATION_PROMPT.md Phase 8
+     * Get all entities for CST computation with full 12D state
      */
     getEntities() {
         const entities = [];
         if (this.activeStar) entities.push(this.activeStar);
         entities.push(...this.planets);
         entities.push(...this.blackHoles);
+        this.asteroidBelts.forEach(belt => entities.push(...belt));
         if (this.particles && this.particles.userData.isGenerated) {
             entities.push(this.particles);
         }
@@ -4537,106 +4948,465 @@ class ProceduralGenerationEngine {
     }
 
     /**
-     * Set visibility for mode switching
+     * Set visibility by entity type
      */
-    setVisible(visible) {
-        if (this.activeStar) this.activeStar.visible = visible;
-        this.planets.forEach(p => p.visible = visible);
-        this.blackHoles.forEach(bh => bh.visible = visible);
-        if (this.particles) this.particles.visible = visible;
+    setVisible(entityType, visible) {
+        if (entityType === undefined) {
+            // Legacy support: set all visible
+            this.setVisible('stars', visible);
+            this.setVisible('planets', visible);
+            this.setVisible('blackholes', visible);
+            this.setVisible('nebula', visible);
+            this.setVisible('starfield', visible);
+            this.setVisible('asteroids', visible);
+            this.setVisible('lattice', visible);
+            return;
+        }
+
+        this.visibility[entityType] = visible;
+
+        switch(entityType) {
+            case 'stars':
+                if (this.activeStar) this.activeStar.visible = visible;
+                break;
+            case 'planets':
+                this.planets.forEach(p => p.visible = visible);
+                break;
+            case 'blackholes':
+                this.blackHoles.forEach(bh => bh.visible = visible);
+                break;
+            case 'nebula':
+                if (this.nebula) this.nebula.visible = visible;
+                break;
+            case 'starfield':
+                if (this.particles) this.particles.visible = visible;
+                break;
+            case 'asteroids':
+                this.asteroidBelts.forEach(belt => belt.forEach(a => a.visible = visible));
+                break;
+            case 'lattice':
+                if (this.genesisLattice) this.genesisLattice.visible = visible;
+                break;
+        }
     }
 }
 
 // =====================================================================================
-// QUANTUM EVENT MANAGER (QEM) - Soul Dust Particles
+// QUANTUM EVENT MANAGER (QEM) - Soul Dust Particles with Genealogy & Coalescence
 // =====================================================================================
 class QuantumEventManager {
     constructor(eventBus, scene) {
         this.eventBus = eventBus;
         this.scene = scene;
-        this.particleCount = 10000;
+        this.maxParticles = 10000;
+        this.particleCount = 0;
+
+        // Soul Dust registry with full 12D state
+        this.soulDust = new Map(); // uuid -> particle data
+
+        // Genealogy tracking
+        this.genealogyTree = new Map(); // uuid -> { parent, children[] }
+
+        // Coalescence parameters
+        this.PSI_CRITICAL = 2.5; // Critical ψ for coalescence
+        this.MERGE_DISTANCE = 5.0; // Proximity threshold
 
         // Create instanced particle system
         this.createParticleSystem();
 
+        // Subscribe to audio events for spawning
+        this.eventBus.subscribe('audio:update', (data) => this.onAudioUpdate(data));
+
         this.time = 0;
+        this.telemetryLog = [];
     }
 
     createParticleSystem() {
         const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(this.particleCount * 3);
-        const colors = new Float32Array(this.particleCount * 3);
-        const frequencies = new Float32Array(this.particleCount);
+        const positions = new Float32Array(this.maxParticles * 3);
+        const colors = new Float32Array(this.maxParticles * 3);
+        const sizes = new Float32Array(this.maxParticles);
+        const energies = new Float32Array(this.maxParticles);
+        const ages = new Float32Array(this.maxParticles);
 
-        for (let i = 0; i < this.particleCount; i++) {
+        // Initialize with inactive particles
+        for (let i = 0; i < this.maxParticles; i++) {
             const i3 = i * 3;
-
-            // Random position in space
-            positions[i3] = (Math.random() - 0.5) * 2000;
-            positions[i3 + 1] = (Math.random() - 0.5) * 2000;
-            positions[i3 + 2] = (Math.random() - 0.5) * 2000;
-
-            // Random frequency (20 Hz - 20 kHz)
-            const freq = 20 + Math.random() * 19980;
-            frequencies[i] = freq;
-
-            // Convert frequency to RGB color
-            const color = freqToRgb(freq);
-            colors[i3] = color.r;
-            colors[i3 + 1] = color.g;
-            colors[i3 + 2] = color.b;
+            positions[i3] = 0;
+            positions[i3 + 1] = 0;
+            positions[i3 + 2] = 0;
+            colors[i3] = 0;
+            colors[i3 + 1] = 0;
+            colors[i3 + 2] = 0;
+            sizes[i] = 0;
+            energies[i] = 0;
+            ages[i] = 0;
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        geometry.setAttribute('frequency', new THREE.BufferAttribute(frequencies, 1));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+        geometry.setAttribute('energy', new THREE.BufferAttribute(energies, 1));
+        geometry.setAttribute('age', new THREE.BufferAttribute(ages, 1));
 
         const material = new THREE.PointsMaterial({
-            size: 3,
             vertexColors: true,
             transparent: true,
             opacity: 0.8,
             blending: THREE.AdditiveBlending,
-            depthWrite: false
+            depthWrite: false,
+            sizeAttenuation: true
         });
+
+        // Custom shader for size based on energy
+        material.onBeforeCompile = (shader) => {
+            shader.vertexShader = shader.vertexShader.replace(
+                'gl_PointSize = size;',
+                `
+                attribute float energy;
+                attribute float age;
+                gl_PointSize = size * (0.5 + energy * 0.5) * (1.0 - age * 0.3);
+                `
+            );
+        };
 
         this.particleMesh = new THREE.Points(geometry, material);
         this.particleMesh.frustumCulled = false;
         this.scene.add(this.particleMesh);
     }
 
+    onAudioUpdate(audioData) {
+        // Spawn Soul Dust from audio spectral input
+        if (!audioData || !audioData.spectralBands) return;
+
+        const { spectralBands, avgFreq } = audioData;
+
+        // Spawn particles based on spectral energy
+        spectralBands.forEach((bandEnergy, bandIndex) => {
+            if (bandEnergy > 128 && Math.random() < bandEnergy / 512) {
+                // Calculate frequency for this band
+                const freq = 20 + (bandIndex / spectralBands.length) * 19980;
+
+                // Spawn near camera or audio source
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 50 + Math.random() * 200;
+                const position = new THREE.Vector3(
+                    Math.cos(angle) * radius,
+                    (Math.random() - 0.5) * 100,
+                    Math.sin(angle) * radius
+                );
+
+                this.spawnSoulDust(position, freq, bandEnergy / 255, null);
+            }
+        });
+    }
+
+    spawnSoulDust(position, frequency, energy = 1.0, parentUUID = null) {
+        if (this.particleCount >= this.maxParticles) {
+            // Recycle oldest particle
+            this.recycleOldestParticle();
+        }
+
+        const uuid = generateUUID();
+        const index = this.particleCount;
+        const i3 = index * 3;
+
+        // Calculate color from frequency
+        const color = freqToRgb(frequency);
+
+        // Update geometry attributes
+        const positions = this.particleMesh.geometry.attributes.position.array;
+        const colors = this.particleMesh.geometry.attributes.color.array;
+        const sizes = this.particleMesh.geometry.attributes.size.array;
+        const energies = this.particleMesh.geometry.attributes.energy.array;
+        const ages = this.particleMesh.geometry.attributes.age.array;
+
+        positions[i3] = position.x;
+        positions[i3 + 1] = position.y;
+        positions[i3 + 2] = position.z;
+        colors[i3] = color.r;
+        colors[i3 + 1] = color.g;
+        colors[i3 + 2] = color.b;
+        sizes[index] = 3 + energy * 4;
+        energies[index] = energy;
+        ages[index] = 0;
+
+        // Calculate wavelength from frequency
+        const wavelength = (299792458 / frequency) * 1e9; // nm
+
+        // Initialize full 12D state
+        const h12 = new Float32Array(12);
+        h12[0] = position.x / 100; // Spatial (normalized)
+        h12[1] = position.y / 100;
+        h12[2] = position.z / 100;
+        h12[3] = (Math.random() - 0.5) * 0.1; // Velocity
+        h12[4] = (Math.random() - 0.5) * 0.1;
+        h12[5] = (Math.random() - 0.5) * 0.1;
+        h12[6] = 0; // Temporal (age)
+        h12[7] = frequency / 20000; // Audio (normalized freq)
+        h12[8] = Math.random(); // Chaos
+        h12[9] = (frequency - 20) / 19980; // Spectral
+        h12[10] = energy; // Energy
+        h12[11] = 0; // Field coupling
+
+        // Store particle data
+        const particleData = {
+            uuid,
+            index,
+            position: position.clone(),
+            velocity: new THREE.Vector3(h12[3], h12[4], h12[5]),
+            frequency,
+            wavelength,
+            energy,
+            age: 0,
+            maxAge: 10 + Math.random() * 20,
+            h12,
+            x12: new Float32Array(12),
+            m12: new Float32Array(12),
+            mass: energy * 0.1,
+            radius: sizes[index],
+            connectivity: 0,
+            psi: 0,
+            parentUUID
+        };
+
+        this.soulDust.set(uuid, particleData);
+        this.particleCount++;
+
+        // Update genealogy
+        this.genealogyTree.set(uuid, { parent: parentUUID, children: [] });
+        if (parentUUID && this.genealogyTree.has(parentUUID)) {
+            this.genealogyTree.get(parentUUID).children.push(uuid);
+        }
+
+        // Log telemetry
+        this.logTelemetry({
+            event: 'birth',
+            uuid,
+            frequency,
+            wavelength,
+            energy,
+            parentUUID,
+            timestamp: Date.now()
+        });
+
+        return uuid;
+    }
+
+    recycleOldestParticle() {
+        // Find and remove oldest particle
+        let oldest = null;
+        let maxAge = -1;
+
+        for (const [uuid, data] of this.soulDust.entries()) {
+            if (data.age > maxAge) {
+                maxAge = data.age;
+                oldest = uuid;
+            }
+        }
+
+        if (oldest) {
+            this.removeSoulDust(oldest, 'decay');
+        }
+    }
+
+    removeSoulDust(uuid, reason = 'decay') {
+        const particle = this.soulDust.get(uuid);
+        if (!particle) return;
+
+        // Log telemetry
+        this.logTelemetry({
+            event: reason,
+            uuid,
+            age: particle.age,
+            energy: particle.energy,
+            timestamp: Date.now()
+        });
+
+        // Clear geometry data
+        const i3 = particle.index * 3;
+        const positions = this.particleMesh.geometry.attributes.position.array;
+        const sizes = this.particleMesh.geometry.attributes.size.array;
+
+        positions[i3] = 0;
+        positions[i3 + 1] = 0;
+        positions[i3 + 2] = 0;
+        sizes[particle.index] = 0;
+
+        // Remove from registry
+        this.soulDust.delete(uuid);
+        this.genealogyTree.delete(uuid);
+    }
+
+    checkCoalescence() {
+        // Check for proximity-based merging
+        const particles = Array.from(this.soulDust.values());
+
+        for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+                const p1 = particles[i];
+                const p2 = particles[j];
+
+                const dist = p1.position.distanceTo(p2.position);
+
+                if (dist < this.MERGE_DISTANCE) {
+                    // Calculate cluster ψ
+                    const psiCluster = p1.psi + p2.psi;
+
+                    if (psiCluster > this.PSI_CRITICAL) {
+                        // Merge particles
+                        this.mergeParticles(p1.uuid, p2.uuid);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    mergeParticles(uuid1, uuid2) {
+        const p1 = this.soulDust.get(uuid1);
+        const p2 = this.soulDust.get(uuid2);
+
+        if (!p1 || !p2) return;
+
+        // Create new particle at midpoint with combined properties
+        const newPos = p1.position.clone().add(p2.position).multiplyScalar(0.5);
+        const newFreq = (p1.frequency + p2.frequency) / 2;
+        const newEnergy = Math.min(1.0, p1.energy + p2.energy);
+
+        // Spawn child particle
+        const childUUID = this.spawnSoulDust(newPos, newFreq, newEnergy, uuid1);
+
+        // Log coalescence
+        this.logTelemetry({
+            event: 'coalescence',
+            parent1: uuid1,
+            parent2: uuid2,
+            child: childUUID,
+            energyCombined: newEnergy,
+            timestamp: Date.now()
+        });
+
+        // Remove parent particles
+        this.removeSoulDust(uuid1, 'merged');
+        this.removeSoulDust(uuid2, 'merged');
+    }
+
     update(delta) {
         this.time += delta;
 
-        // Simple swirl animation
         const positions = this.particleMesh.geometry.attributes.position.array;
-        const count = this.particleCount;
+        const colors = this.particleMesh.geometry.attributes.color.array;
+        const energies = this.particleMesh.geometry.attributes.energy.array;
+        const ages = this.particleMesh.geometry.attributes.ages.array;
 
-        for (let i = 0; i < count; i++) {
-            const i3 = i * 3;
+        // Update each soul dust particle
+        for (const [uuid, particle] of this.soulDust.entries()) {
+            const i3 = particle.index * 3;
+
+            // Update age
+            particle.age += delta;
+            const ageRatio = particle.age / particle.maxAge;
+
+            // Decay old particles
+            if (ageRatio >= 1.0) {
+                this.removeSoulDust(uuid, 'decay');
+                continue;
+            }
+
+            // Swirl dynamics driven by CST ψ potential
+            const swirlStrength = STATE.params.lambda * 0.5;
             const x = positions[i3];
             const y = positions[i3 + 1];
             const z = positions[i3 + 2];
 
-            // Circular motion
-            const angle = this.time * 0.1 + (x + z) * 0.001;
+            // Circular motion with ψ influence
             const radius = Math.sqrt(x * x + z * z);
+            const angle = this.time * (0.1 + particle.energy * 0.2) + (x + z) * 0.001;
+            const psiInfluence = Math.sin(particle.psi * 10 + this.time) * swirlStrength;
 
-            positions[i3] = Math.cos(angle) * radius;
-            positions[i3 + 2] = Math.sin(angle) * radius;
+            particle.velocity.x = Math.cos(angle) * radius * 0.001 + psiInfluence;
+            particle.velocity.z = Math.sin(angle) * radius * 0.001 + psiInfluence;
+            particle.velocity.y += Math.sin(this.time + particle.h12[7] * 10) * 0.01;
+
+            // Update position
+            particle.position.add(particle.velocity);
+            positions[i3] = particle.position.x;
+            positions[i3 + 1] = particle.position.y;
+            positions[i3 + 2] = particle.position.z;
+
+            // Update 12D state
+            particle.h12[0] = particle.position.x / 100;
+            particle.h12[1] = particle.position.y / 100;
+            particle.h12[2] = particle.position.z / 100;
+            particle.h12[3] = particle.velocity.x;
+            particle.h12[4] = particle.velocity.y;
+            particle.h12[5] = particle.velocity.z;
+            particle.h12[6] = ageRatio;
+
+            // Fade out with age
+            const fadeOut = 1.0 - ageRatio * 0.5;
+            const color = freqToRgb(particle.frequency);
+            colors[i3] = color.r * fadeOut;
+            colors[i3 + 1] = color.g * fadeOut;
+            colors[i3 + 2] = color.b * fadeOut;
+
+            energies[particle.index] = particle.energy * fadeOut;
         }
 
+        // Mark geometry for update
         this.particleMesh.geometry.attributes.position.needsUpdate = true;
+        this.particleMesh.geometry.attributes.color.needsUpdate = true;
+        this.particleMesh.geometry.attributes.energy.needsUpdate = true;
+
+        // Check coalescence every few frames
+        if (Math.random() < 0.1) {
+            this.checkCoalescence();
+        }
+    }
+
+    logTelemetry(data) {
+        this.telemetryLog.push(data);
+
+        // Keep last 1000 entries
+        if (this.telemetryLog.length > 1000) {
+            this.telemetryLog.shift();
+        }
+
+        // Publish to EventBus for UI display
+        this.eventBus.publish('logger:telemetry', data);
+    }
+
+    getTelemetryLog() {
+        return this.telemetryLog;
+    }
+
+    getGenealogyTree(uuid) {
+        return this.genealogyTree.get(uuid);
     }
 
     /**
-     * Get all entities for CST computation
-     * FROM: CLAUDE_CODE_INTEGRATION_PROMPT.md Phase 8
+     * Get all entities for CST computation with full 12D state
      */
     getEntities() {
-        // For instanced particles, return the mesh itself
-        // Individual particles can be accessed via geometry attributes
-        return this.particleMesh ? [this.particleMesh] : [];
+        // Return individual soul dust particles with their 12D state
+        const entities = [];
+        for (const particle of this.soulDust.values()) {
+            entities.push({
+                position: particle.position,
+                userData: {
+                    uuid: particle.uuid,
+                    h12: particle.h12,
+                    x12: particle.x12,
+                    m12: particle.m12,
+                    mass: particle.mass,
+                    radius: particle.radius,
+                    connectivity: particle.connectivity,
+                    type: 'soul_dust'
+                }
+            });
+        }
+        return entities;
     }
 
     /**
@@ -5379,31 +6149,57 @@ class CSTComputeEngine {
      */
     updateEntityState(entity, deltaTime) {
         if (!entity.userData || !entity.userData.h12) return;
-        
+
         // Update x12 based on physics/interactions
         // For now, sync with position/velocity
         entity.userData.x12[0] = entity.position.x / 100;
         entity.userData.x12[1] = entity.position.y / 100;
         entity.userData.x12[2] = entity.position.z / 100;
-        
+
         if (entity.userData.velocity) {
             entity.userData.x12[3] = entity.userData.velocity.x;
             entity.userData.x12[4] = entity.userData.velocity.y;
             entity.userData.x12[5] = entity.userData.velocity.z;
         }
-        
+
         // Update m12 with EMA: m12(t) = α·x12(t) + (1-α)·m12(t-1)
         const alpha = entity.userData.memoryAlpha || 0.1;
         for (let i = 0; i < 12; i++) {
             entity.userData.m12[i] = alpha * entity.userData.x12[i] + (1 - alpha) * entity.userData.m12[i];
         }
-        
+
         // Update h12 (state vector) - sync with x12 for now
         entity.userData.h12.set(entity.userData.x12);
-        
+
         // Update connectivity Ωᵢ (simplified heuristic)
         // In full implementation, this would compute graph Laplacian
         entity.userData.connectivity = Math.random() * 0.1; // Placeholder
+
+        // Compute individual entity ψ (for Soul Dust coalescence)
+        if (entity.userData.type === 'soul_dust') {
+            this.computeEntityPsi(entity, STATE);
+        }
+    }
+
+    /**
+     * Compute individual entity ψ for Soul Dust particles
+     * Used for coalescence threshold checking
+     */
+    computeEntityPsi(entity, STATE) {
+        if (!entity.userData || !entity.userData.h12) return;
+
+        const { Ec, lambda, omega, U_grav } = STATE.params;
+
+        // Simplified per-particle ψ calculation
+        const energyTerm = Ec * (entity.userData.h12[10] || 0); // h12[10] = energy
+        const audioTerm = lambda * (entity.userData.h12[7] || 0); // h12[7] = audio
+        const spectralTerm = omega * (entity.userData.h12[9] || 0); // h12[9] = spectral
+        const chaosTerm = (entity.userData.h12[8] || 0) * 0.1; // h12[8] = chaos
+
+        // Sum for particle ψ
+        entity.userData.psi = energyTerm + audioTerm + spectralTerm + chaosTerm;
+
+        return entity.userData.psi;
     }
 }
 
