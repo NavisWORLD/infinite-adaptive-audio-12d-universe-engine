@@ -3686,6 +3686,18 @@
             this.aiModel = new QuantumAIModel();
             this.particlizer = new Particlizer(this.scene);
 
+            // Initialize new unified systems (from merge)
+            const seed = cyrb128(Date.now().toString() + navigator.userAgent);
+            this.prng = sfc32(...seed);
+            this.surfaceManager = new SurfaceManager(this.bus, this.scene, this.prng);
+            this.objectLibrary = new ObjectLibrary(this.bus, this.scene, this.prng);
+            this.volumetricDust = new VolumetricDust(this.scene, this.camera);
+            this.audioReactive = new AudioReactiveSystem(this.scene, this.bus);
+            this.memoryEcho = new MemoryEcho(this.scene, this.camera, this.bus);
+            this.soundBrush = new SoundBrush(this.scene, this.camera, this.bus);
+            this.psiOverlay = new PsiOverlay(this.bus, this.camera);
+            this.atmosphericEntry = new AtmosphericEntryEffect(this.camera, this.bus);
+
             // Initialize ProceduralAudioEngine
             const audioListener = this.camera.children.find(c => c.type === 'AudioListener');
             this.proceduralAudio = new ProceduralAudioEngine(audioListener);
@@ -3820,6 +3832,53 @@
             $('file-upload').addEventListener('change', (e) => {
                 if(e.target.files[0]) this.particlizer.particlize(e.target.files[0]);
             });
+
+            // Wire new unified system UI controls
+            // Motion Blur controls
+            const motionBlurToggle = $('motion-blur-toggle');
+            const motionBlurSlider = $('in-motion-blur');
+            const motionBlurValue = $('val-motion-blur');
+            if(motionBlurToggle) {
+                motionBlurToggle.addEventListener('change', (e) => {
+                    if(this.afterimagePass) this.afterimagePass.enabled = e.target.checked;
+                });
+            }
+            if(motionBlurSlider) {
+                motionBlurSlider.addEventListener('input', (e) => {
+                    if(this.afterimagePass) this.afterimagePass.uniforms.damp.value = parseFloat(e.target.value);
+                    if(motionBlurValue) motionBlurValue.textContent = e.target.value;
+                });
+            }
+
+            // Data & Telemetry download buttons
+            const downloadLedger = $('download-ledger-button');
+            const downloadTelemetry = $('download-telemetry-button');
+            if(downloadLedger) {
+                downloadLedger.addEventListener('click', () => this.dataLogger.download());
+            }
+            if(downloadTelemetry) {
+                downloadTelemetry.addEventListener('click', () => this.dataLogger.downloadTelemetry());
+            }
+
+            // Telemetry filter
+            const telemetryFilter = $('telemetry-filter');
+            if(telemetryFilter) {
+                telemetryFilter.addEventListener('input', (e) => {
+                    const filter = e.target.value.toLowerCase();
+                    const content = $('telemetry-log-content');
+                    if(!content) return;
+                    const entries = content.querySelectorAll('.telemetry-entry');
+                    entries.forEach(entry => {
+                        const text = entry.textContent.toLowerCase();
+                        entry.style.display = text.includes(filter) ? 'block' : 'none';
+                    });
+                });
+            }
+
+            // Surface build trigger
+            if(this.surfaceManager) {
+                this.surfaceManager.buildSurface();
+            }
         }
 
         async start() {
@@ -3980,6 +4039,15 @@
             this.aiLife.update(dt, audioData, this.mouse, this.isMouseDown);
             this.solarSystem.update(dt);
             this.particlizer.update(dt);
+
+            // Update new unified systems
+            this.objectLibrary.update(dt);
+            this.audioReactive.update(dt, audioData);
+            this.memoryEcho.update(dt);
+            this.soundBrush.update(dt);
+            this.psiOverlay.update(dt);
+            this.atmosphericEntry.update(dt, this.camera, this.solarSystem.planets || []);
+            this.volumetricDust.update(performance.now() / 1000, 1/dt, this.physicsParams.lambda);
 
             // Periodic ML detection (every 2 seconds)
             if (!this.lastMLDetection || Date.now() - this.lastMLDetection > 2000) {
