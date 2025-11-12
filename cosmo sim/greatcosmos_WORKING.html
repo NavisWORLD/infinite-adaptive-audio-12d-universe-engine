@@ -3642,7 +3642,198 @@
             this.filmPass = new ShaderPass(filmShader);
             this.composer.addPass(this.filmPass);
 
-            console.log('[PostProcessing] Advanced shader passes initialized');
+            // FXAA Anti-Aliasing Pass
+            const fxaaShader = {
+                uniforms: {
+                    tDiffuse: { value: null },
+                    resolution: { value: new THREE.Vector2(1.0 / window.innerWidth, 1.0 / window.innerHeight) }
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D tDiffuse;
+                    uniform vec2 resolution;
+                    varying vec2 vUv;
+
+                    void main() {
+                        vec4 color = texture2D(tDiffuse, vUv);
+                        vec3 rgbNW = texture2D(tDiffuse, vUv + vec2(-1.0, -1.0) * resolution).rgb;
+                        vec3 rgbNE = texture2D(tDiffuse, vUv + vec2(1.0, -1.0) * resolution).rgb;
+                        vec3 rgbSW = texture2D(tDiffuse, vUv + vec2(-1.0, 1.0) * resolution).rgb;
+                        vec3 rgbSE = texture2D(tDiffuse, vUv + vec2(1.0, 1.0) * resolution).rgb;
+                        vec3 rgbM = color.rgb;
+                        vec3 luma = vec3(0.299, 0.587, 0.114);
+                        float lumaNW = dot(rgbNW, luma);
+                        float lumaNE = dot(rgbNE, luma);
+                        float lumaSW = dot(rgbSW, luma);
+                        float lumaSE = dot(rgbSE, luma);
+                        float lumaM = dot(rgbM, luma);
+                        float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));
+                        float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));
+                        vec2 dir = vec2(-((lumaNW + lumaNE) - (lumaSW + lumaSE)), ((lumaNW + lumaSW) - (lumaNE + lumaSE)));
+                        float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) * 0.03125, 0.0078125);
+                        float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
+                        dir = min(vec2(8.0), max(vec2(-8.0), dir * rcpDirMin)) * resolution;
+                        vec3 rgbA = 0.5 * (texture2D(tDiffuse, vUv + dir * (1.0 / 3.0 - 0.5)).rgb + texture2D(tDiffuse, vUv + dir * (2.0 / 3.0 - 0.5)).rgb);
+                        vec3 rgbB = rgbA * 0.5 + 0.25 * (texture2D(tDiffuse, vUv + dir * -0.5).rgb + texture2D(tDiffuse, vUv + dir * 0.5).rgb);
+                        float lumaB = dot(rgbB, luma);
+                        if ((lumaB < lumaMin) || (lumaB > lumaMax)) {
+                            gl_FragColor = vec4(rgbA, color.a);
+                        } else {
+                            gl_FragColor = vec4(rgbB, color.a);
+                        }
+                    }
+                `
+            };
+            this.fxaaPass = new ShaderPass(fxaaShader);
+            this.fxaaPass.enabled = true;
+            this.composer.addPass(this.fxaaPass);
+
+            // Pixelation Pass
+            const pixelationShader = {
+                uniforms: {
+                    tDiffuse: { value: null },
+                    resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+                    pixelSize: { value: 4.0 }
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D tDiffuse;
+                    uniform vec2 resolution;
+                    uniform float pixelSize;
+                    varying vec2 vUv;
+
+                    void main() {
+                        vec2 dxy = pixelSize / resolution;
+                        vec2 coord = dxy * floor(vUv / dxy);
+                        gl_FragColor = texture2D(tDiffuse, coord);
+                    }
+                `
+            };
+            this.pixelationPass = new ShaderPass(pixelationShader);
+            this.pixelationPass.enabled = false;
+            this.composer.addPass(this.pixelationPass);
+
+            // Toon/Cel Shading Pass
+            const toonShader = {
+                uniforms: {
+                    tDiffuse: { value: null },
+                    steps: { value: 4.0 }
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D tDiffuse;
+                    uniform float steps;
+                    varying vec2 vUv;
+
+                    void main() {
+                        vec4 color = texture2D(tDiffuse, vUv);
+                        float luminance = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
+                        luminance = floor(luminance * steps) / steps;
+                        color.rgb = color.rgb * (luminance / max(0.001, 0.299 * color.r + 0.587 * color.g + 0.114 * color.b));
+                        gl_FragColor = color;
+                    }
+                `
+            };
+            this.toonPass = new ShaderPass(toonShader);
+            this.toonPass.enabled = false;
+            this.composer.addPass(this.toonPass);
+
+            // RGB Shift/Chromatic Aberration Pass
+            const rgbShiftShader = {
+                uniforms: {
+                    tDiffuse: { value: null },
+                    amount: { value: 0.003 },
+                    angle: { value: 0.0 }
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D tDiffuse;
+                    uniform float amount;
+                    uniform float angle;
+                    varying vec2 vUv;
+
+                    void main() {
+                        vec2 offset = amount * vec2(cos(angle), sin(angle));
+                        vec4 cr = texture2D(tDiffuse, vUv + offset);
+                        vec4 cga = texture2D(tDiffuse, vUv);
+                        vec4 cb = texture2D(tDiffuse, vUv - offset);
+                        gl_FragColor = vec4(cr.r, cga.g, cb.b, cga.a);
+                    }
+                `
+            };
+            this.rgbShiftPass = new ShaderPass(rgbShiftShader);
+            this.rgbShiftPass.enabled = false;
+            this.composer.addPass(this.rgbShiftPass);
+
+            // Swirl/Vortex Distortion Pass
+            const swirlShader = {
+                uniforms: {
+                    tDiffuse: { value: null },
+                    center: { value: new THREE.Vector2(0.5, 0.5) },
+                    radius: { value: 0.5 },
+                    angle: { value: 0.0 }
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform sampler2D tDiffuse;
+                    uniform vec2 center;
+                    uniform float radius;
+                    uniform float angle;
+                    varying vec2 vUv;
+
+                    void main() {
+                        vec2 uv = vUv - center;
+                        float dist = length(uv);
+                        if (dist < radius) {
+                            float percent = (radius - dist) / radius;
+                            float theta = percent * percent * angle;
+                            float s = sin(theta);
+                            float c = cos(theta);
+                            uv = vec2(
+                                uv.x * c - uv.y * s,
+                                uv.x * s + uv.y * c
+                            );
+                        }
+                        uv += center;
+                        gl_FragColor = texture2D(tDiffuse, uv);
+                    }
+                `
+            };
+            this.swirlPass = new ShaderPass(swirlShader);
+            this.swirlPass.enabled = false;
+            this.composer.addPass(this.swirlPass);
+
+            console.log('[PostProcessing] Advanced shader passes initialized (Bloom, Godrays, Lensing, Afterimage, Vignette, Film, FXAA, Pixelation, Toon, RGB Shift, Swirl)');
 
             // PHASE 1 SYSTEMS - Initialize EventBus and DataLogger first
             this.eventBus = new EventBus();
@@ -3713,6 +3904,175 @@
             window.addEventListener('mousemove', this.onMouseMove.bind(this));
             document.addEventListener('keydown', (e) => this.spaceship.keys[e.code] = true);
             document.addEventListener('keyup', (e) => this.spaceship.keys[e.code] = false);
+
+            // Complete Hotkey System
+            this.devMode = false;
+            document.addEventListener('keydown', (e) => {
+                // Prevent default only for hotkeys we handle
+                const key = e.key.toLowerCase();
+
+                // H - Toggle UI visibility
+                if (key === 'h' && !e.repeat) {
+                    e.preventDefault();
+                    const controlPanel = document.getElementById('control-panel');
+                    if (controlPanel) {
+                        const isVisible = controlPanel.style.display !== 'none';
+                        controlPanel.style.display = isVisible ? 'none' : 'block';
+                        console.log(`UI ${isVisible ? 'hidden' : 'visible'}`);
+                        this.eventBus.emit('ui:toggle', { visible: !isVisible });
+                    }
+                }
+
+                // Ctrl+Alt+D - Dev Mode toggle
+                if (e.ctrlKey && e.altKey && key === 'd' && !e.repeat) {
+                    e.preventDefault();
+                    this.devMode = !this.devMode;
+                    console.log(`Dev Mode: ${this.devMode ? 'ON' : 'OFF'}`);
+                    this.eventBus.emit('dev:mode', { active: this.devMode });
+
+                    // Show additional debug info in dev mode
+                    if (this.devMode) {
+                        console.log('Dev Mode Features:');
+                        console.log('- Performance stats visible');
+                        console.log('- Event bus logging enabled');
+                        console.log('- Shader uniform inspection available');
+                    }
+                }
+
+                // Number keys 1-5 - View presets
+                if (key >= '1' && key <= '5' && !e.repeat && !e.ctrlKey && !e.altKey) {
+                    e.preventDefault();
+                    switch(key) {
+                        case '1':
+                            this.setView('galaxy');
+                            console.log('View: Galaxy');
+                            break;
+                        case '2':
+                            this.setView('solar_system');
+                            console.log('View: Solar System');
+                            break;
+                        case '3':
+                            this.setView('spaceship');
+                            console.log('View: Spaceship');
+                            break;
+                        case '4':
+                            if (this.surfaceManager) {
+                                this._applyMode('surface');
+                                console.log('Mode: Surface');
+                            }
+                            break;
+                        case '5':
+                            this._applyMode('echo');
+                            console.log('Mode: Echo');
+                            break;
+                    }
+                }
+
+                // Mode switching hotkeys (Ctrl+U/S/E)
+                if (e.ctrlKey && !e.repeat) {
+                    if (key === 'u') {
+                        e.preventDefault();
+                        this._applyMode('universe');
+                        console.log('Mode: Universe');
+                    } else if (key === 's') {
+                        e.preventDefault();
+                        if (this.surfaceManager) {
+                            this._applyMode('surface');
+                            console.log('Mode: Surface');
+                        }
+                    } else if (key === 'e') {
+                        e.preventDefault();
+                        this._applyMode('echo');
+                        console.log('Mode: Echo');
+                    }
+                }
+
+                // Post-processing effect toggles (Alt+Key)
+                if (e.altKey && !e.repeat) {
+                    switch(key) {
+                        case 'b': // Bloom
+                            e.preventDefault();
+                            if (this.bloomPass) {
+                                this.bloomPass.enabled = !this.bloomPass.enabled;
+                                console.log(`Bloom: ${this.bloomPass.enabled ? 'ON' : 'OFF'}`);
+                            }
+                            break;
+                        case 'g': // Godrays
+                            e.preventDefault();
+                            if (this.godrayPass) {
+                                this.godrayPass.enabled = !this.godrayPass.enabled;
+                                console.log(`Godrays: ${this.godrayPass.enabled ? 'ON' : 'OFF'}`);
+                            }
+                            break;
+                        case 'l': // Lensing
+                            e.preventDefault();
+                            if (this.lensingPass) {
+                                this.lensingPass.enabled = !this.lensingPass.enabled;
+                                console.log(`Lensing: ${this.lensingPass.enabled ? 'ON' : 'OFF'}`);
+                            }
+                            break;
+                        case 'm': // Motion blur (afterimage)
+                            e.preventDefault();
+                            if (this.afterimagePass) {
+                                this.afterimagePass.enabled = !this.afterimagePass.enabled;
+                                console.log(`Motion Blur: ${this.afterimagePass.enabled ? 'ON' : 'OFF'}`);
+                            }
+                            break;
+                        case 'v': // Vignette
+                            e.preventDefault();
+                            if (this.vignettePass) {
+                                this.vignettePass.enabled = !this.vignettePass.enabled;
+                                console.log(`Vignette: ${this.vignettePass.enabled ? 'ON' : 'OFF'}`);
+                            }
+                            break;
+                        case 'f': // Film grain
+                            e.preventDefault();
+                            if (this.filmPass) {
+                                this.filmPass.enabled = !this.filmPass.enabled;
+                                console.log(`Film Grain: ${this.filmPass.enabled ? 'ON' : 'OFF'}`);
+                            }
+                            break;
+                        case 'p': // Pixelation
+                            e.preventDefault();
+                            if (this.pixelationPass) {
+                                this.pixelationPass.enabled = !this.pixelationPass.enabled;
+                                console.log(`Pixelation: ${this.pixelationPass.enabled ? 'ON' : 'OFF'}`);
+                            }
+                            break;
+                        case 't': // Toon shading
+                            e.preventDefault();
+                            if (this.toonPass) {
+                                this.toonPass.enabled = !this.toonPass.enabled;
+                                console.log(`Toon Shading: ${this.toonPass.enabled ? 'ON' : 'OFF'}`);
+                            }
+                            break;
+                        case 'r': // RGB shift
+                            e.preventDefault();
+                            if (this.rgbShiftPass) {
+                                this.rgbShiftPass.enabled = !this.rgbShiftPass.enabled;
+                                console.log(`RGB Shift: ${this.rgbShiftPass.enabled ? 'ON' : 'OFF'}`);
+                            }
+                            break;
+                        case 'w': // Swirl
+                            e.preventDefault();
+                            if (this.swirlPass) {
+                                this.swirlPass.enabled = !this.swirlPass.enabled;
+                                console.log(`Swirl: ${this.swirlPass.enabled ? 'ON' : 'OFF'}`);
+                            }
+                            break;
+                    }
+                }
+
+                // C - Cleanup scene
+                if (key === 'c' && e.ctrlKey && e.shiftKey && !e.repeat) {
+                    e.preventDefault();
+                    this.cleanupScene();
+                    console.log('Scene cleanup triggered');
+                }
+            });
+
+            console.log('[Hotkeys] Complete hotkey system initialized');
+            console.log('Hotkeys: H=Toggle UI | 1-5=Views | Ctrl+U/S/E=Modes | Alt+B/G/L/M/V/F/P/T/R/W=Effects | Ctrl+Alt+D=Dev | Ctrl+Shift+C=Cleanup');
 
             // Wire event listeners for Phase 1 systems
             this.setupEventHandlers();
@@ -4059,6 +4419,34 @@
             }
 
             this.updateGalaxyHUD(this.aiLife.getStats());
+
+            // Update Telemetry UI
+            this.updateTelemetryUI();
+
+            // Update Surface HUD if in surface mode
+            if (this.currentMode === 'surface' || this.ui.surfaceHUD?.style.display === 'block') {
+                this.updateSurfaceHUD();
+            }
+
+            // Update additional post-processing uniforms
+            if (this.rgbShiftPass && this.rgbShiftPass.enabled) {
+                this.rgbShiftPass.uniforms.angle.value = elapsed * 0.5;
+                this.rgbShiftPass.uniforms.amount.value = 0.003 + audioData.bass * 0.002;
+            }
+
+            if (this.swirlPass && this.swirlPass.enabled) {
+                this.swirlPass.uniforms.angle.value = Math.sin(elapsed * 0.5) * 3.14;
+                this.swirlPass.uniforms.radius.value = 0.3 + audioData.mids * 0.2;
+            }
+
+            if (this.vignettePass) {
+                this.vignettePass.uniforms.darkness.value = 0.5 + audioData.bass * 0.3;
+            }
+
+            if (this.bloomPass) {
+                this.bloomPass.threshold = Math.max(0, 0.85 - audioData.treble * 0.2);
+                this.bloomPass.strength = 1.2 + audioData.mids * 0.5;
+            }
         }
         
         updateDirectivePrime(dt, audioData) {
@@ -4117,9 +4505,62 @@
             this.ui.hud.aiInteraction.textContent = aiState.interaction;
         }
 
+        /**
+         * updateTelemetryUI - Auto-update telemetry log from EventBus history
+         */
+        updateTelemetryUI() {
+            const telemetryContent = document.getElementById('telemetry-log-content');
+            const telemetryFilter = document.getElementById('telemetry-filter');
+
+            if (!telemetryContent || !this.eventBus) return;
+
+            const filter = telemetryFilter ? telemetryFilter.value.toLowerCase() : '';
+            const recentEvents = this.eventBus.history.slice(-20); // Last 20 events
+
+            let output = '';
+            recentEvents.forEach(event => {
+                const eventStr = `[${new Date(event.timestamp).toLocaleTimeString()}] ${event.name}`;
+                if (!filter || eventStr.toLowerCase().includes(filter)) {
+                    output += eventStr + '\n';
+                }
+            });
+
+            telemetryContent.textContent = output || 'No telemetry events yet...';
+
+            // Auto-scroll to bottom
+            telemetryContent.scrollTop = telemetryContent.scrollHeight;
+        }
+
+        /**
+         * updateSurfaceHUD - Auto-update surface environment HUD from SurfaceManager
+         */
+        updateSurfaceHUD() {
+            if (!this.surfaceManager || !this.ui.surfaceHUD) return;
+
+            const hudOcean = document.getElementById('hud-ocean');
+            const hudCloud = document.getElementById('hud-cloud');
+            const hudVegetation = document.getElementById('hud-vegetation');
+            const hudSurfaceAlt = document.getElementById('hud-surface-alt');
+
+            if (hudOcean && this.surfaceManager.params) {
+                hudOcean.textContent = (this.surfaceManager.params.oceanRoughness || 0).toFixed(2);
+            }
+            if (hudCloud && this.surfaceManager.params) {
+                hudCloud.textContent = `${Math.round((this.surfaceManager.params.cloudCoverage || 0) * 100)}%`;
+            }
+            if (hudVegetation && this.surfaceManager.params) {
+                hudVegetation.textContent = `${Math.round((this.surfaceManager.params.vegetation || 0) * 100)}%`;
+            }
+            if (hudSurfaceAlt) {
+                // Calculate altitude from camera position
+                const altitude = this.camera.position.y;
+                hudSurfaceAlt.textContent = `${altitude.toFixed(0)} m`;
+            }
+        }
+
         setView(view) {
             this.currentView = view;
-            
+
             const isGalaxy = view === 'galaxy';
             const isSolar = view === 'solar_system';
             const isShip = view === 'spaceship' || view === 'cockpit';
@@ -4132,7 +4573,7 @@
             this.solarSystem.show(isSolar || isShip);
             this.singularity.show(isGalaxy);
             this.spaceship.show(isShip);
-            
+
             this.ui.galaxyHUD.style.display = isGalaxy ? 'block' : 'none';
             this.ui.shipHUD.style.display = isShip ? 'block' : 'none';
 
@@ -4160,7 +4601,152 @@
                  this.ui.actionText.textContent = 'W/S: Thrust | A/D: Yaw | Q/E: Roll | Mouse: Pitch/Yaw';
             }
         }
-        
+
+        /**
+         * _applyMode - Non-destructive mode switching for universe/surface/echo modes
+         * @param {string} mode - 'universe', 'surface', or 'echo'
+         */
+        _applyMode(mode) {
+            this.currentMode = mode;
+
+            const isUniverse = mode === 'universe';
+            const isSurface = mode === 'surface';
+            const isEcho = mode === 'echo';
+
+            // Emit mode change event
+            this.eventBus.emit('mode:change', { mode, timestamp: Date.now() });
+
+            // Toggle visibility of mode-specific systems (non-destructive)
+            if (isUniverse) {
+                // Show universe systems
+                this.cosmos.show(true);
+                this.aiLife.show(true);
+                this.singularity.show(true);
+                this.solarSystem.show(true);
+                if (this.surfaceManager) this.surfaceManager.hide();
+
+                // Hide mode-specific HUDs
+                if (this.ui.surfaceHUD) this.ui.surfaceHUD.style.display = 'none';
+
+                // Reset to galaxy view
+                this.setView('galaxy');
+                this.ui.actionText.textContent = 'Universe Mode: Exploring the cosmos';
+
+            } else if (isSurface) {
+                // Show surface systems
+                if (this.surfaceManager) {
+                    this.surfaceManager.show();
+                    // Position camera for surface view
+                    this.camera.position.set(0, 1000, 2000);
+                    this.orbitControls.target.set(0, 0, 0);
+                    this.orbitControls.minDistance = 100;
+                    this.orbitControls.maxDistance = 5000;
+                }
+
+                // Show surface HUD
+                if (this.ui.surfaceHUD) this.ui.surfaceHUD.style.display = 'block';
+
+                // Hide other systems (but don't destroy)
+                this.singularity.show(false);
+                this.spaceship.show(false);
+
+                this.ui.actionText.textContent = 'Surface Mode: Exploring planetary environment';
+
+            } else if (isEcho) {
+                // Echo mode - visualize audio/physics feedback loops
+                this.cosmos.show(true);
+                this.aiLife.show(true);
+
+                // Enable special visualizations
+                if (this.bloomPass) this.bloomPass.enabled = true;
+                if (this.afterimagePass) this.afterimagePass.enabled = true;
+                if (this.godrayPass) this.godrayPass.enabled = true;
+
+                this.ui.actionText.textContent = 'Echo Mode: Audio-reactive feedback visualization';
+            }
+
+            console.log(`Mode switched to: ${mode}`);
+        }
+
+        /**
+         * CleanupScene - Removes prior generated meshes only; engines persist
+         * Safely disposes geometries and materials to prevent memory leaks
+         */
+        cleanupScene() {
+            console.log('Cleaning up scene meshes...');
+
+            // Clean up procedurally generated objects
+            const objectsToRemove = [];
+
+            this.scene.traverse((obj) => {
+                // Only remove meshes that are procedurally generated
+                // Preserve engine systems (they have show/hide methods)
+                if (obj.isMesh && !obj.userData.isEngine) {
+                    objectsToRemove.push(obj);
+                }
+            });
+
+            objectsToRemove.forEach((obj) => {
+                // Dispose geometry
+                if (obj.geometry) {
+                    obj.geometry.dispose();
+                }
+
+                // Dispose material(s)
+                if (obj.material) {
+                    if (Array.isArray(obj.material)) {
+                        obj.material.forEach(mat => {
+                            if (mat.map) mat.map.dispose();
+                            if (mat.normalMap) mat.normalMap.dispose();
+                            if (mat.roughnessMap) mat.roughnessMap.dispose();
+                            if (mat.metalnessMap) mat.metalnessMap.dispose();
+                            mat.dispose();
+                        });
+                    } else {
+                        if (obj.material.map) obj.material.map.dispose();
+                        if (obj.material.normalMap) obj.material.normalMap.dispose();
+                        if (obj.material.roughnessMap) obj.material.roughnessMap.dispose();
+                        if (obj.material.metalnessMap) obj.material.metalnessMap.dispose();
+                        obj.material.dispose();
+                    }
+                }
+
+                // Remove from parent
+                if (obj.parent) {
+                    obj.parent.remove(obj);
+                }
+            });
+
+            // Clean up surface manager generated objects
+            if (this.surfaceManager && this.surfaceManager.surfaceGroup) {
+                const surfaceObjects = [];
+                this.surfaceManager.surfaceGroup.traverse((obj) => {
+                    if (obj.isMesh) {
+                        surfaceObjects.push(obj);
+                    }
+                });
+
+                surfaceObjects.forEach((obj) => {
+                    if (obj.geometry) obj.geometry.dispose();
+                    if (obj.material) {
+                        if (Array.isArray(obj.material)) {
+                            obj.material.forEach(mat => mat.dispose());
+                        } else {
+                            obj.material.dispose();
+                        }
+                    }
+                });
+
+                // Clear the surface group but don't destroy the manager
+                while (this.surfaceManager.surfaceGroup.children.length > 0) {
+                    this.surfaceManager.surfaceGroup.remove(this.surfaceManager.surfaceGroup.children[0]);
+                }
+            }
+
+            console.log(`Cleaned up ${objectsToRemove.length} procedural meshes`);
+            this.eventBus.emit('scene:cleanup', { count: objectsToRemove.length });
+        }
+
         onResize() {
             this.camera.aspect = window.innerWidth / window.innerHeight;
             this.camera.updateProjectionMatrix();
