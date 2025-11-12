@@ -998,6 +998,9 @@ const C_SPEED = 299792458; // Speed of light (m/s)
 const PLANCK_H = 6.62607015e-34; // Planck's constant (J⋅Hz⁻¹)
 const SCHUMANN_FREQ = 7.83; // Schumann resonance (Hz)
 
+// NASA API Key Configuration
+window.NASA_API_KEY = 'HR3wqtsJJzDSspunonRbrFh515LIVf1hcXQ10O56';
+
 // =====================================================================================
 // UTILITY FUNCTIONS
 // =====================================================================================
@@ -4434,15 +4437,30 @@ class ProceduralGenerationEngine {
             ));
         }
 
+        // Add comets (1-3 comets)
+        const cometCount = 1 + Math.floor(this.prng() * 3);
+        for (let i = 0; i < cometCount; i++) {
+            this.createComet();
+        }
+
         // Create Genesis Lattice (cosmic scaffold)
         this.createGenesisLattice();
 
+        // Optional: Load NASA Earth texture on one random planet
+        if (this.planets.length > 0 && window.NASA_API_KEY && this.prng() > 0.5) {
+            const earthPlanetIndex = Math.floor(this.prng() * this.planets.length);
+            this.loadEarthTexture(this.planets[earthPlanetIndex]).catch(err => {
+                console.warn('Earth texture loading failed:', err);
+            });
+        }
+
         this.eventBus.publish('logger:ledger', {
-            message: `Generated universe with ${planetCount} planets, ${this.asteroidBelts.length} asteroid belts, ${this.blackHoles.length} black holes`,
+            message: `Generated universe with ${planetCount} planets, ${this.asteroidBelts.length} asteroid belts, ${this.blackHoles.length} black holes, ${cometCount} comets`,
             starTemp,
             planetCount,
             asteroidBelts: this.asteroidBelts.length,
-            blackHoles: this.blackHoles.length
+            blackHoles: this.blackHoles.length,
+            comets: cometCount
         });
     }
 
@@ -4901,6 +4919,9 @@ class ProceduralGenerationEngine {
                 asteroid.rotation.y += delta * 0.3;
             });
         });
+
+        // Update comets
+        this.updateComets(delta);
     }
 
     cleanup() {
@@ -4940,6 +4961,7 @@ class ProceduralGenerationEngine {
         if (this.activeStar) entities.push(this.activeStar);
         entities.push(...this.planets);
         entities.push(...this.blackHoles);
+        entities.push(...this.comets);
         this.asteroidBelts.forEach(belt => entities.push(...belt));
         if (this.particles && this.particles.userData.isGenerated) {
             entities.push(this.particles);
@@ -4959,6 +4981,7 @@ class ProceduralGenerationEngine {
             this.setVisible('nebula', visible);
             this.setVisible('starfield', visible);
             this.setVisible('asteroids', visible);
+            this.setVisible('comets', visible);
             this.setVisible('lattice', visible);
             return;
         }
@@ -4984,9 +5007,282 @@ class ProceduralGenerationEngine {
             case 'asteroids':
                 this.asteroidBelts.forEach(belt => belt.forEach(a => a.visible = visible));
                 break;
+            case 'comets':
+                this.comets.forEach(c => c.visible = visible);
+                break;
             case 'lattice':
                 if (this.genesisLattice) this.genesisLattice.visible = visible;
                 break;
+        }
+    }
+
+    /**
+     * Create Comet with Particle Trail
+     */
+    createComet(startPosition = null) {
+        const cometSize = 1 + this.prng() * 2;
+
+        // Random elliptical orbit if no start position provided
+        if (!startPosition) {
+            const angle = this.prng() * Math.PI * 2;
+            const distance = 1000 + this.prng() * 2000;
+            startPosition = new THREE.Vector3(
+                Math.cos(angle) * distance,
+                (this.prng() - 0.5) * 500,
+                Math.sin(angle) * distance
+            );
+        }
+
+        // Comet nucleus
+        const cometNucleus = new THREE.Mesh(
+            new THREE.SphereGeometry(cometSize, 16, 16),
+            new THREE.MeshStandardMaterial({
+                color: 0xaaaaaa,
+                roughness: 0.9,
+                emissive: 0x444444
+            })
+        );
+        cometNucleus.position.copy(startPosition);
+
+        // Calculate velocity toward star
+        const directionToStar = new THREE.Vector3(0, 0, 0).sub(startPosition).normalize();
+        const speed = 5 + this.prng() * 10;
+        const velocity = directionToStar.multiplyScalar(speed);
+
+        cometNucleus.userData = {
+            isGenerated: true,
+            isComet: true,
+            type: 'comet',
+            velocity: velocity,
+            mass: cometSize * 10,
+            trailPositions: [],
+            maxTrailLength: 100,
+            trailUpdateCounter: 0
+        };
+
+        // Initialize 12D CST state
+        initialize12DState(cometNucleus, 'comet', {
+            mass: cometSize * 10,
+            radius: cometSize,
+            velocity: velocity
+        });
+
+        // Create trail particle system
+        const trailGeometry = new THREE.BufferGeometry();
+        const maxTrailParticles = 100;
+        const trailPositions = new Float32Array(maxTrailParticles * 3);
+        const trailSizes = new Float32Array(maxTrailParticles);
+        const trailOpacities = new Float32Array(maxTrailParticles);
+
+        for (let i = 0; i < maxTrailParticles; i++) {
+            trailPositions[i * 3] = startPosition.x;
+            trailPositions[i * 3 + 1] = startPosition.y;
+            trailPositions[i * 3 + 2] = startPosition.z;
+            trailSizes[i] = 0;
+            trailOpacities[i] = 0;
+        }
+
+        trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+        trailGeometry.setAttribute('size', new THREE.BufferAttribute(trailSizes, 1));
+        trailGeometry.setAttribute('alpha', new THREE.BufferAttribute(trailOpacities, 1));
+
+        const trailMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                color: { value: new THREE.Color(0x00ccff) },
+                time: { value: 0.0 }
+            },
+            vertexShader: `
+                attribute float size;
+                attribute float alpha;
+                varying float vAlpha;
+                void main() {
+                    vAlpha = alpha;
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    gl_PointSize = size * (300.0 / -mvPosition.z);
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 color;
+                uniform float time;
+                varying float vAlpha;
+                void main() {
+                    float dist = length(gl_PointCoord - vec2(0.5));
+                    if (dist > 0.5) discard;
+                    float glow = 1.0 - (dist * 2.0);
+                    vec3 glowColor = color * (0.8 + 0.2 * sin(time * 2.0));
+                    gl_FragColor = vec4(glowColor, vAlpha * glow * 0.8);
+                }
+            `,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        const trailParticles = new THREE.Points(trailGeometry, trailMaterial);
+        trailParticles.userData = { isGenerated: true, isCometTrail: true, type: 'comet_trail' };
+        cometNucleus.add(trailParticles);
+        cometNucleus.userData.trail = trailParticles;
+
+        this.scene.add(cometNucleus);
+        this.comets.push(cometNucleus);
+
+        return cometNucleus;
+    }
+
+    /**
+     * Update comet physics and trails
+     */
+    updateComets(delta) {
+        this.comets.forEach(comet => {
+            if (!comet.userData.isComet) return;
+
+            // Update position with velocity
+            comet.position.add(comet.userData.velocity.clone().multiplyScalar(delta));
+
+            // Apply gravity from star
+            if (this.activeStar) {
+                const distVec = this.activeStar.position.clone().sub(comet.position);
+                const distSq = distVec.lengthSq();
+                if (distSq > 1) {
+                    const forceMag = (this.G * this.activeStar.userData.mass * comet.userData.mass) / distSq;
+                    const force = distVec.normalize().multiplyScalar(forceMag);
+                    const acceleration = force.divideScalar(comet.userData.mass);
+                    comet.userData.velocity.add(acceleration.multiplyScalar(delta));
+                }
+            }
+
+            // Update trail every few frames
+            comet.userData.trailUpdateCounter++;
+            if (comet.userData.trailUpdateCounter >= 2) {
+                comet.userData.trailUpdateCounter = 0;
+                this.updateCometTrail(comet);
+            }
+
+            // Update trail shader time
+            if (comet.userData.trail) {
+                comet.userData.trail.material.uniforms.time.value += delta;
+            }
+
+            // Rotate comet
+            comet.rotation.x += delta * 0.5;
+            comet.rotation.y += delta * 0.3;
+
+            // Remove if too far from origin
+            if (comet.position.length() > 50000) {
+                this.scene.remove(comet);
+                const index = this.comets.indexOf(comet);
+                if (index > -1) this.comets.splice(index, 1);
+            }
+        });
+    }
+
+    /**
+     * Update comet trail positions
+     */
+    updateCometTrail(comet) {
+        if (!comet.userData.trail) return;
+
+        const trail = comet.userData.trail;
+        const positions = trail.geometry.attributes.position.array;
+        const sizes = trail.geometry.attributes.size.array;
+        const alphas = trail.geometry.attributes.alpha.array;
+        const maxLength = comet.userData.maxTrailLength;
+
+        // Shift all positions back
+        for (let i = maxLength - 1; i > 0; i--) {
+            positions[i * 3] = positions[(i - 1) * 3];
+            positions[i * 3 + 1] = positions[(i - 1) * 3 + 1];
+            positions[i * 3 + 2] = positions[(i - 1) * 3 + 2];
+            sizes[i] = sizes[i - 1] * 0.98;
+            alphas[i] = alphas[i - 1] * 0.95;
+        }
+
+        // Add new position at front (world position)
+        const worldPos = new THREE.Vector3();
+        comet.getWorldPosition(worldPos);
+        positions[0] = worldPos.x;
+        positions[1] = worldPos.y;
+        positions[2] = worldPos.z;
+        sizes[0] = 10 + comet.userData.velocity.length() * 0.5;
+        alphas[0] = 1.0;
+
+        trail.geometry.attributes.position.needsUpdate = true;
+        trail.geometry.attributes.size.needsUpdate = true;
+        trail.geometry.attributes.alpha.needsUpdate = true;
+    }
+
+    /**
+     * Load NASA Earth texture on a planet (requires NASA API)
+     */
+    async loadEarthTexture(planet) {
+        const textureLoader = new THREE.TextureLoader();
+
+        // NASA Blue Marble: Next Generation Earth texture
+        // Using a public URL for NASA Earth imagery
+        const earthTextureUrl = 'https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73909/world.topo.bathy.200412.3x5400x2700.jpg';
+
+        try {
+            const texture = await textureLoader.loadAsync(earthTextureUrl);
+
+            // Apply Earth texture to planet
+            planet.material = new THREE.MeshStandardMaterial({
+                map: texture,
+                roughness: 0.7,
+                metalness: 0.1
+            });
+
+            // Add Earth-specific atmosphere
+            const atmosphereMat = new THREE.ShaderMaterial({
+                uniforms: {
+                    baseColor: { value: new THREE.Color(0x4488ff) },
+                    intensity: { value: 0.7 }
+                },
+                vertexShader: `
+                    varying vec3 vNormal;
+                    void main() {
+                        vNormal = normalize(normalMatrix * normal);
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    varying vec3 vNormal;
+                    uniform vec3 baseColor;
+                    uniform float intensity;
+                    void main() {
+                        float rim = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 2.5);
+                        gl_FragColor = vec4(baseColor * intensity, rim * 0.7);
+                    }
+                `,
+                blending: THREE.AdditiveBlending,
+                side: THREE.BackSide,
+                transparent: true,
+                depthWrite: false
+            });
+
+            const atmosphere = new THREE.Mesh(
+                new THREE.SphereGeometry(planet.geometry.parameters.radius * 1.05, 32, 32),
+                atmosphereMat
+            );
+            atmosphere.userData = { isGenerated: true, isAtmosphere: true, type: 'earth_atmosphere' };
+            planet.add(atmosphere);
+
+            planet.userData.isEarth = true;
+            planet.userData.earthTexture = texture;
+
+            this.eventBus.publish('logger:ledger', {
+                message: 'NASA Earth texture loaded successfully',
+                planet: planet.uuid
+            });
+
+            return true;
+        } catch (error) {
+            console.error('Failed to load Earth texture:', error);
+            this.eventBus.publish('logger:ledger', {
+                message: 'Failed to load NASA Earth texture - using procedural texture',
+                error: error.message
+            });
+            return false;
         }
     }
 }
@@ -5060,13 +5356,19 @@ class QuantumEventManager {
 
         // Custom shader for size based on energy
         material.onBeforeCompile = (shader) => {
+            // Add attribute declarations at the top of vertex shader
             shader.vertexShader = shader.vertexShader.replace(
-                'gl_PointSize = size;',
+                'void main() {',
                 `
                 attribute float energy;
                 attribute float age;
-                gl_PointSize = size * (0.5 + energy * 0.5) * (1.0 - age * 0.3);
+                void main() {
                 `
+            );
+            // Replace point size calculation
+            shader.vertexShader = shader.vertexShader.replace(
+                'gl_PointSize = size;',
+                'gl_PointSize = size * (0.5 + energy * 0.5) * (1.0 - age * 0.3);'
             );
         };
 
@@ -5298,7 +5600,7 @@ class QuantumEventManager {
         const positions = this.particleMesh.geometry.attributes.position.array;
         const colors = this.particleMesh.geometry.attributes.color.array;
         const energies = this.particleMesh.geometry.attributes.energy.array;
-        const ages = this.particleMesh.geometry.attributes.ages.array;
+        const ages = this.particleMesh.geometry.attributes.age.array;
 
         // Update each soul dust particle
         for (const [uuid, particle] of this.soulDust.entries()) {
