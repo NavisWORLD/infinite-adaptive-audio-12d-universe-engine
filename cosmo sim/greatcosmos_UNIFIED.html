@@ -592,7 +592,9 @@
 </head>
 <body>
     <!-- Canvas Container for 3D Scene -->
-    <div id="canvas-container"></div>
+    <div id="canvas-container">
+        <canvas id="main-canvas"></canvas>
+    </div>
 
     <!-- Hidden Video Element for ML & Video Particlizer -->
     <video id="video-feed" style="display:none;" autoplay muted playsinline></video>
@@ -5337,7 +5339,7 @@ class Application {
         this.cstCompute = new CSTComputeEngine(this.eventBus);
 
         // Initialize Input Controller (after camera is created)
-        this.inputController = new InputController(this.camera, canvas, this.eventBus, this.STATE);
+        this.inputController = new InputController(this.camera, this.canvas, this.eventBus, this.STATE);
 
         // Initialize Audio Reactive System
         this.audioReactiveSystem = new AudioReactiveSystem(this.scene, this.eventBus);
@@ -5408,9 +5410,9 @@ class Application {
         this.camera.position.set(0, 0, 3500);
 
         // Renderer - use existing canvas
-        const canvas = document.getElementById('main-canvas');
+        this.canvas = document.getElementById('main-canvas');
         this.renderer = new THREE.WebGLRenderer({
-            canvas,
+            canvas: this.canvas,
             antialias: true,
             powerPreference: 'high-performance',
             logarithmicDepthBuffer: true
