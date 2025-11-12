@@ -1564,12 +1564,12 @@
 
             const star = new THREE.Mesh(geometry, material);
             const angle = Math.random() * Math.PI * 2;
-            const radius = 1000 + Math.random() * 2000;
+            const orbitRadius = 1000 + Math.random() * 2000;
             const height = (Math.random() - 0.5) * 1000;
             star.position.set(
-                Math.cos(angle) * radius,
+                Math.cos(angle) * orbitRadius,
                 height,
-                Math.sin(angle) * radius
+                Math.sin(angle) * orbitRadius
             );
             console.log('[STAR]', star.position.x.toFixed(0), star.position.y.toFixed(0), star.position.z.toFixed(0));
 
@@ -1634,12 +1634,12 @@
 
             const planet = new THREE.Mesh(geometry, material);
             const angle = Math.random() * Math.PI * 2;
-            const radius = 800 + Math.random() * 1500;
+            const orbitRadius = 800 + Math.random() * 1500;
             const height = (Math.random() - 0.5) * 800;
             planet.position.set(
-                Math.cos(angle) * radius,
+                Math.cos(angle) * orbitRadius,
                 height,
-                Math.sin(angle) * radius
+                Math.sin(angle) * orbitRadius
             );
 
             this.scene.add(planet);
@@ -1717,12 +1717,12 @@
             blackHoleGroup.add(blackHole);
             blackHoleGroup.add(accretionDisk);
             const angle = Math.random() * Math.PI * 2;
-            const radius = 1200 + Math.random() * 1800;
+            const orbitRadius = 1200 + Math.random() * 1800;
             const height = (Math.random() - 0.5) * 600;
             blackHoleGroup.position.set(
-                Math.cos(angle) * radius,
+                Math.cos(angle) * orbitRadius,
                 height,
-                Math.sin(angle) * radius
+                Math.sin(angle) * orbitRadius
             );
 
             this.scene.add(blackHoleGroup);
