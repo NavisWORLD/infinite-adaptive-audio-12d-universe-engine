@@ -6022,7 +6022,7 @@ class Application {
         // Generate new seed
         const newSeed = cyrb128(`cosmic-${Date.now()}-${Math.random()}`);
         this.prng = sfc32(...newSeed);
-        $('current-seed')!.textContent = newSeed[0].toString(16).substring(0, 8);
+        $('current-seed').textContent = newSeed[0].toString(16).substring(0, 8);
 
         // Reinitialize particle systems with new seed
         this.cosmos.init(this.physics);
@@ -6063,9 +6063,9 @@ class Application {
         this.objectLibrary.show(isGalaxy);
 
         // Show/hide HUD sections
-        $('galaxy-hud')!.style.display = isGalaxy ? 'block' : 'none';
-        $('surface-hud')!.style.display = isSurface ? 'block' : 'none';
-        $('ship-hud')!.style.display = isShip ? 'block' : 'none';
+        $('galaxy-hud').style.display = isGalaxy ? 'block' : 'none';
+        $('surface-hud').style.display = isSurface ? 'block' : 'none';
+        $('ship-hud').style.display = isShip ? 'block' : 'none';
 
         // Configure controls
         this.orbitControls.enabled = isGalaxy || isSolar;
@@ -6082,20 +6082,20 @@ class Application {
         if (isGalaxy) {
             this.camera.position.set(0, 0, 3500);
             this.orbitControls.target.set(0, 0, 0);
-            $('action-text')!.textContent = 'Hold Left-Click to exert creator influence on particles.';
+            $('action-text').textContent = 'Hold Left-Click to exert creator influence on particles.';
         } else if (isSolar) {
             this.camera.position.set(0, 800, 2000);
             this.orbitControls.target.set(0, 0, 0);
-            $('action-text')!.textContent = 'Observe the solar system with realistic orbital mechanics.';
+            $('action-text').textContent = 'Observe the solar system with realistic orbital mechanics.';
         } else if (isSurface) {
             this.camera.position.set(0, 100, 0);
-            $('action-text')!.textContent = 'Explore the procedurally generated planetary surface.';
+            $('action-text').textContent = 'Explore the procedurally generated planetary surface.';
         } else if (isShip) {
             this.spaceship.reset();
-            $('action-text')!.textContent = 'W/S: Thrust | Q/E: Roll | Mouse: Pitch/Yaw | Shift: Boost';
+            $('action-text').textContent = 'W/S: Thrust | Q/E: Roll | Mouse: Pitch/Yaw | Shift: Boost';
         }
 
-        $('hud-mode')!.textContent = mode.charAt(0).toUpperCase() + mode.slice(1).replace('_', ' ');
+        $('hud-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1).replace('_', ' ');
 
         console.log(`✓ View mode: ${mode}`);
     }
@@ -6166,30 +6166,30 @@ class Application {
 
     updateHUD() {
         // Update main HUD values
-        $('hud-influence')!.textContent = this.isMouseDown ? 'Active' : 'Idle';
-        $('hud-gravity')!.textContent = this.physics.ugrav.toFixed(2);
-        $('hud-chaos')!.textContent = this.physics.lambda.toFixed(2);
-        $('hud-energy')!.textContent = this.physics.ec.toFixed(2);
-        $('hud-psd')!.textContent = this.audioData.psd.toFixed(3);
+        $('hud-influence').textContent = this.isMouseDown ? 'Active' : 'Idle';
+        $('hud-gravity').textContent = this.physics.ugrav.toFixed(2);
+        $('hud-chaos').textContent = this.physics.lambda.toFixed(2);
+        $('hud-energy').textContent = this.physics.ec.toFixed(2);
+        $('hud-psd').textContent = this.audioData.psd.toFixed(3);
 
         // AI Life stats
         const lifeStats = this.aiLife.getStats();
-        $('hud-life-pop')!.textContent = lifeStats.population.toString();
-        $('hud-life-forms')!.textContent = lifeStats.formations.toString();
-        $('hud-life-energy')!.textContent = lifeStats.energy;
+        $('hud-life-pop').textContent = lifeStats.population.toString();
+        $('hud-life-forms').textContent = lifeStats.formations.toString();
+        $('hud-life-energy').textContent = lifeStats.energy;
 
         // Ship HUD (if in spaceship mode)
         if (this.currentView === 'spaceship' || this.currentView === 'cockpit') {
             const shipState = this.spaceship.getState();
-            $('hud-ship-vel')!.textContent = `${shipState.velocity.toFixed(0)} km/s`;
-            $('hud-ship-alt')!.textContent = shipState.gravSource ? `${shipState.altitude.toFixed(0)} km` : 'N/A';
-            $('hud-ship-grav')!.textContent = shipState.gravSource ? shipState.gravSource.name : 'Deep Space';
+            $('hud-ship-vel').textContent = `${shipState.velocity.toFixed(0)} km/s`;
+            $('hud-ship-alt').textContent = shipState.gravSource ? `${shipState.altitude.toFixed(0)} km` : 'N/A';
+            $('hud-ship-grav').textContent = shipState.gravSource ? shipState.gravSource.name : 'Deep Space';
         }
 
         // AI state
         const aiState = this.quantumAI.update(this.clock.getDelta());
-        $('hud-ai-state')!.textContent = aiState.dominantState;
-        $('hud-ai-learning')!.textContent = this.audioData.psd > 0.1 ? 'Active' : 'Passive';
+        $('hud-ai-state').textContent = aiState.dominantState;
+        $('hud-ai-learning').textContent = this.audioData.psd > 0.1 ? 'Active' : 'Passive';
 
         // ===== CST ψ OVERLAY UPDATE (New CST Compute Engine) =====
         // Update PSI overlay HUD if visible
