@@ -692,6 +692,7 @@
                     <div class="group">
                         <h3 class="text-xs font-bold text-indigo-400 mb-2">ACTIONS</h3>
                         <button id="anomaly-scanner-button" class="btn w-full bg-cyan-600 hover:bg-cyan-500 mb-2">Scan for Anomalies</button>
+                        <button id="btnPsiHUD" class="btn w-full bg-purple-600 hover:bg-purple-500 mb-2">Toggle Ψ Overlay</button>
                         <button id="btn-directive-prime" class="btn directive w-full">EXECUTE DIRECTIVE PRIME</button>
                     </div>
 
@@ -929,33 +930,68 @@
         <div id="log-panel" class="ui-element bottom-4 left-4 w-96 max-h-48 overflow-y-auto text-xs font-mono p-4 space-y-1"></div>
     </div>
 
-    <!-- Psi Overlay (from earth.html) -->
+    <!-- Psi Overlay (CST v3 Live Terms) -->
+    <div id="psiPanel" class="ui-element top-1/2 right-4 transform -translate-y-1/2 text-xs font-mono text-slate-300 space-y-2 hidden">
+        <div class="text-indigo-400 font-bold text-sm mb-3 text-center">CST Ψ — LIVE TERMS</div>
+        <div class="psi-term flex justify-between gap-3">
+            <span class="psi-term-label text-slate-400">c²·φ·Ec:</span>
+            <span class="psi-term-value text-cyan-400" id="vEc">--</span>
+        </div>
+        <div class="psi-term flex justify-between gap-3">
+            <span class="psi-term-label text-slate-400">λ (chaos):</span>
+            <span class="psi-term-value text-yellow-400" id="vLam">--</span>
+        </div>
+        <div class="psi-term flex justify-between gap-3">
+            <span class="psi-term-label text-slate-400">Ω·Ec:</span>
+            <span class="psi-term-value text-purple-400" id="vOm">--</span>
+        </div>
+        <div class="psi-term flex justify-between gap-3">
+            <span class="psi-term-label text-slate-400">U_grav:</span>
+            <span class="psi-term-value text-orange-400" id="vGrav">--</span>
+        </div>
+        <div class="psi-term flex justify-between gap-3">
+            <span class="psi-term-label text-slate-400">Σρ_sd:</span>
+            <span class="psi-term-value text-green-400" id="vRho">--</span>
+        </div>
+        <div class="border-t border-slate-700 my-2 pt-2">
+            <div class="psi-term flex justify-between gap-3">
+                <span class="psi-term-label text-slate-200 font-bold">ψ (sum):</span>
+                <span class="psi-term-value text-pink-400 font-bold" id="vPsi">--</span>
+            </div>
+        </div>
+        <div id="psi_graph" class="mt-3 bg-black/30 rounded p-2">
+            <!-- Canvas for ψ history graph will be inserted here -->
+        </div>
+        <button id="close-psi-btn" class="btn w-full bg-slate-700 hover:bg-slate-600 mt-2 text-xs">Close</button>
+    </div>
+
+    <!-- Legacy Psi Overlay (for backward compatibility) -->
     <div id="psi-overlay" class="ui-hidden">
         <h4>CST Ψ — Live Terms</h4>
         <div class="psi-term">
             <span class="psi-term-label">c²·φ·Ec:</span>
-            <span class="psi-term-value" id="psi-term1">--</span>
+            <span class="psi-term-value" id="psi-term-1">--</span>
         </div>
         <div class="psi-term">
             <span class="psi-term-label">λ (audio):</span>
-            <span class="psi-term-value" id="psi-term2">--</span>
+            <span class="psi-term-value" id="psi-term-2">--</span>
         </div>
         <div class="psi-term">
             <span class="psi-term-label">Ω·Ec:</span>
-            <span class="psi-term-value" id="psi-term3">--</span>
+            <span class="psi-term-value" id="psi-term-3">--</span>
         </div>
         <div class="psi-term">
             <span class="psi-term-label">U_grav:</span>
-            <span class="psi-term-value" id="psi-term4">--</span>
+            <span class="psi-term-value" id="psi-term-4">--</span>
         </div>
         <div class="psi-term">
             <span class="psi-term-label">Σρ_sd:</span>
-            <span class="psi-term-value" id="psi-term5">--</span>
+            <span class="psi-term-value" id="psi-term-5">--</span>
         </div>
         <div class="psi-sum">
             <div class="psi-term">
                 <span class="psi-term-label">ψ (sum):</span>
-                <span class="psi-term-value" id="psi-sum">--</span>
+                <span class="psi-term-value" id="psi-total">--</span>
             </div>
         </div>
     </div>
@@ -969,6 +1005,111 @@
             <span id="surface-biome" class="text-right">--</span>
             <span class="text-slate-400">Temperature:</span>
             <span id="surface-temp" class="text-right">-- °C</span>
+            <span class="text-slate-400">Ocean Roughness:</span>
+            <span id="surface-ocean" class="text-right">--</span>
+            <span class="text-slate-400">Cloud Coverage:</span>
+            <span id="surface-clouds" class="text-right">--</span>
+            <span class="text-slate-400">Vegetation:</span>
+            <span id="surface-vegetation" class="text-right">--</span>
+            <span class="text-slate-400">Time:</span>
+            <span id="surface-time" class="text-right">--</span>
+        </div>
+    </div>
+
+    <!-- Galaxy HUD (Main Universe Mode) -->
+    <div id="galaxy-hud" class="ui-element top-20 right-4 text-xs font-mono text-slate-300 space-y-1 ui-hidden">
+        <div class="flex justify-between gap-4">
+            <span class="text-slate-500">FPS:</span>
+            <span id="hud-fps" class="text-green-400">60</span>
+        </div>
+        <div class="flex justify-between gap-4">
+            <span class="text-slate-500">Mode:</span>
+            <span id="hud-mode" class="text-cyan-400">Universe</span>
+        </div>
+        <div class="flex justify-between gap-4">
+            <span class="text-slate-500">Chaos (λ):</span>
+            <span id="hud-chaos" class="text-yellow-400">0.50</span>
+        </div>
+        <div class="flex justify-between gap-4">
+            <span class="text-slate-500">Particles:</span>
+            <span id="hud-particles" class="text-purple-400">0</span>
+        </div>
+        <div class="flex justify-between gap-4">
+            <span class="text-slate-500">Anomalies:</span>
+            <span id="hud-anomalies" class="text-red-400">0</span>
+        </div>
+        <div class="flex justify-between gap-4">
+            <span class="text-slate-500">Energy (Ec):</span>
+            <span id="hud-energy" class="text-blue-400">1.00</span>
+        </div>
+        <div class="flex justify-between gap-4">
+            <span class="text-slate-500">Gravity:</span>
+            <span id="hud-gravity" class="text-orange-400">1.00</span>
+        </div>
+        <div class="flex justify-between gap-4">
+            <span class="text-slate-500">PSD:</span>
+            <span id="hud-psd" class="text-pink-400">0.000</span>
+        </div>
+        <div class="flex justify-between gap-4">
+            <span class="text-slate-500">Influence:</span>
+            <span id="hud-influence" class="text-indigo-400">Idle</span>
+        </div>
+    </div>
+
+    <!-- Ship HUD (Spaceship Mode) -->
+    <div id="ship-hud" class="ui-element bottom-20 left-1/2 transform -translate-x-1/2 text-xs font-mono text-slate-300 ui-hidden">
+        <div class="grid grid-cols-3 gap-6">
+            <div class="text-center">
+                <div class="text-slate-500 text-xs mb-1">VELOCITY</div>
+                <div id="hud-ship-vel" class="text-cyan-400 text-lg font-bold">0 km/s</div>
+            </div>
+            <div class="text-center">
+                <div class="text-slate-500 text-xs mb-1">ALTITUDE</div>
+                <div id="hud-ship-alt" class="text-green-400 text-lg font-bold">N/A</div>
+            </div>
+            <div class="text-center">
+                <div class="text-slate-500 text-xs mb-1">THRUST</div>
+                <div id="hud-ship-thrust" class="text-yellow-400 text-lg font-bold">0%</div>
+            </div>
+        </div>
+        <div class="mt-3 grid grid-cols-3 gap-6">
+            <div class="text-center">
+                <div class="text-slate-500 text-xs mb-1">ROLL</div>
+                <div id="hud-ship-roll" class="text-purple-400">0°</div>
+            </div>
+            <div class="text-center">
+                <div class="text-slate-500 text-xs mb-1">GRAVITY SOURCE</div>
+                <div id="hud-ship-grav" class="text-orange-400">Deep Space</div>
+            </div>
+            <div class="text-center">
+                <div class="text-slate-500 text-xs mb-1">BOOST</div>
+                <div id="hud-ship-boost" class="text-red-400">Ready</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Life HUD -->
+    <div id="ai-life-hud" class="ui-element bottom-4 right-4 text-xs font-mono text-slate-300 space-y-1 ui-hidden">
+        <div class="text-indigo-400 font-bold mb-2">AI LIFE METRICS</div>
+        <div class="flex justify-between gap-4">
+            <span class="text-slate-500">Population:</span>
+            <span id="hud-life-pop" class="text-green-400">0</span>
+        </div>
+        <div class="flex justify-between gap-4">
+            <span class="text-slate-500">Formations:</span>
+            <span id="hud-life-forms" class="text-cyan-400">0</span>
+        </div>
+        <div class="flex justify-between gap-4">
+            <span class="text-slate-500">Energy:</span>
+            <span id="hud-life-energy" class="text-yellow-400">0</span>
+        </div>
+        <div class="flex justify-between gap-4">
+            <span class="text-slate-500">AI State:</span>
+            <span id="hud-ai-state" class="text-purple-400">Idle</span>
+        </div>
+        <div class="flex justify-between gap-4">
+            <span class="text-slate-500">Learning:</span>
+            <span id="hud-ai-learning" class="text-pink-400">Passive</span>
         </div>
     </div>
 
@@ -5882,17 +6023,115 @@ class Application {
             $('main-ui')?.classList.toggle('is-hidden');
         });
 
-        // Download ledger button
+        // Clear ledger button
         $('btn-clear-ledger')?.addEventListener('click', () => {
             this.dataLogger.ledger = [];
             this.dataLogger.updateLedgerUI();
         });
 
-        // Download telemetry button
+        // Download ledger button
+        $('download-ledger-button')?.addEventListener('click', () => {
+            if (this.dataLogger && this.dataLogger.downloadLedger) {
+                this.dataLogger.downloadLedger();
+            } else {
+                // Fallback download
+                const data = JSON.stringify(this.dataLogger.ledger || [], null, 2);
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `genesis_ledger_${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        });
+
+        // Clear telemetry button
         $('btn-clear-telemetry')?.addEventListener('click', () => {
             this.dataLogger.telemetry = [];
             this.dataLogger.updateTelemetryUI();
         });
+
+        // Download telemetry button
+        $('download-telemetry-button')?.addEventListener('click', () => {
+            if (this.dataLogger && this.dataLogger.downloadTelemetry) {
+                this.dataLogger.downloadTelemetry();
+            } else {
+                // Fallback download
+                const data = JSON.stringify(this.dataLogger.telemetry || [], null, 2);
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `telemetry_${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        });
+
+        // Spawn Sentinels button
+        $('spawn-sentinels')?.addEventListener('click', () => {
+            if (this.surface && this.surface.spawnSentinels) {
+                this.surface.spawnSentinels();
+                console.log('[Genesis] Spawned Sentinels');
+            }
+        });
+
+        // Spawn Motes button
+        $('spawn-motes')?.addEventListener('click', () => {
+            if (this.surface && this.surface.spawnMotes) {
+                this.surface.spawnMotes();
+                console.log('[Genesis] Spawned Motes');
+            }
+        });
+
+        // Surface tab controls
+        const terrainAmpSlider = $('in-terrain-amp');
+        const terrainAmpVal = $('val-terrain-amp');
+        if (terrainAmpSlider && terrainAmpVal) {
+            terrainAmpSlider.addEventListener('input', (e) => {
+                const value = e.target.value;
+                terrainAmpVal.textContent = value;
+                if (this.surface && this.surface.setTerrainAmplitude) {
+                    this.surface.setTerrainAmplitude(parseFloat(value));
+                }
+            });
+        }
+
+        const vegDensitySlider = $('in-veg-density');
+        const vegDensityVal = $('val-veg-density');
+        if (vegDensitySlider && vegDensityVal) {
+            vegDensitySlider.addEventListener('input', (e) => {
+                const value = e.target.value;
+                vegDensityVal.textContent = value;
+                if (this.surface && this.surface.setVegetationDensity) {
+                    this.surface.setVegetationDensity(parseFloat(value));
+                }
+            });
+        }
+
+        const oceanWavesToggle = $('ocean-waves-toggle');
+        if (oceanWavesToggle) {
+            oceanWavesToggle.addEventListener('change', (e) => {
+                if (this.surface && this.surface.setOceanWaves) {
+                    this.surface.setOceanWaves(e.target.checked);
+                }
+            });
+        }
+
+        const timeOfDaySlider = $('in-time-of-day');
+        const timeOfDayVal = $('val-time-of-day');
+        if (timeOfDaySlider && timeOfDayVal) {
+            timeOfDaySlider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                const hours = Math.floor(value);
+                const minutes = Math.round((value - hours) * 60);
+                timeOfDayVal.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                if (this.surface && this.surface.setTimeOfDay) {
+                    this.surface.setTimeOfDay(value);
+                }
+            });
+        }
 
         // ===== NEW INTEGRATED SYSTEM EVENT HANDLERS =====
 
@@ -5914,7 +6153,7 @@ class Application {
         }
 
         // PSI Panel close button
-        const psiClose = $('psiClose');
+        const psiClose = $('close-psi-btn') || $('psiClose');
         if (psiClose) {
             psiClose.addEventListener('click', () => {
                 this.STATE.ui.psiOverlayVisible = false;
@@ -6110,9 +6349,27 @@ class Application {
         this.objectLibrary.show(isGalaxy);
 
         // Show/hide HUD sections
-        $('galaxy-hud').style.display = isGalaxy ? 'block' : 'none';
-        $('surface-hud').style.display = isSurface ? 'block' : 'none';
-        $('ship-hud').style.display = isShip ? 'block' : 'none';
+        const galaxyHud = $('galaxy-hud');
+        const surfaceHud = $('surface-hud');
+        const shipHud = $('ship-hud');
+        const aiLifeHud = $('ai-life-hud');
+
+        if (galaxyHud) {
+            if (isGalaxy) galaxyHud.classList.remove('ui-hidden');
+            else galaxyHud.classList.add('ui-hidden');
+        }
+        if (surfaceHud) {
+            if (isSurface) surfaceHud.classList.remove('ui-hidden');
+            else surfaceHud.classList.add('ui-hidden');
+        }
+        if (shipHud) {
+            if (isShip) shipHud.classList.remove('ui-hidden');
+            else shipHud.classList.add('ui-hidden');
+        }
+        if (aiLifeHud) {
+            if (isGalaxy) aiLifeHud.classList.remove('ui-hidden');
+            else aiLifeHud.classList.add('ui-hidden');
+        }
 
         // Configure controls
         this.orbitControls.enabled = isGalaxy || isSolar;
@@ -6212,12 +6469,26 @@ class Application {
     }
 
     updateHUD() {
+        // Update FPS
+        const hudFps = $('hud-fps');
+        if (hudFps) hudFps.textContent = Math.round(this.fps);
+
         // Update main HUD values
-        $('hud-influence').textContent = this.isMouseDown ? 'Active' : 'Idle';
-        $('hud-gravity').textContent = this.physics.ugrav.toFixed(2);
-        $('hud-chaos').textContent = this.physics.lambda.toFixed(2);
-        $('hud-energy').textContent = this.physics.ec.toFixed(2);
-        $('hud-psd').textContent = this.audioData.psd.toFixed(3);
+        const hudInfluence = $('hud-influence');
+        const hudGravity = $('hud-gravity');
+        const hudChaos = $('hud-chaos');
+        const hudEnergy = $('hud-energy');
+        const hudPsd = $('hud-psd');
+        const hudParticles = $('hud-particles');
+        const hudAnomalies = $('hud-anomalies');
+
+        if (hudInfluence) hudInfluence.textContent = this.isMouseDown ? 'Active' : 'Idle';
+        if (hudGravity) hudGravity.textContent = this.physics.ugrav.toFixed(2);
+        if (hudChaos) hudChaos.textContent = this.physics.lambda.toFixed(2);
+        if (hudEnergy) hudEnergy.textContent = this.physics.ec.toFixed(2);
+        if (hudPsd) hudPsd.textContent = this.audioData.psd.toFixed(3);
+        if (hudParticles) hudParticles.textContent = this.STATE.runtime.objectCount || 0;
+        if (hudAnomalies) hudAnomalies.textContent = this.qem.getAnomalyCount ? this.qem.getAnomalyCount() : 0;
 
         // AI Life stats
         const lifeStats = this.aiLife.getStats();
@@ -6228,15 +6499,41 @@ class Application {
         // Ship HUD (if in spaceship mode)
         if (this.currentView === 'spaceship' || this.currentView === 'cockpit') {
             const shipState = this.spaceship.getState();
-            $('hud-ship-vel').textContent = `${shipState.velocity.toFixed(0)} km/s`;
-            $('hud-ship-alt').textContent = shipState.gravSource ? `${shipState.altitude.toFixed(0)} km` : 'N/A';
-            $('hud-ship-grav').textContent = shipState.gravSource ? shipState.gravSource.name : 'Deep Space';
+            const hudShipVel = $('hud-ship-vel');
+            const hudShipAlt = $('hud-ship-alt');
+            const hudShipGrav = $('hud-ship-grav');
+            const hudShipThrust = $('hud-ship-thrust');
+            const hudShipRoll = $('hud-ship-roll');
+            const hudShipBoost = $('hud-ship-boost');
+
+            if (hudShipVel) hudShipVel.textContent = `${shipState.velocity.toFixed(0)} km/s`;
+            if (hudShipAlt) hudShipAlt.textContent = shipState.gravSource ? `${shipState.altitude.toFixed(0)} km` : 'N/A';
+            if (hudShipGrav) hudShipGrav.textContent = shipState.gravSource ? shipState.gravSource.name : 'Deep Space';
+            if (hudShipThrust) hudShipThrust.textContent = `${Math.round(shipState.thrust || 0)}%`;
+            if (hudShipRoll) hudShipRoll.textContent = `${Math.round(shipState.roll || 0)}°`;
+            if (hudShipBoost) hudShipBoost.textContent = shipState.boost ? 'Active' : 'Ready';
         }
 
         // AI state
         const aiState = this.quantumAI.update(this.clock.getDelta());
-        $('hud-ai-state').textContent = aiState.dominantState;
-        $('hud-ai-learning').textContent = this.audioData.psd > 0.1 ? 'Active' : 'Passive';
+        const hudAiState = $('hud-ai-state');
+        const hudAiLearning = $('hud-ai-learning');
+        if (hudAiState) hudAiState.textContent = aiState.dominantState;
+        if (hudAiLearning) hudAiLearning.textContent = this.audioData.psd > 0.1 ? 'Active' : 'Passive';
+
+        // Surface HUD (if in surface mode)
+        if (this.currentView === 'surface' && this.surface) {
+            const surfaceStats = this.surface.getStats ? this.surface.getStats() : {};
+            const hudOcean = $('surface-ocean');
+            const hudClouds = $('surface-clouds');
+            const hudVegetation = $('surface-vegetation');
+            const hudTime = $('surface-time');
+
+            if (hudOcean) hudOcean.textContent = surfaceStats.oceanRoughness || '0.5';
+            if (hudClouds) hudClouds.textContent = surfaceStats.cloudCoverage || '30%';
+            if (hudVegetation) hudVegetation.textContent = surfaceStats.vegetation || '50%';
+            if (hudTime) hudTime.textContent = surfaceStats.timeOfDay || '12:00';
+        }
 
         // ===== CST ψ OVERLAY UPDATE (New CST Compute Engine) =====
         // Update PSI overlay HUD if visible
