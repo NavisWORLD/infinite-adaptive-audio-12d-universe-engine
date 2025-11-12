@@ -1357,6 +1357,11 @@ class EventBus {
         return () => this.unsubscribe(channel, callback);
     }
 
+    // Alias for subscribe to support .on() syntax
+    on(channel, callback) {
+        return this.subscribe(channel, callback);
+    }
+
     unsubscribe(channel, callback) {
         if (this.channels.has(channel)) {
             const callbacks = this.channels.get(channel);
@@ -1397,6 +1402,11 @@ class EventBus {
                 }
             });
         }
+    }
+
+    // Alias for publish to support .emit() syntax
+    emit(channel, data) {
+        return this.publish(channel, data);
     }
 
     getHistory(channel = null) {
