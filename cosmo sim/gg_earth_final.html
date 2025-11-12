@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Genesis X — Earth & Galaxy (Final)</title>
+  <meta name="color-scheme" content="dark light">
+  <style>
+    :root{
+      --bg:#07080c; --panel:rgba(14,17,26,.92); --panel2:rgba(14,17,26,.75);
+      --text:#e7e9f2; --muted:#9aa4b2; --acc:#7c9cff; --border:rgba(124,156,255,.12);
+      --danger:#ff5c5c; --ok:#10b981;
+      --r:12px; --tfast:.15s; --tslow:.35s;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif;overflow:hidden}
+    canvas{display:block;position:fixed;inset:0}
+    .glass{background:var(--panel);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .btn{display:inline-flex;align-items:center;gap:.5rem;padding:.45rem .7rem;border:1px solid var(--border);border-radius:10px;background:linear-gradient(180deg,#141826,#0d1222);color:var(--text);cursor:pointer;transition:transform var(--tfast),border-color var(--tfast)}
+    .btn:hover{transform:translateY(-1px);border-color:rgba(124,156,255,.35)}
+    .btn.primary{border-color:rgba(124,156,255,.45);box-shadow:0 0 0 3px rgba(124,156,255,.09)}
+    .row{display:grid;grid-template-columns:auto 1fr auto;gap:.5rem;align-items:center}
+    input[type="range"]{width:100%}
+    #loading-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.85);z-index:50}
+    #loading-screen .card{padding:1rem 1.2rem;width:min(560px,92vw)}
+    #ui-main-panel{position:fixed;left:12px;top:12px;width:480px;max-height:calc(100% - 24px);overflow:auto;padding:10px;z-index:5}
+    #hud{position:fixed;right:12px;top:12px;z-index:6;display:grid;gap:.4rem}
+    #hud .pill{padding:.35rem .5rem;border:1px solid var(--border);border-radius:999px;background:var(--panel2);font:12px/1 monospace;color:var(--muted)}
+    #hud b{color:var(--acc)}
+    .tabs{display:flex;gap:.35rem;border-bottom:1px solid var(--border);padding:0 .35rem .35rem}
+    .tab{background:none;border:none;color:var(--muted);padding:.35rem .5rem;border-bottom:2px solid transparent;cursor:pointer}
+    .tab.active{color:var(--text);border-color:var(--acc)}
+    .tab-panel{display:none;padding:.6rem}
+    .tab-panel.active{display:block}
+    .group{border:1px solid var(--border);border-radius:12px;padding:.6rem;margin:.5rem 0;background:rgba(0,0,0,.25)}
+    .right{display:flex;gap:.4rem;flex-wrap:wrap}
+    #psiPanel{position:fixed;right:12px;bottom:12px;z-index:7;padding:.6rem;min-width:260px}
+    #surface-hud{position:fixed;left:12px;bottom:12px;z-index:6;display:flex;gap:.4rem}
+    .hidden{display:none}
+    .mono{font:12px ui-monospace,SFMono-Regular,Menlo,monospace}
+    .ok{color:var(--ok)} .bad{color:var(--danger)}
+    @media (max-width:820px){#ui-main-panel{width:auto;left:8px;right:8px} #hud{top:auto;bottom:12px}}
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <canvas id="canvas"></canvas>
+
+  <!-- Loading / start -->
+  <div id="loading-screen">
+    <div class="glass card">
+      <h2 style="margin:.2rem 0">Genesis X</h2>
+      <p class="mono" style="margin:.2rem 0;color:var(--muted)">Earth ↔ Galaxy on the Genesis Engine</p>
+      <div class="right" style="margin:.6rem 0">
+        <button class="btn primary" id="start-button">Initiate</button>
+        <button class="btn" id="btnPsiHUD">CST ψ Overlay</button>
+      </div>
+      <div class="mono" id="netStatus" style="opacity:.9"></div>
+    </div>
+  </div>
+
+  <!-- Main UI -->
+  <div id="ui-main-panel" class="glass">
+    <div class="tabs">
+      <button class="tab active" data-tab="controls" id="tab-controls">Controls</button>
+      <button class="tab" data-tab="cosmos">Cosmos</button>
+      <button class="tab" data-tab="surface">Surface</button>
+      <button class="tab" data-tab="ai">AI</button>
+      <button class="tab" data-tab="advanced">Advanced</button>
+    </div>
+
+    <div id="panel-controls" class="tab-panel active">
+      <div class="group right">
+        <button class="btn" id="btnStart">Start</button>
+        <button class="btn" id="btnPause">Pause</button>
+        <button class="btn" id="btnReset">Reset</button>
+        <button class="btn" id="btnOrbit">Orbit</button>
+        <button class="btn" id="btnShip">Ship</button>
+        <button class="btn" id="btnSurface">Surface</button>
+        <button class="btn" id="btnCloud">Cloud FP</button>
+        <button class="btn" id="btnVoid">Void Walker</button>
+        <button class="btn" id="btnFocusEarth">Focus Earth</button>
+      </div>
+      <div class="group">
+        <div class="row">
+          <label>Audio</label>
+          <div id="audioStatus" class="mono">off</div>
+          <label class="switch"><input type="checkbox" id="toggleAudio"></label>
+        </div>
+        <div class="row">
+          <label>Clouds</label>
+          <div></div>
+          <input id="toggleClouds" type="checkbox" />
+        </div>
+        <div class="row">
+          <label>Perf HUD</label>
+          <div></div>
+          <input id="togglePerf" type="checkbox" checked />
+        </div>
+      </div>
+    </div>
+
+    <div id="panel-cosmos" class="tab-panel">
+      <div class="group">
+        <div class="row"><label>Particles</label><div id="particleVal" class="mono">65000</div><input id="particleCount" type="range" min="1000" max="220000" value="65000" step="1000"></div>
+        <div class="row"><label>Chaos λ</label><div id="lambdaVal" class="mono">0.22</div><input id="lambda" type="range" min="0" max="1" value="0.22" step="0.01"></div>
+        <div class="row"><label>Damping L</label><div id="liVal" class="mono">0.986</div><input id="li" type="range" min="0.9" max="0.999" value="0.986" step="0.001"></div>
+        <div class="row"><label>Ω Hue</label><div id="omegaVal" class="mono">0.58</div><input id="omega" type="range" min="0" max="1" value="0.58" step="0.01"></div>
+        <div class="row"><label>Gravity U</label><div id="ugravVal" class="mono">0.52</div><input id="ugrav" type="range" min="0" max="1" value="0.52" step="0.01"></div>
+        <div class="right"><button class="btn" id="btnRandomize">Randomize Params</button></div>
+      </div>
+    </div>
+
+    <div id="panel-surface" class="tab-panel">
+      <div class="group right">
+        <button class="btn" id="btnGenTerrain">Generate Terrain</button>
+        <button class="btn" id="btnResetSurface">Reset Surface</button>
+        <button class="btn" id="biome-ocean">Ocean</button>
+        <button class="btn" id="biome-forest">Forest</button>
+        <button class="btn" id="biome-desert">Desert</button>
+        <button class="btn" id="biome-ice">Ice</button>
+      </div>
+      <div class="group">
+        <div class="row"><label>Sea Level</label><div id="seaLevelVal" class="mono">0.30</div><input id="seaLevel" type="range" min="0" max="1" value="0.30" step="0.01"></div>
+        <div class="row"><label>Vegetation</label><div id="vegDensityVal" class="mono">0.70</div><input id="vegDensity" type="range" min="0" max="1" value="0.70" step="0.01"></div>
+      </div>
+    </div>
+
+    <div id="panel-ai" class="tab-panel">
+      <div class="group right">
+        <button class="btn" id="btnSpawnStar">Spawn Star</button>
+        <button class="btn" id="btnSpawnPlanet">Spawn Planet</button>
+      </div>
+      <div class="group">
+        <div class="row"><label>Mood</label><div id="aiMood" class="mono">Calm</div><div class="right"><button class="btn" id="btnSetCalm">Calm</button></div></div>
+        <div class="row"><label>Memory</label><div id="aiMemory" class="mono">0</div><div></div></div>
+        <div class="row"><label>Activity</label><div id="aiActivity" class="mono">Idle</div><div></div></div>
+      </div>
+    </div>
+
+    <div id="panel-advanced" class="tab-panel">
+      <div class="group right">
+        <button class="btn" id="btnExportConfig">Export Config</button>
+        <button class="btn" id="btnPrime">EXECUTE DIRECTIVE PRIME</button>
+        <button class="btn" id="btnBeginAnew">BEGIN ANEW</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="pill">FPS <b id="hudFps">0</b></div>
+    <div class="pill">Objects <b id="hudObjects">0</b></div>
+    <div class="pill">Σ(psd) <b id="hudPSD">0.000</b></div>
+    <div class="pill">λ <b id="hudChaos">0.22</b></div>
+  </div>
+
+  <!-- Surface HUD -->
+  <div id="surface-hud" class="hidden">
+    <div class="pill">Ocean <b id="hudOcean">0.0</b></div>
+    <div class="pill">Cloud <b id="hudCloud">0.0</b></div>
+    <div class="pill">Veg <b id="hudVeg">0.0</b></div>
+  </div>
+
+  <!-- Psi overlay -->
+  <div id="psiPanel" class="glass hidden">
+    <div class="mono">ψ breakdown</div>
+    <div class="mono">Ec <b id="vEc">+0.000</b></div>
+    <div class="mono">λ <b id="vLam">+0.000</b></div>
+    <div class="mono">L <b id="vLen">+0.000</b></div>
+    <div class="mono">Ω <b id="vOm">+0.000</b></div>
+    <div class="mono">U <b id="vGrav">+0.000</b></div>
+    <div class="mono">ρ <b id="vRho">+0.000</b></div>
+    <div class="mono">ψ <b id="vPsi">+0.000</b></div>
+  </div>
+
+  <script type="module">
+    // ---------- safe helpers ----------
+    const $ = (id)=>document.getElementById(id);
+    const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+    const on=(el,ev,fn)=>el && el.addEventListener(ev,fn,{passive:true});
+    const rand=(a=0,b=1)=>a+Math.random()*(b-a);
+
+    (function(){
+      const ok = navigator.onLine;
+      $('netStatus').innerHTML = ok
+        ? "<span class='ok'>Online</span> – 3D modules stream from unpkg."
+        : "<span class='bad'>Offline</span> – UI loads; enable internet for visuals.";
+    })();
+
+    // Load three & addons
+    let THREE, OrbitControls, PointerLockControls, EffectComposer, RenderPass, UnrealBloomPass, Sky;
+    try {
+      THREE = await import('three');
+      ({ OrbitControls } = await import('three/addons/controls/OrbitControls.js'));
+      ({ PointerLockControls } = await import('three/addons/controls/PointerLockControls.js'));
+      ({ EffectComposer } = await import('three/addons/postprocessing/EffectComposer.js'));
+      ({ RenderPass } = await import('three/addons/postprocessing/RenderPass.js'));
+      ({ UnrealBloomPass } = await import('three/addons/postprocessing/UnrealBloomPass.js'));
+      ({ Sky } = await import('three/addons/objects/Sky.js'));
+    } catch (e) { console.warn('three.js failed to load:', e); }
+
+    // ---------- Event Bus ----------
+    class EventBus{
+      constructor(){this.map=new Map()}
+      on(t,fn){(this.map.get(t)||this.map.set(t,new Set()).get(t)).add(fn)}
+      off(t,fn){this.map.get(t)?.delete(fn)}
+      emit(t,p){for(const fn of this.map.get(t)||[]) try{fn(p)}catch(e){console.error('[bus]',t,e)}}
+    }
+
+    // ---------- Audio Input ----------
+    class AudioInput{
+      constructor(bus){this.bus=bus; this.enabled=false; this.psd=0; this.ctx=null; this.analyser=null; this.data=null;}
+      async start(){
+        try{
+          this.ctx = new (window.AudioContext||window.webkitAudioContext)();
+          const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+          const src = this.ctx.createMediaStreamSource(stream);
+          this.analyser = this.ctx.createAnalyser();
+          this.analyser.fftSize = 512;
+          src.connect(this.analyser);
+          this.data = new Uint8Array(this.analyser.frequencyBinCount);
+          this.enabled = true;
+          $('audioStatus').textContent='on';
+        }catch(e){
+          console.warn('Mic denied, using simulated PSD'); this.enabled=false;
+          $('audioStatus').textContent='sim';
+        }
+      }
+      tick(){
+        if(this.analyser && this.enabled){
+          this.analyser.getByteFrequencyData(this.data);
+          const sum = this.data.reduce((a,b)=>a+b,0);
+          this.psd = sum / (255 * this.data.length);
+        }else{
+          this.psd = (Math.sin(performance.now()/1300)+1)/8;
+        }
+        this.bus.emit('audio:spectral',{psd:this.psd});
+      }
+    }
+
+    // ---------- Renderer ----------
+    class Renderer{
+      constructor(bus){
+        this.bus=bus;
+        this.enabled = !!THREE;
+        this.canvas=$('canvas');
+        if(!this.enabled){ return; }
+        this.scene=new THREE.Scene();
+        this.scene.background = new THREE.Color(0x04050a);
+        this.scene.fog = new THREE.FogExp2(0x04050a, 0.00006);
+
+        this.camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,0.1,60000);
+        this.camera.position.set(0,360,1200);
+
+        this.renderer=new THREE.WebGLRenderer({canvas:this.canvas, antialias:true, powerPreference:'high-performance'});
+        this.renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+        this.renderer.setSize(innerWidth,innerHeight);
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.05;
+
+        this.composer=new EffectComposer(this.renderer);
+        this.composer.addPass(new RenderPass(this.scene,this.camera));
+        this.bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight), 0.95, 0.85, 0.8);
+        this.composer.addPass(this.bloom);
+
+        // lights
+        const hemi = new THREE.HemisphereLight(0x88aaff,0x080b10, 0.35); this.scene.add(hemi);
+        this.sun = new THREE.DirectionalLight(0xffffff, 1.15); this.sun.position.set(4000,3000,2000); this.scene.add(this.sun);
+
+        // sky dome
+        this.sky = new Sky(); this.sky.scale.setScalar(40000); this.scene.add(this.sky);
+        const skyU = this.sky.material.uniforms;
+        skyU['turbidity'].value = 2.2; skyU['rayleigh'].value = 2.2; skyU['mieCoefficient'].value = 0.001; skyU['mieDirectionalG'].value = 0.8;
+
+        // resize
+        addEventListener('resize', ()=>{
+          this.camera.aspect = innerWidth/innerHeight; this.camera.updateProjectionMatrix();
+          this.renderer.setSize(innerWidth,innerHeight); this.composer.setSize(innerWidth,innerHeight);
+        });
+
+        // Hand-of-god ripple
+        this.rippleGeo = new THREE.RingGeometry(1,1.2,64);
+        this.rippleMat = new THREE.MeshBasicMaterial({color:0x7c9cff, transparent:true, opacity:0.0, side:THREE.DoubleSide});
+        this.ripple = new THREE.Mesh(this.rippleGeo, this.rippleMat); this.scene.add(this.ripple);
+
+        this.clock = new THREE.Clock();
+        this.bus.on('engine:update', ({dt})=>this.render(dt));
+        this.bus.on('create:ripple', (pos)=>{
+          this.ripple.position.copy(pos); this.ripple.scale.setScalar(1); this.rippleMat.opacity=0.6;
+        });
+      }
+      render(dt){
+        if(!this.enabled) return;
+        if(this.rippleMat.opacity>0){ this.ripple.scale.multiplyScalar(1+dt*1.8); this.rippleMat.opacity = Math.max(0, this.rippleMat.opacity - dt*0.8); }
+        this.composer.render();
+      }
+    }
+
+    // ---------- Player ----------
+    class Player{
+      constructor(bus, renderer, surface, earth){
+        this.bus=bus; this.renderer=renderer; this.surface=surface; this.earth=earth; this.mode='orbit';
+        if(!renderer?.camera || !THREE){ return; }
+        this.camera=renderer.camera; this.dom=renderer.renderer.domElement;
+        this.orbit = new OrbitControls(this.camera, this.dom);
+        this.orbit.enableDamping=true; this.orbit.dampingFactor=0.06; this.orbit.minDistance=80; this.orbit.maxDistance=50000;
+        this.pointer = new PointerLockControls(this.camera, this.dom);
+        this.keys={}; on(window,'keydown',e=>this.keys[e.code]=true); on(window,'keyup',e=>this.keys[e.code]=false);
+
+        on(this.dom,'mousedown', (e)=>{
+          const p = new THREE.Vector3(0,0,-1).applyQuaternion(this.camera.quaternion).multiplyScalar(80).add(this.camera.position);
+          this.bus.emit('create:ripple', p);
+          this.bus.emit('create:attractor', { position:p, strength: 40 });
+        });
+
+        this.bus.on('ui:setMode', m=>this.setMode(m));
+        this.bus.on('engine:update', ({dt})=>this.update(dt));
+        this.focusEarth();
+      }
+      focusEarth(){
+        if(!this.earth?.group) return;
+        this.orbit.target.copy(this.earth.group.position);
+        this.camera.position.set(0, 380, 900);
+        this.orbit.update();
+      }
+      setMode(m){
+        this.mode=m;
+        if(m==='orbit'){ this.orbit.enabled=true; document.body.style.cursor='grab'; }
+        else { this.orbit.enabled=false; document.body.style.cursor='crosshair'; }
+        if(m==='surface' && this.surface){ this.camera.position.set(0, this.surface.sampleHeight(0,0)+22, 120); }
+        if(m==='cloud'){ this.camera.position.set(0, 260, 0); }
+        if(m==='void'){ this.camera.position.set(0,0,1200); }
+      }
+      update(dt){
+        const speed = this.mode==='surface' ? 40 : 140;
+        if(this.mode==='ship' || this.mode==='surface' || this.mode==='cloud' || this.mode==='void'){
+          const v = new THREE.Vector3(
+            (this.keys['KeyD']?1:0)-(this.keys['KeyA']?1:0),
+            (this.keys['KeyE']?1:0)-(this.keys['KeyQ']?1:0),
+            (this.keys['KeyS']?1:0)-(this.keys['KeyW']?1:0)
+          ).multiplyScalar(speed*dt);
+          this.camera.position.add(this.camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(-v.z));
+          this.camera.position.add(this.camera.getWorldDirection(new THREE.Vector3()).cross(new THREE.Vector3(0,1,0)).multiplyScalar(v.x));
+          this.camera.position.y += v.y;
+        }
+        if(this.mode==='surface' && this.surface){
+          const y = this.surface.sampleHeight(this.camera.position.x, this.camera.position.z) + 12;
+          this.camera.position.y = Math.max(y, this.camera.position.y);
+        }
+      }
+    }
+
+    // ---------- Simplex Noise (2D) ----------
+    class Simplex{
+      constructor(seed=12345){
+        this.p=new Uint8Array(256);
+        for(let i=0;i<256;i++) this.p[i]=i;
+        let s=seed>>>0;
+        for(let i=255;i>0;i--){ s = (s*1664525+1013904223)>>>0; const r=s%(i+1); const t=this.p[i]; this.p[i]=this.p[r]; this.p[r]=t; }
+        this.perm=new Uint8Array(512);
+        for(let i=0;i<512;i++) this.perm[i]=this.p[i&255];
+      }
+      dot(gx,gy,x,y){return gx*x+gy*y}
+      noise2D(xin,yin){
+        const grad3=[[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
+        const F2=0.5*(Math.sqrt(3)-1), G2=(3-Math.sqrt(3))/6;
+        let n0=0,n1=0,n2=0;
+        const s=(xin+yin)*F2; const i=Math.floor(xin+s); const j=Math.floor(yin+s);
+        const t=(i+j)*G2; const X0=i-t, Y0=j-t; const x0=xin-X0, y0=yin-Y0;
+        let i1, j1; if(x0>y0){i1=1;j1=0;} else{ i1=0;j1=1; }
+        const x1=x0-i1+G2, y1=y0-j1+G2;
+        const x2=x0-1+2*G2, y2=y0-1+2*G2;
+        const ii=i&255, jj=j&255;
+        const gi0=this.perm[ii+this.perm[jj]]%8;
+        const gi1=this.perm[ii+i1+this.perm[jj+j1]]%8;
+        const gi2=this.perm[ii+1+this.perm[jj+1]]%8;
+        let t0=0.5-x0*x0-y0*y0; if(t0>0){ t0*=t0; n0=t0*t0*this.dot(grad3[gi0][0],grad3[gi0][1],x0,y0); }
+        let t1=0.5-x1*x1-y1*y1; if(t1>0){ t1*=t1; n1=t1*t1*this.dot(grad3[gi1][0],grad3[gi1][1],x1,y1); }
+        let t2=0.5-x2*x2-y2*y2; if(t2>0){ t2*=t2; n2=t2*t2*this.dot(grad3[gi2][0],grad3[gi2][1],x2,y2); }
+        return 70*(n0+n1+n2);
+      }
+    }
+
+    // ---------- Earth System (procedural textures, atmosphere, clouds) ----------
+    class EarthSystem{
+      constructor(bus, scene){
+        this.bus=bus; this.scene=scene; this.group = THREE ? new THREE.Group():null;
+        if(this.group) scene.add(this.group);
+        this.simplex = new Simplex(Math.floor(Math.random()*1e9));
+        this.radius = 200;
+        this.cloudMesh=null; this.atmo=null; this.earth=null;
+        this.build();
+      }
+      noise3(lat,lon,scale,seed=0){
+        const x=Math.cos(lat)*Math.cos(lon)*scale + seed;
+        const y=Math.cos(lat)*Math.sin(lon)*scale + seed*1.33;
+        const z=Math.sin(lat)*scale + seed*0.77;
+        // combine 2D samples to fake 3D
+        return (this.simplex.noise2D(x,y)+this.simplex.noise2D(y,z)*0.5+this.simplex.noise2D(z,x)*0.25)/1.75;
+      }
+      genMaps(w=1024,h=512){
+        const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d');
+        const bump=document.createElement('canvas'); bump.width=w; bump.height=h; const gb=bump.getContext('2d');
+        const clouds=document.createElement('canvas'); clouds.width=w; clouds.height=h; const gc=clouds.getContext('2d');
+
+        const img=g.createImageData(w,h); const ib=gb.createImageData(w,h); const ic=gc.createImageData(w,h);
+
+        for(let y=0;y<h;y++){
+          const v = (y/h)*Math.PI - Math.PI/2; // lat
+          for(let x=0;x<w;x++){
+            const u = (x/w)*Math.PI*2 - Math.PI; // lon
+            // base continental mask
+            let e = 0;
+            e += this.noise3(v,u,1.2,12)*0.65;
+            e += this.noise3(v,u,2.7,24)*0.25;
+            e += this.noise3(v,u,6.0,36)*0.10;
+            // warp for ridges
+            const r = Math.abs(this.noise3(v*1.8,u*1.8,3.5,99))*0.4;
+            e = e*0.8 + r;
+            // elevation [-1..1] -> [0..1]
+            const elev = (e*0.5+0.5);
+            const land = elev>0.52;
+            // colorize
+            let R,G,B;
+            if(!land){
+              // ocean depth
+              const d = clamp((0.52 - elev)/0.52, 0, 1);
+              const shallow = 0.2 + (1-d)*0.4;
+              R = 12 + Math.floor(10*shallow);
+              G = 42 + Math.floor(40*shallow);
+              B = 72 + Math.floor(80*shallow);
+            }else{
+              const hgt = (elev-0.52)/0.48;
+              if(hgt<0.07){ // beach
+                R=203;G=191;B=160;
+              }else if(hgt<0.45){ // grass
+                const t=(hgt-0.07)/0.38;
+                R=Math.floor(56 + 30*t);
+                G=Math.floor(140 + 60*t);
+                B=Math.floor(72 + 30*t);
+              }else if(hgt<0.75){ // rock
+                const t=(hgt-0.45)/0.30;
+                R=Math.floor(100 + 30*t);
+                G=Math.floor(100 + 30*t);
+                B=Math.floor(100 + 30*t);
+              }else{ // snow
+                const t=(hgt-0.75)/0.25;
+                const s=Math.floor(235 - 20*(1-t));
+                R=G=B=s;
+              }
+            }
+            const i=(y*w + x)*4;
+            img.data[i]=R; img.data[i+1]=G; img.data[i+2]=B; img.data[i+3]=255;
+            // bump from elev
+            const hb = Math.floor(clamp((elev-0.48)*255, 0, 255));
+            ib.data[i]=ib.data[i+1]=ib.data[i+2]=hb; ib.data[i+3]=255;
+            // clouds: thresholded soft noise over oceans and land
+            let cl = (this.noise3(v*1.8,u*1.8,4.0,333)*0.6 + this.noise3(v*0.9,u*0.9,8.0,777)*0.4 + 0.5);
+            cl = clamp(Math.pow(cl,2.0)*1.1 - 0.35, 0, 1);
+            ic.data[i]=ic.data[i+1]=ic.data[i+2]=255; ic.data[i+3]=Math.floor(cl*255);
+          }
+        }
+        g.putImageData(img,0,0); gb.putImageData(ib,0,0); gc.putImageData(ic,0,0);
+        const map = new THREE.CanvasTexture(c); map.anisotropy=8;
+        const bumpTex = new THREE.CanvasTexture(bump); bumpTex.anisotropy=8;
+        const cloudTex = new THREE.CanvasTexture(clouds); cloudTex.anisotropy=8;
+        return {map, bumpTex, cloudTex};
+      }
+      build(){
+        if(!THREE || !this.group) return;
+        const {map,bumpTex,cloudTex}=this.genMaps(1024,512);
+        const geo = new THREE.SphereGeometry(this.radius, 128, 64);
+        const mat = new THREE.MeshStandardMaterial({map:map, bumpMap:bumpTex, bumpScale: 3.0, roughness:0.95, metalness:0.0});
+        this.earth = new THREE.Mesh(geo,mat); this.group.add(this.earth);
+        // clouds
+        const cGeo = new THREE.SphereGeometry(this.radius*1.007, 96, 48);
+        const cMat = new THREE.MeshLambertMaterial({map:cloudTex, transparent:true, opacity:0.6, depthWrite:false});
+        this.cloudMesh = new THREE.Mesh(cGeo, cMat); this.group.add(this.cloudMesh);
+        // atmosphere glow (backface additive)
+        const aGeo = new THREE.SphereGeometry(this.radius*1.03, 128, 64);
+        const aMat = new THREE.MeshBasicMaterial({color:0x6bbcff, transparent:true, opacity:0.08, blending:THREE.AdditiveBlending, side:THREE.BackSide, depthWrite:false});
+        this.atmo = new THREE.Mesh(aGeo, aMat); this.group.add(this.atmo);
+        // slow rotations
+        this.bus.on('engine:update', ({dt})=>{
+          this.earth.rotation.y += dt*0.01;
+          this.cloudMesh.rotation.y += dt*0.018;
+          this.atmo.rotation.y += dt*0.008;
+        });
+      }
+    }
+
+    // ---------- Clouds (scene layer) ----------
+    class Clouds{
+      constructor(bus, scene){
+        this.bus=bus; this.scene=scene; this.enabled=true; this.group=new THREE.Group(); scene.add(this.group);
+        this.sprites=[]; this.tex=this.makeTex();
+        this.populate();
+      }
+      makeTex(){
+        const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d');
+        const grd=g.createRadialGradient(64,64,10,64,64,64);
+        grd.addColorStop(0,'rgba(255,255,255,.9)'); grd.addColorStop(.6,'rgba(255,255,255,.35)'); grd.addColorStop(1,'rgba(255,255,255,0)');
+        g.fillStyle=grd; g.fillRect(0,0,128,128);
+        const tex=new THREE.CanvasTexture(c); tex.anisotropy=4; return tex;
+      }
+      populate(){
+        if(!THREE) return;
+        const mat=new THREE.SpriteMaterial({map:this.tex, depthWrite:false, depthTest:true, transparent:true});
+        const count=120;
+        for(let i=0;i<count;i++){
+          const s=new THREE.Sprite(mat);
+          s.scale.setScalar(rand(40,120));
+          s.position.set(rand(-900,900), rand(160,300), rand(-900,900));
+          s.userData.vx=rand(-2,2)*0.02; s.userData.vz=rand(-2,2)*0.02;
+          this.group.add(s); this.sprites.push(s);
+        }
+      }
+      setEnabled(v){ this.enabled=v; this.group.visible=v; }
+      dispose(){ this.scene.remove(this.group); }
+      tick(dt){
+        if(!this.enabled) return;
+        for(const s of this.sprites){
+          s.position.x += s.userData.vx*dt*60; s.position.z += s.userData.vz*dt*60;
+          if(s.position.x>1000) s.position.x=-1000; if(s.position.x<-1000) s.position.x=1000;
+          if(s.position.z>1000) s.position.z=-1000; if(s.position.z<-1000) s.position.z=1000;
+        }
+      }
+    }
+
+    // ---------- Surface (terrain+ocean+vegetation+grass) ----------
+    class Surface{
+      constructor(bus, scene){
+        this.bus=bus; this.scene=scene; this.group = THREE ? new THREE.Group():null;
+        this.params={ sea:0.30, veg:0.70, biome:'forest' };
+        this.cloudsEnabled=false;
+        this.noise = new Simplex(Math.floor(Math.random()*1e9));
+        this.size=1600; this.res=320;
+        this.terrain=null; this.ocean=null; this.cloudSys=null; this.trees=null; this.grass=null;
+        if(this.group) { this.group.position.set(-900,0,0); scene.add(this.group); } // place beside Earth
+        bus.on('ui:surfaceParams', p=>{ Object.assign(this.params,p||{}); this.updateHUD(); this.updateSea(); this.rebuildVegetation(); });
+        bus.on('engine:update', ({dt})=> this.tick(dt));
+      }
+      generate(){
+        if(!THREE || !this.group) return;
+        this.reset();
+        // terrain
+        const geo = new THREE.PlaneGeometry(this.size,this.size,this.res,this.res);
+        geo.rotateX(-Math.PI/2);
+        const pos=geo.attributes.position;
+        for(let i=0;i<pos.count;i++){
+          const x=pos.getX(i), z=pos.getZ(i);
+          const h = this.heightFunc(x,z);
+          pos.setY(i,h);
+        }
+        pos.needsUpdate=true; geo.computeVertexNormals();
+        // vertex colors for grass/rock/snow/beach
+        const colors=new Float32Array(pos.count*3);
+        const nrm=geo.attributes.normal;
+        for(let i=0;i<pos.count;i++){
+          const y=pos.getY(i);
+          const slope = 1 - Math.abs(nrm.getY(i)); // 0 flat, 1 steep
+          const sea=this.seaHeight();
+          let r=0,g=0,b=0;
+          if(y<sea+2){ r=0.77; g=0.74; b=0.63; } // beach sand
+          else if(y<sea+22){ r=0.27; g=0.65; b=0.42; } // lowland grass
+          else if(y<60){ r=0.20; g=0.55; b=0.33; } // dense grass
+          else if(y<95 || slope>0.65){ r=0.45; g=0.45; b=0.45; } // rock
+          else { r=0.94; g=0.96; b=0.98; } // snow
+          colors[i*3]=r; colors[i*3+1]=g; colors[i*3+2]=b;
+        }
+        geo.setAttribute('color', new THREE.BufferAttribute(colors,3));
+        const mat = new THREE.MeshStandardMaterial({vertexColors:true, roughness:0.95, metalness:0.0});
+        this.terrain = new THREE.Mesh(geo,mat);
+        this.terrain.receiveShadow=true; this.group.add(this.terrain);
+
+        // ocean
+        const oGeo = new THREE.PlaneGeometry(this.size*1.4, this.size*1.4, 220, 220);
+        oGeo.rotateX(-Math.PI/2);
+        const oMat = new THREE.MeshPhysicalMaterial({color:0x0b2a48, roughness:0.35, metalness:0.0, transmission:0.25, transparent:true});
+        this.ocean = new THREE.Mesh(oGeo, oMat); this.ocean.position.y = this.seaHeight(); this.group.add(this.ocean);
+
+        // vegetation
+        this.buildVegetation();
+        this.buildGrass();
+
+        // local clouds layer
+        this.cloudSys = new Clouds(this.bus, this.scene);
+        this.cloudSys.group.position.copy(this.group.position).add(new THREE.Vector3(0,0,0));
+        this.cloudSys.setEnabled(this.cloudsEnabled);
+
+        this.updateHUD();
+      }
+      reset(){
+        if(!this.group) return;
+        while(this.group.children.length) this.group.remove(this.group.children[0]);
+        if(this.cloudSys){ this.cloudSys.dispose(); this.cloudSys=null; }
+        this.terrain=this.ocean=this.trees=this.grass=null;
+      }
+      seaHeight(){ return this.params.sea * 120 - 30; }
+      heightFunc(x,z){
+        const s=0.0022, n1=this.noise.noise2D(x*s, z*s);
+        const n2=this.noise.noise2D(x*s*2.1+100, z*s*2.1+100)*0.5;
+        const n3=this.noise.noise2D(x*s*0.7-50, z*s*0.7+33)*0.25;
+        return (n1+n2+n3)*48;
+      }
+      sampleHeight(x,z){ return this.heightFunc(x,z); }
+      updateSea(){ if(this.ocean) this.ocean.position.y = this.seaHeight(); $('hudOcean').textContent=this.params.sea.toFixed(2); }
+      rebuildVegetation(){ if(this.trees){ this.group.remove(this.trees); this.trees.geometry?.dispose(); } this.buildVegetation(); if(this.grass){ this.group.remove(this.grass); } this.buildGrass(); $('hudVeg').textContent=this.params.veg.toFixed(2); }
+      buildVegetation(){
+        if(!THREE || !this.terrain) return;
+        const density = this.params.veg; const count = Math.floor(1800 * density);
+        const trunkGeo = new THREE.CylinderGeometry(0.4, 0.6, 6, 5);
+        const foliageGeo = new THREE.ConeGeometry(3.5, 12, 8);
+        const trunkMat = new THREE.MeshStandardMaterial({color:0x6b4f2a, roughness:0.9});
+        const foliageMat = new THREE.MeshStandardMaterial({color: this.params.biome==='ice'?0xaadfff: this.params.biome==='desert'?0x9abf5a: 0x4fb06d, roughness:0.8});
+        const group = new THREE.Group();
+        const place = ()=>{
+          const x=rand(-this.size*0.45, this.size*0.45);
+          const z=rand(-this.size*0.45, this.size*0.45);
+          const y=this.sampleHeight(x,z);
+          if(y < this.seaHeight()+2) return false;
+          const trunk=new THREE.Mesh(trunkGeo, trunkMat); trunk.position.set(x,y+3,z);
+          const foge=new THREE.Mesh(foliageGeo, foliageMat); foge.position.set(x,y+10,z);
+          trunk.castShadow=foge.castShadow=true;
+          group.add(trunk); group.add(foge);
+          return true;
+        };
+        let placed=0, attempts=0;
+        while(placed<count && attempts<count*6){ if(place()) placed++; attempts++; }
+        this.trees=group; this.group.add(group);
+      }
+      buildGrass(){
+        // light instanced grass patches (quads) near ground
+        const count = Math.floor(1200 * this.params.veg);
+        const geo = new THREE.PlaneGeometry(1.2, 3.8);
+        geo.translate(0, 1.9, 0);
+        const mat = new THREE.MeshBasicMaterial({color:0x58b368, side:THREE.DoubleSide, transparent:true, opacity:0.85, depthWrite:false});
+        const inst = new THREE.InstancedMesh(geo, mat, count);
+        const dummy = new THREE.Object3D();
+        let i=0, placed=0;
+        while(placed<count && i<count*5){
+          const x=rand(-this.size*0.45, this.size*0.45);
+          const z=rand(-this.size*0.45, this.size*0.45);
+          const y=this.sampleHeight(x,z);
+          if(y < this.seaHeight()+2){ i++; continue; }
+          dummy.position.set(x,y+0.2,z);
+          dummy.rotation.y = rand(0,Math.PI*2);
+          dummy.scale.setScalar(rand(0.6,1.4));
+          dummy.updateMatrix();
+          inst.setMatrixAt(placed,dummy.matrix);
+          placed++; i++;
+        }
+        inst.instanceMatrix.needsUpdate=true;
+        this.grass=inst; this.group.add(inst);
+      }
+      setBiome(name){
+        this.params.biome=name;
+        if(name==='ocean'){ this.params.sea=0.45; this.params.veg=0.20; }
+        if(name==='forest'){ this.params.sea=0.30; this.params.veg=0.75; }
+        if(name==='desert'){ this.params.sea=0.15; this.params.veg=0.12; }
+        if(name==='ice'){ this.params.sea=0.35; this.params.veg=0.10; }
+        this.updateSea(); this.rebuildVegetation(); this.updateHUD();
+      }
+      tick(dt){
+        if(!this.ocean) return;
+        const pos=this.ocean.geometry.attributes.position; const t=performance.now()*0.001;
+        for(let i=0;i<pos.count;i++){
+          const x=pos.getX(i), z=pos.getZ(i);
+          const h = Math.sin(0.06*x + t*1.1)*0.8 + Math.sin(0.05*z - t*0.9)*0.7;
+          pos.setY(i, h);
+        }
+        pos.needsUpdate=true; this.ocean.geometry.computeVertexNormals();
+      }
+      updateHUD(){
+        $('hudCloud').textContent = this.cloudSys && this.cloudSys.enabled ? '1' : '0';
+        $('hudVeg').textContent=this.params.veg.toFixed(2);
+        $('hudOcean').textContent=this.params.sea.toFixed(2);
+      }
+    }
+
+    // ---------- Cosmos (particles) ----------
+    class Cosmos{
+      constructor(bus, scene){
+        this.bus=bus; this.scene=scene; this.count=65000; this.params={ec:1.2, lambda:0.22, li:0.986, omega:0.58, ugrav:0.52, nebulaDensity:0.25};
+        this.psd=0; this.attractors=[]; this.points=null; this.vel=null;
+        if(!THREE) return;
+        this.texture = this.makeSprite();
+        this.build();
+        bus.on('audio:spectral', d=>{ this.psd = d.psd; });
+        bus.on('create:attractor', a=>{ if(a?.position) this.attractors.push(a); });
+        bus.on('ui:params', p=>{ Object.assign(this.params,p||{}); this.applyColor(); });
+        bus.on('engine:update', ({dt})=>this.update(dt));
+      }
+      makeSprite(){
+        const c=document.createElement('canvas'); c.width=c.height=64;
+        const g=c.getContext('2d'); const grd=g.createRadialGradient(32,32,0,32,32,32);
+        grd.addColorStop(0,'rgba(255,255,255,1)'); grd.addColorStop(.5,'rgba(124,156,255,.5)'); grd.addColorStop(1,'rgba(0,0,0,0)');
+        g.fillStyle=grd; g.fillRect(0,0,64,64);
+        return new THREE.CanvasTexture(c);
+      }
+      build(){
+        if(!THREE) return;
+        const size=1600, N=this.count;
+        const geo=new THREE.BufferGeometry();
+        const pos=new Float32Array(N*3);
+        const col=new Float32Array(N*3);
+        const vel=new Float32Array(N*3);
+        const base=new THREE.Color().setHSL(this.params.omega, 0.5, 0.6);
+        for(let i=0;i<N;i++){
+          const i3=i*3;
+          const r=Math.pow(Math.random(),0.33)*size;
+          const t=Math.random()*Math.PI*2;
+          const p=Math.acos(2*Math.random()-1);
+          pos[i3]=r*Math.sin(p)*Math.cos(t);
+          pos[i3+1]=r*Math.sin(p)*Math.sin(t);
+          pos[i3+2]=r*Math.cos(p);
+          const c=base.clone().multiplyScalar(.6+.4*Math.random());
+          col[i3]=c.r; col[i3+1]=c.g; col[i3+2]=c.b;
+          vel[i3]=vel[i3+1]=vel[i3+2]=0;
+        }
+        geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+        geo.setAttribute('color', new THREE.BufferAttribute(col,3));
+        this.vel = vel;
+        const mat = new THREE.PointsMaterial({size:2, map:this.texture, transparent:true, vertexColors:true, blending:THREE.AdditiveBlending, depthWrite:false});
+        this.points=new THREE.Points(geo,mat);
+        this.scene.add(this.points);
+      }
+      applyColor(){
+        if(!this.points) return;
+        const col=this.points.geometry.getAttribute('color');
+        const base=new THREE.Color().setHSL(this.params.omega, 0.5, 0.6);
+        for(let i=0;i<col.count;i++){
+          const c=base.clone().multiplyScalar(.6+.4*Math.random());
+          col.setX(i,c.r); col.setY(i,c.g); col.setZ(i,c.b);
+        }
+        col.needsUpdate=true;
+      }
+      update(dt){
+        if(!this.points) return;
+        const p=this.points.geometry.getAttribute('position').array;
+        const v=this.vel; const n=this.count;
+        const chaos = clamp(this.params.lambda + this.psd*0.6, 0, 3);
+        const grav = this.params.ugrav;
+        const G=0.08, soft=0.4, li=this.params.li, invMass=1/Math.max(.2,this.params.ec);
+        for(let i=0;i<n;i++){
+          const i3=i*3; let x=p[i3], y=p[i3+1], z=p[i3+2]; let vx=v[i3], vy=v[i3+1], vz=v[i3+2];
+          const d2=x*x+y*y+z*z+soft; const invd=1/Math.sqrt(d2); const f=(G*grav)/d2;
+          let ax=-x*invd*f, ay=-y*invd*f, az=-z*invd*f;
+          for(const A of this.attractors){
+            const dx=A.position.x-x, dy=A.position.y-y, dz=A.position.z-z;
+            const d2a=dx*dx+dy*dy+dz*dz+soft, invda=1/Math.sqrt(d2a);
+            const fa=(G*A.strength*invMass)/d2a; ax+=(dx*invda)*fa; ay+=(dy*invda)*fa; az+=(dz*invda)*fa;
+          }
+          ax+=(Math.random()*2-1)*chaos*invMass*1.6;
+          ay+=(Math.random()*2-1)*chaos*invMass*1.6;
+          az+=(Math.random()*2-1)*chaos*invMass*1.6;
+          vx=(vx+ax*dt)*li; vy=(vy+ay*dt)*li; vz=(vz+az*dt)*li; x+=vx*dt; y+=vy*dt; z+=vz*dt;
+          p[i3]=x; p[i3+1]=y; p[i3+2]=z; v[i3]=vx; v[i3+1]=vy; v[i3+2]=vz;
+        }
+        this.points.geometry.getAttribute('position').needsUpdate=true;
+        this.scene.fog.density = 0.00002 + this.params.nebulaDensity * 0.00012;
+      }
+    }
+
+    // ---------- Entities (stars/planets) ----------
+    class Entities{
+      constructor(bus, scene){
+        this.bus=bus; this.scene=scene; this.list=[];
+        bus.on('ai:spawnStar', ()=>this.spawnStar());
+        bus.on('ai:spawnPlanet', ()=>this.spawnPlanet());
+      }
+      spawnStar(){
+        const g=new THREE.SphereGeometry(rand(10,26), 32, 16);
+        const m=new THREE.MeshBasicMaterial({color:new THREE.Color().setHSL(rand(0.08,0.16), 1, 0.6)});
+        const star=new THREE.Mesh(g,m);
+        star.position.set(rand(-1500,1500), rand(-600,600), rand(-1500,1500));
+        this.scene.add(star);
+        this.list.push(star);
+      }
+      spawnPlanet(){
+        const g=new THREE.SphereGeometry(rand(6,18), 48, 24);
+        const c=new THREE.Color().setHSL(rand(0,1), 0.4, 0.5);
+        const m=new THREE.MeshStandardMaterial({color:c, roughness:0.85, metalness:0.05});
+        const p=new THREE.Mesh(g,m);
+        p.position.set(rand(-1500,1500), rand(-600,600), rand(-1500,1500));
+        const ring = Math.random()<0.35;
+        if(ring){
+          const tg=new THREE.TorusGeometry(rand(10,28), 0.3, 8, 64);
+          const tm=new THREE.MeshBasicMaterial({color:c.getHex(), transparent:true, opacity:0.6});
+          const rmesh=new THREE.Mesh(tg,tm); rmesh.rotation.x=Math.PI/2; p.add(rmesh);
+        }
+        this.scene.add(p); this.list.push(p);
+      }
+    }
+
+    // ---------- Ψ overlay computation ----------
+    function computePsi(Ec, lam, len, Om, U, Rho){
+      const psi_ec = Ec * 0.8;
+      const psi_lam = lam * 0.6;
+      const psi_len = len * 0.2;
+      const psi_om = Om * Ec * 0.4;
+      const psi_u  = U * 0.5;
+      const psi_rho= Rho * 0.7;
+      const psi = psi_ec + psi_lam + psi_len + psi_om + psi_u + psi_rho;
+      return {psi_ec, psi_lam, psi_len, psi_om, psi_u, psi_rho, psi};
+    }
+
+    class PsiHUD{
+      constructor(bus, renderer, cosmos, audio){
+        this.bus=bus; this.renderer=renderer; this.cosmos=cosmos; this.audio=audio;
+        this.fps=0; this.len=0; this.lastT=performance.now();
+        bus.on('engine:update', ({dt})=>this.update(dt));
+      }
+      update(dt){
+        const now=performance.now();
+        this.fps = 1000/Math.max(1, now - this.lastT); this.lastT=now;
+        const cam = this.renderer?.camera;
+        const camPosLen = cam ? cam.position.length() : 1000;
+        const out = {};
+        out.Ec = this.cosmos?.params.ec ?? 1.0;
+        out.lam = this.cosmos?.params.lambda ?? 0.22;
+        out.Om = this.cosmos?.params.omega ?? 0.58;
+        out.U  = -1.0/Math.max(1, camPosLen*camPosLen);
+        out.Rho= this.audio?.psd ?? 0;
+        const full = computePsi(out.Ec, out.lam, this.len, out.Om, out.U, out.Rho);
+        const f = n => (n>=0?'+':'') + n.toFixed(3);
+        $('vEc').textContent=f(full.psi_ec); $('vLam').textContent=f(full.psi_lam);
+        $('vLen').textContent=f(full.psi_len); $('vOm').textContent=f(full.psi_om);
+        $('vGrav').textContent=f(full.psi_u); $('vRho').textContent=f(full.psi_rho);
+        $('vPsi').textContent=f(full.psi);
+        $('hudPSD').textContent=(this.audio?.psd??0).toFixed(3);
+        $('hudChaos').textContent=(this.cosmos?.params.lambda??0).toFixed(2);
+      }
+    }
+
+    // ---------- Simple AI ----------
+    class SimpleAI{
+      constructor(bus, audio){
+        this.bus=bus; this.audio=audio;
+        this.memory=0; this.mood='Calm'; this.timer=0;
+        bus.on('engine:update', ({dt})=>this.update(dt));
+      }
+      update(dt){
+        this.timer+=dt;
+        this.memory = clamp(this.memory + (this.audio?.psd||0)*dt*0.2, 0, 9999);
+        $('aiMemory').textContent=this.memory.toFixed(2);
+        $('aiMood').textContent=this.mood;
+        if(this.timer>3.0){
+          this.timer=0;
+          if((this.audio?.psd||0) > 0.25){ this.bus.emit('ai:spawnStar'); $('aiActivity').textContent='Seeding stars'; }
+          if((this.audio?.psd||0) > 0.35){ this.bus.emit('ai:spawnPlanet'); $('aiActivity').textContent='Birthing planets'; }
+        }
+      }
+    }
+
+    // ---------- UI Manager ----------
+    class UI{
+      constructor(bus, cosmos, renderer, audio, player, surface){
+        this.bus=bus; this.cosmos=cosmos; this.renderer=renderer; this.audio=audio; this.player=player; this.surface=surface;
+        for(const t of document.querySelectorAll('.tab')){
+          t.addEventListener('click', ()=>{
+            document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(x=>x.classList.remove('active'));
+            t.classList.add('active');
+            const id = t.dataset.tab; document.getElementById('panel-'+id).classList.add('active');
+          });
+        }
+        on($('btnStart'),'click',()=>this.bus.emit('ui:start'));
+        on($('btnPause'),'click',()=>this.bus.emit('ui:pause'));
+        on($('btnReset'),'click',()=>this.bus.emit('ui:reset'));
+        on($('btnOrbit'),'click',()=>this.bus.emit('ui:setMode','orbit'));
+        on($('btnShip'),'click',()=>this.bus.emit('ui:setMode','ship'));
+        on($('btnSurface'),'click',()=>this.bus.emit('ui:setMode','surface'));
+        on($('btnCloud'),'click',()=>this.bus.emit('ui:setMode','cloud'));
+        on($('btnVoid'),'click',()=>this.bus.emit('ui:setMode','void'));
+        on($('btnFocusEarth'),'click',()=>this.player?.focusEarth());
+        on($('btnPrime'),'click',()=>this.bus.emit('directive:prime'));
+        on($('btnBeginAnew'),'click',()=>location.reload());
+
+        const bindSlider=(id,key,disp)=> on($(id),'input', e=>{ const v=parseFloat(e.target.value); $(disp).textContent=v.toFixed( (id==='li')?3:2 ); const o={}; o[key]=v; this.bus.emit('ui:params',o); });
+        bindSlider('particleCount','count','particleVal');
+        bindSlider('lambda','lambda','lambdaVal');
+        bindSlider('li','li','liVal');
+        bindSlider('omega','omega','omegaVal');
+        bindSlider('ugrav','ugrav','ugravVal');
+        on($('btnRandomize'),'click',()=>{
+          const o={ lambda: Math.random(), omega: Math.random(), ugrav: Math.random(), ec: 0.8 + Math.random()*1.2 };
+          this.bus.emit('ui:params', o);
+        });
+
+        on($('btnGenTerrain'),'click',()=>{ this.surface.generate(); });
+        on($('btnResetSurface'),'click',()=>{ this.surface.reset(); });
+        on($('biome-ocean'),'click',()=>{ this.surface.setBiome('ocean'); });
+        on($('biome-forest'),'click',()=>{ this.surface.setBiome('forest'); });
+        on($('biome-desert'),'click',()=>{ this.surface.setBiome('desert'); });
+        on($('biome-ice'),'click',()=>{ this.surface.setBiome('ice'); });
+        on($('toggleClouds'),'change', e=>{ this.surface.cloudsEnabled=e.target.checked; if(this.surface.cloudSys) this.surface.cloudSys.setEnabled(e.target.checked); this.surface.updateHUD(); });
+        on($('seaLevel'),'input', e=>{ const v=parseFloat(e.target.value); $('seaLevelVal').textContent=v.toFixed(2); this.bus.emit('ui:surfaceParams',{sea:v}); });
+        on($('vegDensity'),'input', e=>{ const v=parseFloat(e.target.value); $('vegDensityVal').textContent=v.toFixed(2); this.bus.emit('ui:surfaceParams',{veg:v}); });
+
+        on($('btnSpawnStar'),'click',()=>this.bus.emit('ai:spawnStar'));
+        on($('btnSpawnPlanet'),'click',()=>this.bus.emit('ai:spawnPlanet'));
+        on($('btnSetCalm'),'click',()=>{ $('aiMood').textContent='Calm'; });
+
+        on($('toggleAudio'),'change', async (e)=>{
+          if(e.target.checked){ await this.audio.start(); } else { this.audio.enabled=false; $('audioStatus').textContent='off'; }
+        });
+
+        this.bus.on('ui:setMode', m=>{ if(this.player) this.player.setMode(m); if(m==='surface'){ $('surface-hud').classList.remove('hidden'); } else { $('surface-hud').classList.add('hidden'); } });
+      }
+    }
+
+    // ---------- Application ----------
+    class App{
+      constructor(){
+        this.bus=new EventBus();
+        this.audio=new AudioInput(this.bus);
+        this.renderer=new Renderer(this.bus);
+        this.earth=new EarthSystem(this.bus, this.renderer?.scene);
+        this.surface=new Surface(this.bus, this.renderer?.scene);
+        this.cosmos=new Cosmos(this.bus, this.renderer?.scene);
+        this.entities=new Entities(this.bus, this.renderer?.scene);
+        this.player=new Player(this.bus, this.renderer, this.surface, this.earth);
+        this.psi=new PsiHUD(this.bus, this.renderer, this.cosmos, this.audio);
+        this.ui=new UI(this.bus, this.cosmos, this.renderer, this.audio, this.player, this.surface);
+        this.ai=new SimpleAI(this.bus, this.audio);
+
+        on($('start-button'),'click', async ()=>{
+          $('loading-screen').style.display='none';
+          try{ await this.audio.start(); }catch{}
+          // Build initial surface so Surface mode is ready
+          this.surface.generate();
+          this.loop();
+        });
+        on($('btnPsiHUD'),'click', ()=> $('psiPanel').classList.toggle('hidden'));
+
+        this.running=true;
+        this.bus.on('ui:start', ()=> this.running=true);
+        this.bus.on('ui:pause', ()=> this.running=false);
+        this.bus.on('ui:reset', ()=> location.reload());
+
+        this.bus.on('directive:prime', ()=>{
+          if(!this.cosmos?.points || !THREE) return;
+          const p=this.cosmos.points.geometry.getAttribute('position').array;
+          for(let i=0;i<this.cosmos.count;i++){const i3=i*3; p[i3]*=1.25; p[i3+1]*=1.25; p[i3+2]*=1.25;}
+          this.cosmos.points.geometry.getAttribute('position').needsUpdate=true;
+          this.bus.emit('create:attractor',{position:new THREE.Vector3(0,0,0), strength:160});
+        });
+      }
+      loop=()=>{
+        const tick=(t0)=>{
+          const now=performance.now(); const dt = (this.lastNow? (now-this.lastNow)/1000 : 0); this.lastNow=now;
+          if(this.running){
+            this.audio.tick();
+            this.surface?.cloudSys?.tick(dt);
+            this.bus.emit('engine:update',{dt,now});
+            $('hudFps').textContent = (1000/Math.max(1, performance.now()-now)).toFixed(0);
+            $('hudObjects').textContent = (this.cosmos?.count ?? 0);
+          }
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }
+    }
+
+    // boot
+    const app = new App();
+
+    if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+      try{
+        navigator.serviceWorker.register(URL.createObjectURL(new Blob([`self.addEventListener('fetch', e=>e.respondWith(fetch(e.request).catch(()=>caches.match(e.request))))`],{type:'text/javascript'})));
+      }catch{}
+    }
+  </script>
+</body>
+</html>

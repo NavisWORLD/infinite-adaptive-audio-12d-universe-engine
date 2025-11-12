@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Genesis X — Infinite Galaxy</title>
+  <style>
+    :root {
+      --bg: #07080c;
+      --panel: #0e111a;
+      --panel-2:#0b0e15;
+      --text: #e7e9f2;
+      --muted: #9aa4b2;
+      --acc: #7c9cff;
+      --good:#4ade80;
+      --bad:#fb7185;
+    }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font: 14px/1.45 ui-sans-serif, system-ui, "Segoe UI", Roboto; overflow: hidden; }
+    #ui {
+      position: fixed; top: 12px; left: 12px; width: 330px; max-height: calc(100vh - 24px); overflow: auto;
+      padding: 14px; border-radius: 12px; background: rgba(14,17,26,.92); backdrop-filter: blur(8px);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 0 0 1px rgba(124,156,255,.10);
+    }
+    h1 { margin: 0 0 8px; font-size: 18px; letter-spacing:.2px; }
+    .group { margin: 12px 0; padding: 10px; border-radius: 10px; background: var(--panel-2); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
+    .group h3 { margin: 0 0 8px; font-size: 13px; color: #d3dbef; }
+    .row { display: grid; grid-template-columns: 1fr 70px; gap: 8px; align-items: center; margin: 8px 0; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .val { text-align: right; color: #cfd6e6; font-variant-numeric: tabular-nums; font-size: 12px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px;
+           border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);
+           background: linear-gradient(180deg, #1a1d2a 0%, #131726 100%); color: var(--text); cursor: pointer; user-select: none; }
+    .btn.primary { border-color: rgba(124,156,255,0.45); box-shadow: 0 0 0 3px rgba(124,156,255,0.09); }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+    .toggle { display: inline-flex; align-items: center; gap: 8px; user-select: none; cursor: pointer; font-size:12px; color:var(--muted); }
+    .small { font-size: 12px; color: var(--muted); }
+    #banner { display:none; margin-top:8px; padding:8px 10px; border-radius:8px; font-size:12px; }
+    #banner.warn { display:block; background: rgba(250,204,21,.12); color:#facc15; border: 1px solid rgba(250,204,21,.35); }
+    #banner.err  { display:block; background: rgba(251,113,133,.12); color:#fb7185; border: 1px solid rgba(251,113,133,.35); }
+    #logBox { max-height: 200px; overflow: auto; background:#0b0d14; border:1px solid rgba(255,255,255,0.06);
+              border-radius: 8px; padding:8px; font-size:11px; line-height:1.35; color:#c7d2fe; }
+    #logBox .ts  { color:#9aa4b2; } #logBox .evt { color:#a5b4fc; }
+    #crosshair { position: fixed; left:50%; top:50%; width:18px; height:18px; margin-left:-9px; margin-top:-9px; border-radius:50%;
+                 box-shadow:0 0 0 2px rgba(255,255,255,0.22), inset 0 0 0 1px rgba(255,255,255,0.15);
+                 pointer-events:none; opacity:0; transition: opacity .2s ease; }
+    canvas { display:block; }
+  </style>
+
+  <!-- Import map to load Three.js and addons from CDN -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="ui">
+    <h1>Genesis X — Infinite Galaxy</h1>
+
+    <div class="group">
+      <h3>Session</h3>
+      <div class="btn-row">
+        <button id="btnStart" class="btn primary">Initiate Genesis</button>
+        <label class="toggle"><input id="toggleAudio" type="checkbox" /> Use Environment Audio</label>
+      </div>
+      <div class="small">Tip: serve via <code>localhost</code> for mic permissions. Click Start.</div>
+      <div id="audioStatus" class="small" style="margin-top:6px">Mic: Off</div>
+      <div id="banner" class="small"></div>
+    </div>
+
+    <div class="group">
+      <h3>Unified Master Formula</h3>
+      <div class="row">
+        <div><label>Energy Scaling (ec)</label><input id="ec" type="range" min="0.2" max="4.0" step="0.1" value="1.2" /></div>
+        <div class="val" id="ecVal">1.2</div>
+      </div>
+      <div class="row">
+        <div><label>Chaos Factor (λ)</label><input id="lambda" type="range" min="0.0" max="1.0" step="0.01" value="0.25" /></div>
+        <div class="val" id="lambdaVal">0.25</div>
+      </div>
+      <div class="row">
+        <div><label>Motion Damping (li)</label><input id="li" type="range" min="0.9" max="1.0" step="0.001" value="0.985" /></div>
+        <div class="val" id="liVal">0.985</div>
+      </div>
+      <div class="row">
+        <div><label>Spectral Hue (Ω)</label><input id="omega" type="range" min="0.0" max="1.0" step="0.01" value="0.62" /></div>
+        <div class="val" id="omegaVal">0.62</div>
+      </div>
+      <div class="row">
+        <div><label>Gravitational Strength (U)</label><input id="ugrav" type="range" min="0.0" max="2.0" step="0.01" value="0.55" /></div>
+        <div class="val" id="ugravVal">0.55</div>
+      </div>
+      <div class="small">Σ(psd): <b id="psdVal">0.000</b> • FPS: <b id="fps">—</b></div>
+    </div>
+
+    <div class="group">
+      <h3>Particles</h3>
+      <div class="row">
+        <div><label>Particle Count</label><input id="particleCount" type="range" min="2000" max="120000" step="1000" value="16000" /></div>
+        <div class="val" id="particleCountVal">16,000</div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>Exploration</h3>
+      <div class="btn-row">
+        <button id="btnOrbit" class="btn">Orbit Mode</button>
+        <button id="btnShip" class="btn">Spaceship Mode</button>
+      </div>
+      <div class="small">WASD + mouse (ship). Space/Shift up/down. Wheel: throttle. Click canvas to lock pointer.</div>
+      <div class="btn-row">
+        <button id="btnViewChase" class="btn">Chase View</button>
+        <button id="btnViewCockpit" class="btn">Cockpit View</button>
+      </div>
+      <div class="row">
+        <div><label>Camera Distance</label><input id="camDist" type="range" min="2.0" max="12.0" step="0.1" value="5.0" /></div>
+        <div class="val" id="camDistVal">5.0</div>
+      </div>
+      <div class="row">
+        <div><label>Ship Speed</label><input id="shipSpeed" type="range" min="40" max="240" step="5" value="100" /></div>
+        <div class="val" id="shipSpeedVal">100</div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>Sentient AI</h3>
+      <div class="btn-row">
+        <button id="btnSpawnStar" class="btn">Spawn Star</button>
+        <button id="btnSpawnPlanet" class="btn">Spawn Planet</button>
+        <label class="toggle"><input id="toggleAI" type="checkbox" checked /> AI Enabled</label>
+      </div>
+      <div class="small" id="aiStatus">AI: Idle</div>
+    </div>
+
+    <div class="group">
+      <h3>Formula HUD</h3>
+      <div class="row"><div><label>ec</label></div><div class="val" id="hudEc">—</div></div>
+      <div class="row"><div><label>λ</label></div><div class="val" id="hudLambda">—</div></div>
+      <div class="row"><div><label>chaos (λ or Σ)</label></div><div class="val" id="hudChaos">—</div></div>
+      <div class="row"><div><label>li</label></div><div class="val" id="hudLi">—</div></div>
+      <div class="row"><div><label>Ω</label></div><div class="val" id="hudOmega">—</div></div>
+      <div class="row"><div><label>U</label></div><div class="val" id="hudU">—</div></div>
+      <div class="row"><div><label>Σ(psd)</label></div><div class="val" id="hudPSD">—</div></div>
+      <div class="row"><div><label>bands(L/M/H)</label></div><div class="val" id="hudBands">—</div></div>
+      <div class="row"><div><label>objects</label></div><div class="val" id="hudObjects">—</div></div>
+    </div>
+
+    <div class="group">
+      <h3>Rendering</h3>
+      <label class="toggle"><input id="toggleSimpleRender" type="checkbox" /> Simple Render (bypass post)</label>
+      <label class="toggle" style="margin-top:4px"><input id="toggleBloom" type="checkbox" /> Disable Bloom</label>
+      <label class="toggle" style="margin-top:4px"><input id="toggleFXAA" type="checkbox" /> Disable FXAA</label>
+    </div>
+
+    <div class="group">
+      <h3>System Log</h3>
+      <div class="btn-row">
+        <button id="btnLogPause" class="btn">Pause Log</button>
+        <button id="btnLogClear" class="btn">Clear</button>
+        <button id="btnLogCopy" class="btn">Copy</button>
+      </div>
+      <div id="logBox"></div>
+    </div>
+  </div>
+  <div id="crosshair"></div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+    import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+
+    // -------- Event Bus + Log --------
+    class EventBus {
+      constructor(){ this.map = new Map(); }
+      on(name, fn){ if(!this.map.has(name)) this.map.set(name, new Set()); this.map.get(name).add(fn); return ()=>this.off(name,fn); }
+      off(name, fn){ const s=this.map.get(name); if(!s) return; s.delete(fn); if(!s.size) this.map.delete(name); }
+      emit(name, payload){ const s=this.map.get(name); if(!s) return; for(const fn of s){ try{ fn(payload);}catch(e){console.error(e);} } }
+    }
+    class Log {
+      constructor(bus){
+        this.bus = bus; this.box = document.getElementById('logBox'); this.paused=false; this.buffer=[];
+        const $ = id=>document.getElementById(id);
+        const p=$('btnLogPause'), c=$('btnLogClear'), k=$('btnLogCopy');
+        p?.addEventListener('click',()=>{ this.paused=!this.paused; p.textContent=this.paused?'Resume Log':'Pause Log'; });
+        c?.addEventListener('click',()=>{ if(this.box) this.box.innerHTML=''; });
+        k?.addEventListener('click',()=>{ const t=this.box?this.box.innerText:''; navigator.clipboard?.writeText(t); });
+        const wrap = name => bus.on(name, data=>this.print(name,data));
+        ['engine:update','audio:spectral','soul:dust','ai:intention','ai:create','create:star','create:planet','create:attractor','ui:params','ui:viewMode'].forEach(wrap);
+      }
+      print(evt, payload){
+        const ts=new Date().toLocaleTimeString();
+        const line = `<div><span class="ts">[${ts}]</span> <span class="evt">${evt}</span> ${payload!==undefined?`<span class="pl">${this.fmt(payload)}</span>`:''}</div>`;
+        if(this.paused){ this.buffer.push(line); if(this.buffer.length>500) this.buffer.shift(); return; }
+        if(this.box){ this.box.insertAdjacentHTML('beforeend', line); this.box.scrollTop=this.box.scrollHeight; }
+      }
+      fmt(v){ try{ if(v==null) return ''; if(typeof v==='object') return JSON.stringify(v); return String(v);}catch(_){return '';} }
+    }
+
+    // -------- Shaders --------
+    const GalaxyShader = {
+      uniforms: {
+        uTime:{value:0}, uCamPos:{value:new THREE.Vector3()},
+        uEc:{value:1.2}, uLambda:{value:0.25}, uOmega:{value:0.62}, uU:{value:0.55}, uPSD:{value:0},
+        uIntensity:{value:1.0}, uScale:{value:1.0}, uStarD:{value:1.0}, uNebD:{value:0.7}
+      },
+      vertexShader:`varying vec3 vPos;void main(){vec4 wp=modelMatrix*vec4(position,1.0);vPos=wp.xyz;gl_Position=projectionMatrix*viewMatrix*wp;}`,
+      fragmentShader:`precision highp float; varying vec3 vPos; uniform vec3 uCamPos;
+        uniform float uTime,uEc,uLambda,uOmega,uU,uPSD,uIntensity,uScale,uStarD,uNebD;
+        float hash(vec3 p){p=fract(p*.3183+vec3(.1));p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+        float noise(vec3 p){vec3 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); float n=0.; for(int z=0;z<2;z++)for(int y=0;y<2;y++)for(int x=0;x<2;x++){vec3 o=vec3(x,y,z);
+          n+=mix(mix(mix(hash(i+o),hash(i+o+vec3(1,0,0)),f.x),mix(hash(i+o+vec3(0,1,0)),hash(i+o+vec3(1,1,0)),f.x),f.y),
+                  mix(mix(hash(i+o+vec3(0,0,1)),hash(i+o+vec3(1,0,1)),f.x),mix(hash(i+o+vec3(0,1,1)),hash(i+o+vec3(1,1,1)),f.x),f.y),f.z);} return n/8.;}
+        float fbm(vec3 p){float a=.5,v=0.;for(int i=0;i<5;i++){v+=a*noise(p);p*=2.01;a*=.5;}return v;}
+        void main(){
+          vec3 dir=normalize(vPos-uCamPos); vec3 p=dir*1000.+uCamPos*.02*uU; p*=uScale;
+          float neb=pow(fbm(p*.0015+vec3(0.,uTime*.01*(.4+uLambda),0.)),1.6)*uNebD*(.6+.8*uPSD);
+          float sd=uStarD*(.7+.6*uEc);
+          float stars=step(.995-.15*uLambda, hash(floor(p*.02)))*sd;
+          float hue=fract(uOmega);
+          vec3 base=vec3(.9,.95,1.);
+          vec3 tint=mix(vec3(.9,.6,1.), vec3(.6,.9,1.), hue);
+          vec3 col=base*stars + tint*neb; col*= (.6+.6*uIntensity);
+          gl_FragColor=vec4(col,1.0);
+        }`
+    };
+    const GravLensShader = {
+      uniforms:{ tDiffuse:{value:null}, center:{value:new THREE.Vector2(.5,.5)}, radius:{value:.25}, strength:{value:.6} },
+      vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);} `,
+      fragmentShader:`precision highp float; varying vec2 vUv; uniform sampler2D tDiffuse; uniform vec2 center; uniform float radius; uniform float strength;
+        void main(){ vec2 d=vUv-center; float r=length(d)+1e-4; float m=smoothstep(radius,0.0,r); vec2 dir=d/r; vec2 uv=vUv - dir * (strength*m*.02); gl_FragColor=texture2D(tDiffuse,uv); }`
+    };
+
+    // -------- Renderer --------
+    class Renderer {
+      constructor(bus){
+        this.bus=bus;
+        this.scene=new THREE.Scene();
+        this.camera=new THREE.PerspectiveCamera(65, innerWidth/innerHeight, .1, 20000);
+        this.camera.position.set(0,25,120);
+        this.renderer=new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance', logarithmicDepthBuffer:true});
+        this.renderer.setSize(innerWidth, innerHeight);
+        this.renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+        this.renderer.outputColorSpace=THREE.SRGBColorSpace;
+        this.renderer.toneMapping=THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure=1.05;
+        this.renderer.setClearColor(0x07080c,1);
+        this.renderer.shadowMap.enabled=true;
+        this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+        document.body.appendChild(this.renderer.domElement);
+
+        this.controls=new OrbitControls(this.camera,this.renderer.domElement);
+        this.controls.enableDamping=true;
+
+        // Post
+        this.composer=new EffectComposer(this.renderer);
+        this.renderPass=new RenderPass(this.scene,this.camera);
+        this.composer.addPass(this.renderPass);
+        this.bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight), 0.9, 0.8, 0.9);
+        this.composer.addPass(this.bloom);
+        this.lens=new ShaderPass(GravLensShader); this.lens.enabled=false; this.composer.addPass(this.lens);
+        this.fxaa=new ShaderPass(FXAAShader);
+        const pr=this.renderer.getPixelRatio(); this.fxaa.material.uniforms['resolution'].value.set(1/(innerWidth*pr),1/(innerHeight*pr));
+        this.fxaa.renderToScreen=true; this.composer.addPass(this.fxaa);
+
+        // Galaxy skydome
+        const skyGeo=new THREE.SphereGeometry(2400,64,64);
+        const skyMat=new THREE.ShaderMaterial({side:THREE.BackSide, depthWrite:false, uniforms:THREE.UniformsUtils.clone(GalaxyShader.uniforms), vertexShader:GalaxyShader.vertexShader, fragmentShader:GalaxyShader.fragmentShader});
+        this.sky=new THREE.Mesh(skyGeo,skyMat); this.scene.add(this.sky);
+
+        // Sparse far stars
+        const farGeo=new THREE.BufferGeometry(); const N=6000;
+        const pos=new Float32Array(N*3); for(let i=0;i<N;i++){ const t=Math.random()*Math.PI*2, p=Math.acos(Math.random()*2-1); const r=6000+Math.random()*1000; const i3=i*3;
+          pos[i3]=r*Math.sin(p)*Math.cos(t); pos[i3+1]=r*Math.cos(p); pos[i3+2]=r*Math.sin(p)*Math.sin(t); }
+        farGeo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+        const farMat=new THREE.PointsMaterial({color:0xffffff, size:.9, sizeAttenuation:true, transparent:true, opacity:.65, depthWrite:false});
+        this.farStars=new THREE.Points(farGeo,farMat); this.farStars.frustumCulled=false; this.scene.add(this.farStars);
+
+        addEventListener('resize', ()=>{
+          this.camera.aspect=innerWidth/innerHeight; this.camera.updateProjectionMatrix();
+          this.renderer.setSize(innerWidth,innerHeight);
+          const pr=this.renderer.getPixelRatio(); this.fxaa.material.uniforms['resolution'].value.set(1/(innerWidth*pr),1/(innerHeight*pr));
+          this.composer.setSize(innerWidth,innerHeight);
+        });
+
+        // Toggles
+        document.getElementById('toggleSimpleRender')?.addEventListener('change', e=>{ this.simple=!!e.target.checked; });
+        document.getElementById('toggleBloom')?.addEventListener('change', e=>{ this.bloom.enabled = !e.target.checked; });
+        document.getElementById('toggleFXAA')?.addEventListener('change', e=>{ this.fxaa.enabled = !e.target.checked; });
+
+        this.bus.on('galaxy:update', p=>this.updateGalaxy(p));
+        this.bus.on('audio:spectral', v=>{
+          const psd=Math.max(0,Math.min(2.0,v||0));
+          this.bloom.strength = 0.6 + psd*0.9;
+          this.renderer.toneMappingExposure = 0.95 + psd*0.25;
+          this.updateGalaxy({psd});
+        });
+        this.bus.on('engine:update', ()=>this.render());
+      }
+      updateGalaxy(p){
+        if(!this.sky) return; const u=this.sky.material.uniforms;
+        if(p.ec!==undefined) u.uEc.value=p.ec;
+        if(p.lambda!==undefined) u.uLambda.value=p.lambda;
+        if(p.omega!==undefined) u.uOmega.value=p.omega;
+        if(p.ugrav!==undefined) u.uU.value=p.ugrav;
+        if(p.psd!==undefined) u.uPSD.value=p.psd;
+      }
+      render(){
+        if(this.sky){ const u=this.sky.material.uniforms; u.uTime.value += 1.0; u.uCamPos.value.copy(this.camera.position); }
+        if(this.controls && this.controls.enabled) this.controls.update();
+        if(this.simple){ this.renderer.render(this.scene,this.camera); } else { this.composer.render(); }
+      }
+    }
+
+    // -------- AudioManager --------
+    class AudioManager {
+      constructor(bus){ this.bus=bus; this.ctx=null; this.an=null; this.freq=null; this.time=null; this.prev=null; this.active=false; this.psd=0;
+        this.statusEl=document.getElementById('audioStatus');
+        bus.on('audio:enable', ()=>this.enable()); bus.on('audio:disable', ()=>this.disable()); bus.on('engine:update', ()=>this.tick());
+      }
+      async enable(){
+        if(this.active) return;
+        try{
+          const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
+          this.ctx=new (window.AudioContext||window.webkitAudioContext)();
+          const src=this.ctx.createMediaStreamSource(stream); this.an=this.ctx.createAnalyser(); this.an.fftSize=2048; this.an.smoothingTimeConstant=0.6;
+          src.connect(this.an); this.freq=new Uint8Array(this.an.frequencyBinCount); this.time=new Uint8Array(this.an.fftSize);
+          await this.ctx.resume?.(); this.active=true; this.setStatus(true);
+        }catch(e){ console.error(e); this.setStatus(false,'Error'); bus.emit('ui:banner',{kind:'err', text:'Microphone not available.'}); }
+      }
+      disable(){ this.active=false; try{ this.ctx?.close(); }catch(_){} this.ctx=null; this.an=null; this.freq=null; this.time=null; this.setStatus(false); }
+      tick(){
+        if(!this.active||!this.an||!this.freq) return;
+        this.an.getByteFrequencyData(this.freq); this.an.getByteTimeDomainData(this.time);
+        const n=this.freq.length; let sum=0,sumSq=0,ampSum=0,wsum=0,total=0;
+        for(let i=0;i<n;i++){ const raw=this.freq[i]; const v=raw/255; sum+=v; sumSq+=v*v; ampSum+=raw; wsum+=raw*i; total+=raw; }
+        const mean=sum/n; const variance=Math.max(0,sumSq/n-mean*mean); const std=Math.sqrt(variance);
+        // RMS from time
+        let ampRMS=0; { let acc=0; for(let i=0;i<this.time.length;i++){ const s=(this.time[i]-128)/128; acc+=s*s; } ampRMS=Math.sqrt(acc/this.time.length); }
+        // centroid/rolloff/flux
+        const centroid = ampSum>0 ? (wsum/ampSum)/n : 0;
+        let accum=0, rollIdx=0; const thr=total*0.85; for(let i=0;i<n;i++){accum+=this.freq[i]; if(accum>=thr){ rollIdx=i; break; }}
+        const rolloff = Math.min(1, rollIdx/(n-1));
+        let flux=0; if(this.prev){ for(let i=0;i<n;i++){ const a=this.freq[i]/255, b=this.prev[i]/255; const d=a-b; flux+=d*d; } flux=Math.sqrt(flux/n); }
+        // bands
+        const third=Math.floor(n/3); let low=0,mid=0,high=0;
+        for(let i=0;i<n;i++){ const v=this.freq[i]/255; if(i<third) low+=v; else if(i<2*third) mid+=v; else high+=v; }
+        low/=third; mid/=third; high/=(n-2*third);
+        const psdBase=Math.min(2.0, std*2.3); const psdMix=psdBase + 0.7*ampRMS + 0.5*flux; this.psd = this.psd + (Math.min(2.0,psdMix)-this.psd)*0.25;
+        const hue=Math.max(0,Math.min(1,centroid));
+        const el=document.getElementById('psdVal'); if(el) el.textContent=this.psd.toFixed(3);
+        const dust={ psd:this.psd, centroid, rolloff, flux, bands:{low,mid,high}, amplitude:ampRMS, hue, t:performance.now() };
+        this.bus.emit('audio:spectral', this.psd); this.bus.emit('soul:dust', dust); this.bus.emit('galaxy:update',{ psd:this.psd, omega:hue });
+        try{ document.getElementById('hudBands').textContent = `${low.toFixed(2)} / ${mid.toFixed(2)} / ${high.toFixed(2)}`; }catch(_){}
+        if(!this.prev) this.prev=new Uint8Array(n); this.prev.set(this.freq);
+      }
+      setStatus(on, note){ const el=this.statusEl; if(!el) return; if(on){ el.textContent='Mic: On'; el.style.color='var(--good)'; } else { el.textContent=`Mic: Off${note?' ('+note+')':''}`; el.style.color='var(--muted)'; } }
+    }
+
+    // -------- Cosmos (Particles + physics) --------
+    class Cosmos {
+      constructor(bus, scene){
+        this.bus=bus; this.scene=scene;
+        this.params={ ec:1.2, lambda:0.25, li:0.985, omega:0.62, ugrav:0.55 };
+        this.psd=0; this.audioActive=false; this.attractors=[]; this.lastDust={bands:{low:0,mid:0,high:0}, centroid:0};
+        const N=16000; this.count=N;
+        const pos=new Float32Array(N*3); const vel=new Float32Array(N*3); const col=new Float32Array(N*3);
+        const inner=300, outer=1800;
+        for(let i=0;i<N;i++){ const i3=i*3; const r=inner + (outer-inner)*Math.cbrt(Math.random()); const th=Math.random()*Math.PI*2; const ph=Math.acos(Math.random()*2-1);
+          pos[i3]=r*Math.sin(ph)*Math.cos(th); pos[i3+1]=r*Math.cos(ph); pos[i3+2]=r*Math.sin(ph)*Math.sin(th);
+          vel[i3]=vel[i3+1]=vel[i3+2]=0; const c=new THREE.Color().setHSL(this.params.omega, .7, .6); col[i3]=c.r; col[i3+1]=c.g; col[i3+2]=c.b;
+        }
+        const geo=new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos,3)); geo.setAttribute('color', new THREE.BufferAttribute(col,3));
+        const mat=new THREE.PointsMaterial({ size:.7*this.params.ec, sizeAttenuation:true, vertexColors:true, transparent:true, opacity:.92, depthWrite:false });
+        this.points=new THREE.Points(geo,mat); this.points.frustumCulled=false; scene.add(this.points);
+        this.vel=vel; this.colors=col;
+        bus.on('ui:params', p=>{ Object.assign(this.params, p||{}); this.applyAppearance(); bus.emit('galaxy:update', {...this.params}); });
+        bus.on('audio:spectral', v=>{ this.psd=v; });
+        bus.on('soul:dust', d=>{ this.lastDust=d||this.lastDust; const hueShift=(d.centroid-0.5)*0.05; const newOmega=Math.max(0,Math.min(1,this.params.omega + hueShift)); this.updateColors(newOmega); bus.emit('galaxy:update',{omega:newOmega, psd:d.psd}); });
+        bus.on('audio:enable', ()=>this.audioActive=true); bus.on('audio:disable', ()=>this.audioActive=false);
+        bus.on('create:attractor', a=>{ if(a&&a.position) this.attractors.push(a); });
+        bus.on('engine:update', ({dt,now})=>this.update(dt,now));
+        bus.on('cosmos:resize', n=>this.resize(n|0));
+      }
+      applyAppearance(){ if(this.points?.material) this.points.material.size=.7*this.params.ec; this.updateColors(this.params.omega); }
+      updateColors(hue){ for(let i=0;i<this.count;i++){ const i3=i*3; const c=new THREE.Color().setHSL(hue,.7,.6); this.colors[i3]=c.r; this.colors[i3+1]=c.g; this.colors[i3+2]=c.b; }
+        this.points.geometry.getAttribute('color').needsUpdate=true; }
+      resize(N){
+        N=Math.max(2000,Math.min(120000,N)); if(N===this.count) return;
+        const posA=this.points.geometry.getAttribute('position'); const colA=this.points.geometry.getAttribute('color');
+        const newPos=new Float32Array(N*3); const newCol=new Float32Array(N*3);
+        const copy=Math.min(this.count,N); newPos.set(posA.array.subarray(0,copy*3)); newCol.set(colA.array.subarray(0,copy*3));
+        for(let i=copy;i<N;i++){ const i3=i*3; const r=300 + (1800-300)*Math.cbrt(Math.random()); const th=Math.random()*Math.PI*2; const ph=Math.acos(Math.random()*2-1);
+          newPos[i3]=r*Math.sin(ph)*Math.cos(th); newPos[i3+1]=r*Math.cos(ph); newPos[i3+2]=r*Math.sin(ph)*Math.sin(th);
+          const c=new THREE.Color().setHSL(this.params.omega,.7,.6); newCol[i3]=c.r; newCol[i3+1]=c.g; newCol[i3+2]=c.b; }
+        this.points.geometry.setAttribute('position', new THREE.BufferAttribute(newPos,3));
+        this.points.geometry.setAttribute('color', new THREE.BufferAttribute(newCol,3));
+        this.vel=new Float32Array(N*3); this.colors=newCol; this.count=N;
+        this.points.geometry.getAttribute('position').needsUpdate=true; this.points.geometry.getAttribute('color').needsUpdate=true;
+      }
+      update(dt, now){
+        const p=this.points.geometry.getAttribute('position').array; const v=this.vel; const n=this.count;
+        const chaos=this.audioActive?this.psd:this.params.lambda; const grav=this.params.ugrav;
+        const invMass=1/Math.max(.2,this.params.ec); const li=this.params.li; const G=0.08; const soft=0.1;
+        const envAmp=this.audioActive?(this.lastDust.amplitude||0):0; const flux=this.audioActive?(this.lastDust.flux||0):0;
+        for(let i=0;i<n;i++){
+          const i3=i*3; let x=p[i3], y=p[i3+1], z=p[i3+2]; let vx=v[i3], vy=v[i3+1], vz=v[i3+2];
+          let ax=0, ay=0, az=0;
+          // simple star-like center gravity for stability + attractors
+          const d2 = x*x + y*y + z*z + soft; const invd=1/Math.sqrt(d2); const f=(G*grav)/d2; ax += -x*invd*f; ay += -y*invd*f; az += -z*invd*f;
+          for(const A of this.attractors){ const ap=A.position; const dx=ap.x-x, dy=ap.y-y, dz=ap.z-z; const d2a=dx*dx+dy*dy+dz*dz+soft; const invdA=1/Math.sqrt(d2a);
+            ax += (dx*invdA)*A.strength*invMass*(1+envAmp*0.5); ay += (dy*invdA)*A.strength*invMass*(1+envAmp*0.5); az += (dz*invdA)*A.strength*invMass*(1+envAmp*0.5); }
+          // chaos
+          const bandBoost = .6 + .7*(this.lastDust?.bands?.mid||0) + .4*(this.lastDust?.bands?.low||0);
+          const chaosIntensity = chaos * (1 + envAmp + flux);
+          ax += (Math.random()*2-1) * chaosIntensity * invMass * 2.2 * bandBoost;
+          ay += (Math.random()*2-1) * chaosIntensity * invMass * 2.2 * bandBoost;
+          az += (Math.random()*2-1) * chaosIntensity * invMass * 2.2 * bandBoost;
+          // swirl torque
+          const invLen=1/Math.max(1e-4, Math.hypot(x,z)); const sx=-z*invLen, sz=x*invLen; const swirl=(this.audioActive?this.psd:0)* (0.5*(this.lastDust?.bands?.high||0));
+          ax += sx*swirl*invMass*3.5; az += sz*swirl*invMass*3.5;
+          // integrate
+          vx=(vx+ax*dt)*li; vy=(vy+ay*dt)*li; vz=(vz+az*dt)*li; x+=vx*dt; y+=vy*dt; z+=vz*dt;
+          const B=4000; if(x>B) x=-B; else if(x<-B) x=B; if(y>B) y=-B; else if(y<-B) y=B; if(z>B) z=-B; else if(z<-B) z=B;
+          p[i3]=x; p[i3+1]=y; p[i3+2]=z; v[i3]=vx; v[i3+1]=vy; v[i3+2]=vz;
+        }
+        this.points.geometry.getAttribute('position').needsUpdate=true;
+      }
+    }
+
+    // -------- Objects (Stars / Planets) --------
+    class ObjectLibrary {
+      constructor(bus, scene){ this.bus=bus; this.scene=scene; this.stars=[]; this.planets=[];
+        bus.on('ai:create', m=>{ if(!m) return; if(m.kind==='star') this.createStar(m.params||{}); else if(m.kind==='planet') this.createPlanet(m.params||{}); });
+        // Seed a few
+        for(let i=0;i<3;i++) this.createStar({});
+        for(let i=0;i<6;i++) this.createPlanet({});
+      }
+      createStar(params){
+        const size = params.size ?? (8 + Math.random()*10);
+        const hue  = params.hue  ?? Math.random();
+        const col = new THREE.Color().setHSL(hue,.8,.6);
+        const star = new THREE.Mesh(new THREE.SphereGeometry(size,48,48), new THREE.MeshBasicMaterial({color:col}));
+        const r=800+Math.random()*1200, a=Math.random()*Math.PI*2, e=(Math.random()*2-1)*.25*Math.PI;
+        star.position.set(r*Math.cos(a)*Math.cos(e), r*Math.sin(e), r*Math.sin(a)*Math.cos(e));
+        this.scene.add(star);
+        const light=new THREE.PointLight(col, 16, 0, 2); light.position.copy(star.position); this.scene.add(light);
+        const attractor={ id:`star-${Date.now()}-${Math.floor(Math.random()*1e6)}`, position:light.position, strength:12.0 };
+        this.stars.push({star, light, attractor}); this.bus.emit('create:star',{star,light,attractor}); this.bus.emit('create:attractor', attractor);
+      }
+      createPlanet(params){
+        const around = this.stars.length ? this.stars[Math.floor(Math.random()*this.stars.length)] : null;
+        const center = around ? around.star.position : new THREE.Vector3(0,0,0);
+        const radius = params.radius ?? (3+Math.random()*4);
+        const hue = params.hue ?? Math.random();
+        const planet = new THREE.Mesh(new THREE.SphereGeometry(radius,64,64), new THREE.MeshStandardMaterial({
+          color:new THREE.Color().setHSL(hue,.35,.55), roughness:.9, metalness:.05
+        }));
+        planet.castShadow=true; planet.receiveShadow=true;
+        const dist=(params.distance??(140+Math.random()*260)) + (around? (around.star.geometry.parameters.radius||10):0);
+        const ang=Math.random()*Math.PI*2, inc=(Math.random()*.6+.2), phi=(Math.random()*2-1)*inc;
+        const sph=new THREE.Spherical(dist, Math.PI/2+phi, ang);
+        planet.position.copy(new THREE.Vector3().setFromSpherical(sph).add(center));
+        this.scene.add(planet);
+        const attractor={ id:`planet-${Date.now()}-${Math.floor(Math.random()*1e6)}`, position:planet.position, strength:5.0 };
+        this.planets.push({planet, center, dist, angle:ang, speed:(0.18+Math.random()*0.2)/Math.max(20,dist), attractor});
+        this.bus.emit('create:planet',{planet, attractor}); this.bus.emit('create:attractor', attractor);
+      }
+      update(dt){ for(const p of this.planets){ p.angle+=p.speed; const x=p.center.x+Math.cos(p.angle)*p.dist, z=p.center.z+Math.sin(p.angle)*p.dist, y=p.center.y; p.planet.position.set(x,y,z); } }
+    }
+
+    // -------- Player (Orbit / Ship) --------
+    class Player {
+      constructor(bus, renderer){
+        this.bus=bus; this.r=renderer; this.mode='orbit'; this.view='chase'; this.camDist=5; this.speed=100;
+        this.controls=new PointerLockControls(this.r.camera, this.r.renderer.domElement);
+        this.vel=new THREE.Vector3(); this.dir=new THREE.Vector3(); this.keys={};
+        this.cross=document.getElementById('crosshair');
+        window.addEventListener('keydown',e=>this.keys[e.code]=true);
+        window.addEventListener('keyup',e=>this.keys[e.code]=false);
+        this.r.renderer.domElement.addEventListener('click', ()=>{ if(this.mode==='ship') this.controls.lock(); });
+        this.controls.addEventListener('lock', ()=>{ this.cross.style.opacity=1; });
+        this.controls.addEventListener('unlock', ()=>{ this.cross.style.opacity=0; });
+        this.bus.on('ui:viewMode', m=>this.setMode(m));
+        this.bus.on('engine:update', ({dt})=>this.update(dt));
+      }
+      setMode(m){ if(m==='ship'){ this.mode='ship'; this.r.controls.enabled=false; } else { this.mode='orbit'; this.r.controls.enabled=true; this.controls.unlock(); } }
+      update(dt){
+        if(this.mode!=='ship') return;
+        // rotation from mouse handled by PointerLockControls (we keep camera attached)
+        const acc = this.speed * 0.6;
+        this.dir.set(0,0,0);
+        if(this.keys['KeyW']) this.dir.z -= 1;
+        if(this.keys['KeyS']) this.dir.z += 1;
+        if(this.keys['KeyA']) this.dir.x -= 1;
+        if(this.keys['KeyD']) this.dir.x += 1;
+        if(this.keys['Space']) this.dir.y += 1;
+        if(this.keys['ShiftLeft']||this.keys['ShiftRight']) this.dir.y -= 1;
+        if(this.dir.lengthSq()>0) this.dir.normalize();
+        // transform to camera space
+        const cam=this.r.camera;
+        const forward=new THREE.Vector3(); cam.getWorldDirection(forward);
+        const right=new THREE.Vector3().crossVectors(forward, cam.up).normalize();
+        const up=cam.up.clone().normalize();
+        const move = new THREE.Vector3().addScaledVector(forward, this.dir.z).addScaledVector(right, this.dir.x).addScaledVector(up, this.dir.y);
+        this.vel.addScaledVector(move, acc*dt); this.vel.multiplyScalar(0.92);
+        cam.position.addScaledVector(this.vel, dt);
+      }
+    }
+
+    // -------- AI --------
+    class AI {
+      constructor(bus){ this.bus=bus; this.enabled=true; this.period=10; this.acc=0; this.lastDust=null;
+        bus.on('soul:dust', d=>this.lastDust=d); bus.on('engine:update', ({dt})=>this.tick(dt));
+      }
+      tick(dt){ if(!this.enabled) return; this.acc+=dt; if(this.acc<this.period) return; this.acc=0; const d=this.lastDust||{bands:{low:.2,mid:.2,high:.2}};
+        let kind='crystal'; if(d.bands.high>0.55) kind='star'; else if(d.bands.mid>0.40) kind='planet';
+        const msg = kind==='star'?'Condensing stellar plasma from high-band energy.': kind==='planet'?'Mid-band stability detected; seeding a world.':'Quiet flux; manifesting crystal.';
+        this.bus.emit('ai:intention', msg); this.bus.emit('ai:create', {kind}); }
+    }
+
+    // -------- UI wiring --------
+    const $ = id=>document.getElementById(id);
+    const bus = new EventBus();
+    const log = new Log(bus);
+    const renderer = new Renderer(bus);
+    const cosmos = new Cosmos(bus, renderer.scene);
+    const objects = new ObjectLibrary(bus, renderer.scene);
+    const audio = new AudioManager(bus);
+    const player = new Player(bus, renderer);
+    const ai = new AI(bus);
+
+    let running=false, last=performance.now(), fpsAcc=0, fpsFrames=0;
+    function loop(now){
+      if(!running) return;
+      const dt=Math.min(0.05,(now-last)/1000); last=now;
+      fpsAcc+=dt; fpsFrames++; if(fpsAcc>=1){ const fps=Math.round(fpsFrames/fpsAcc); const el=$('fps'); if(el) el.textContent=String(fps); fpsAcc=0; fpsFrames=0; }
+      objects.update(dt);
+      bus.emit('engine:update',{dt,now});
+      requestAnimationFrame(loop);
+    }
+
+    function start(){ if(running) return; running=true; last=performance.now(); loop(last); }
+    $('btnStart')?.addEventListener('click', start);
+    $('toggleAudio')?.addEventListener('change', e=>{ if(e.target.checked) bus.emit('audio:enable'); else bus.emit('audio:disable'); });
+    $('btnOrbit')?.addEventListener('click', ()=>bus.emit('ui:viewMode','orbit'));
+    $('btnShip')?.addEventListener('click', ()=>bus.emit('ui:viewMode','ship'));
+    $('btnViewChase')?.addEventListener('click', ()=>player.view='chase');
+    $('btnViewCockpit')?.addEventListener('click', ()=>player.view='cockpit');
+    $('camDist')?.addEventListener('input', e=>{ const v=parseFloat(e.target.value); $('camDistVal').textContent=v.toFixed(1); player.camDist=v; });
+    $('shipSpeed')?.addEventListener('input', e=>{ const v=parseFloat(e.target.value); $('shipSpeedVal').textContent=v.toFixed(0); player.speed=v; });
+    $('btnSpawnStar')?.addEventListener('click', ()=>bus.emit('ai:create',{kind:'star'}));
+    $('btnSpawnPlanet')?.addEventListener('click', ()=>bus.emit('ai:create',{kind:'planet'}));
+    $('toggleAI')?.addEventListener('change', e=>{ ai.enabled=!!e.target.checked; $('aiStatus').textContent = ai.enabled?'AI: Enabled':'AI: Disabled'; });
+
+    function bindRange(id, lab, key, fmt=(v)=>v.toFixed(2)){
+      const el=$(id), out=$(lab);
+      const push=()=>{ const v=parseFloat(el.value); out.textContent=fmt(v); const p={}; p[key]=v; bus.emit('ui:params', p);
+        // HUD mirror
+        const map={ec:'hudEc', lambda:'hudLambda', li:'hudLi', omega:'hudOmega', ugrav:'hudU'}; if(map[key]) $(map[key]).textContent=fmt(v);
+      };
+      el?.addEventListener('input', push); push();
+    }
+    bindRange('ec','ecVal','ec', v=>v.toFixed(1));
+    bindRange('lambda','lambdaVal','lambda', v=>v.toFixed(2));
+    bindRange('li','liVal','li', v=>v.toFixed(3));
+    bindRange('omega','omegaVal','omega', v=>v.toFixed(2));
+    bindRange('ugrav','ugravVal','ugrav', v=>v.toFixed(2));
+    $('particleCount')?.addEventListener('input', e=>{ const v=e.target.value|0; $('particleCountVal').textContent=v.toLocaleString(); bus.emit('cosmos:resize', v); });
+
+    // HUD updates
+    bus.on('audio:spectral', psd=>{ const el=$('hudPSD'); if(el) el.textContent=psd.toFixed(3); $('hudChaos').textContent=(psd).toFixed(3); });
+    bus.on('ui:params', p=>{ if(p.lambda!==undefined && !$('toggleAudio').checked) $('hudChaos').textContent=p.lambda.toFixed(2); });
+    let objectsCount=0; bus.on('create:star', ()=>{ objectsCount++; $('hudObjects').textContent=String(objectsCount); });
+    bus.on('create:planet', ()=>{ objectsCount++; $('hudObjects').textContent=String(objectsCount); });
+
+    // Log banner helper
+    bus.on('ui:banner', ({kind,text})=>{ const b=$('banner'); b.className=kind==='err'?'small err':'small warn'; b.textContent=text; });
+
+    // Show a quick success banner after a short delay
+    setTimeout(()=>bus.emit('ui:banner',{kind:'warn', text:'✅ Genesis loaded — click “Initiate Genesis” to begin.'}), 600);
+  </script>
+</body>
+</html>
