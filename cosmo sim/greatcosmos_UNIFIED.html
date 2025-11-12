@@ -3044,58 +3044,18 @@ class SurfaceManager {
             // Fog will naturally not render when objects are hidden
         }
     }
-
-    /**
-     * Alias for setVisible to match API requirements
-     */
-    show(visible) {
-        this.setVisible(visible);
-    }
     
     /**
      * Update surface simulation
-     * @param {number} delta - Time delta
-     * @param {object} STATE - Global state object
-     * @param {THREE.Camera} camera - Camera reference
      */
     update(delta, STATE, camera) {
-        // Get audio level if available
-        const audioLevel = STATE.sensors?.audio?.avgFreq || 0;
-
-        // Calculate surface parameters from unified formula
-        const lux = 0.6;
-        const hum = 0.35;
-        const wind = 0.2;
-        const temp = 21;
-
-        // Ocean roughness influenced by wind and audio
-        this.oceanRoughness = THREE.MathUtils.clamp(
-            0.05 + wind * 0.7 + audioLevel * 0.35,
-            0.02,
-            1.2
-        );
-
-        // Cloud coverage influenced by humidity and audio
-        this.cloudCoverage = THREE.MathUtils.clamp(
-            0.2 + hum * 0.65 + audioLevel * 0.25,
-            0,
-            1
-        );
-
-        // Vegetation density influenced by humidity and temperature
-        this.vegetationDensity = THREE.MathUtils.clamp(
-            0.8 * hum * (1 - Math.abs(temp - 22) / 22),
-            0,
-            1
-        );
-
         // Update water animation
         if (this.water) {
             this.water.material.roughness = this.oceanRoughness * 0.4;
             // Simple wave animation
             this.water.position.y = 20 + Math.sin(STATE.runtime.totalTime * 0.5) * 2;
         }
-
+        
         // Update surface HUD
         if (STATE.currentMode === 'surface') {
             STATE.ui.surfaceHUDVisible = true;
@@ -3856,14 +3816,7 @@ class MemoryEchoEngine {
             this.exit();
         }
     }
-
-    /**
-     * Alias for setVisible to match API requirements
-     */
-    show(visible) {
-        this.setVisible(visible);
-    }
-
+    
     initAudioSearch() {
         try {
             this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
