@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Genesis X - Combined Universe</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Roboto+Mono:wght@400;500&display=swap');
+    :root {
+      --bg: #000510;
+      --panel: rgba(15, 23, 42, 0.85);
+      --border: rgba(51,65,85,0.5);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --primary: #4f46e5;
+      --accent: #38bdf8;
+    }
+    html, body { height: 100%; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; }
+    canvas { display: block; }
+    #blocker {
+      position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; flex-direction: column;
+      background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); transition: opacity .5s ease;
+      text-align: center; padding: 20px;
+    }
+    #start-btn { padding: 12px 24px; border-radius: 8px; border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer; font-weight: 600; }
+    #start-btn:hover { background: var(--accent); color: #05121f; }
+
+    #ui { position: fixed; top: 12px; left: 12px; width: 380px; z-index: 10; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; backdrop-filter: blur(10px); max-height: calc(100% - 24px); overflow-y: auto; }
+    #ui h2 { margin: 6px 0 10px; font-size: 16px; font-weight: 600; color: #cbd5e1; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; align-items: center; margin: 8px 0; font-family: 'Roboto Mono', monospace; font-size: 12px; color: var(--muted); }
+    .row > label { grid-column: span 1; }
+    .row > input[type=range], .row > select { grid-column: span 2; width: 100%; }
+    input[type=range]{ -webkit-appearance: none; appearance: none; height: 4px; background: #334155; border-radius: 3px; }
+    input[type=range]::-webkit-slider-thumb{ -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--primary); border: 2px solid #0b1220; }
+    .toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px; background: rgba(0,0,0,0.2); }
+    #hud { position: fixed; bottom: 12px; left: 12px; z-index: 9; font-family: 'Roboto Mono', monospace; font-size: 11px; color: var(--muted); background: rgba(0,0,0,0.35); border: 1px solid var(--border); padding: 8px 10px; border-radius: 8px; }
+    #toggle-ui { position: fixed; top: 12px; right: 12px; z-index: 11; width: 40px; height: 40px; border-radius: 50%; background: rgba(59,130,246,0.85); color: white; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.35); }
+  </style>
+
+  <!-- PDF.js for PDF text extraction in local data ingestion -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.js" defer></script>
+  <script defer>
+    window.addEventListener('DOMContentLoaded', ()=>{
+      if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.js';
+      }
+    });
+  </script>
+
+  <script async src="https://unpkg.com/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="blocker">
+    <h1 style="margin:0 0 8px; font-weight:700; letter-spacing:.5px">Genesis X — The Living, Infinite Cosmos</h1>
+    <p style="max-width:600px; color:#9fb3ca; margin:0 0 18px;">Grant microphone access to transmute sound → frequency → light. Press Start to awaken the universe. Use View Mode for Orbit or First-Person flight. Everything forms from Soul Dust.</p>
+    <button id="start-btn">Start</button>
+  </div>
+
+  <div id="ui">
+    <button id="save-btn" class="pill" style="position:sticky; top:0; float:right; cursor:pointer">Save</button>
+    <h2>Master Equation ψ control</h2>
+    <div class="row"><label>c²ΦEc,i</label><input id="ec" type="range" min="0.2" max="2.0" value="1.0" step="0.01"><div id="ecv" class="pill">1.00</div></div>
+    <div class="row"><label>λi</label><input id="lambda" type="range" min="0" max="0.5" value="0.05" step="0.001"><div id="lambdav" class="pill">0.05</div></div>
+    <div class="row"><label>Li</label><input id="li" type="range" min="0.95" max="0.999" value="0.99" step="0.001"><div id="liv" class="pill">0.990</div></div>
+    <div class="row"><label>ΩiEc,i</label><input id="omega" type="range" min="0" max="1" value="0.6" step="0.01"><div id="omegav" class="pill">0.60</div></div>
+    <div class="row"><label>Ugrav,i</label><input id="ugrav" type="range" min="0" max="0.1" value="0.01" step="0.001"><div id="ugravv" class="pill">0.010</div></div>
+    <div class="toggle"><span>Σ(psd,i) from microphone</span><label class="pill"><input id="use-audio" type="checkbox"> enable</label></div>
+
+    <h2>Exploration & Graphics</h2>
+    <div class="row"><label>View Mode</label><select id="view">
+      <option value="orbit">Orbit</option>
+      <option value="fp">First-Person</option>
+      <option value="cine">Cinematic</option>
+    </select><div class="pill">WASD + mouse</div></div>
+    <div class="toggle"><span>Bloom</span><label class="pill"><input id="fx-bloom" type="checkbox" checked> on</label></div>
+    <div class="toggle"><span>Motion Blur</span><label class="pill"><input id="fx-afterimage" type="checkbox" checked> on</label></div>
+    <div class="toggle"><span>God Rays</span><label class="pill"><input id="fx-godrays" type="checkbox"> on</label></div>
+    <div class="toggle"><span>Lens Flare (bright stars)</span><label class="pill"><input id="fx-lensflare" type="checkbox"> on</label></div>
+    <div class="toggle"><span>Water / Swim</span><label class="pill"><input id="env-water" type="checkbox"> on</label></div>
+
+    <h2>Graphics</h2>
+    <div class="row"><label>Tone Mapping</label><select id="tone">
+      <option value="ACESFilmicToneMapping" selected>ACES</option>
+      <option value="ReinhardToneMapping">Reinhard</option>
+      <option value="LinearToneMapping">Linear</option>
+      <option value="CineonToneMapping">Cineon</option>
+    </select><div class="pill">colour</div></div>
+    <div class="row"><label>Exposure</label><input id="exposure" type="range" min="0.2" max="2.0" value="1.0" step="0.05"><div id="exposurev" class="pill">1.00</div></div>
+    <div class="row"><label>Bloom Strength</label><input id="bloomS" type="range" min="0" max="3" value="1.2" step="0.05"><div id="bloomSv" class="pill">1.2</div></div>
+    <div class="row"><label>Bloom Radius</label><input id="bloomR" type="range" min="0" max="2" value="0.4" step="0.01"><div id="bloomRv" class="pill">0.40</div></div>
+    <div class="row"><label>Bloom Threshold</label><input id="bloomT" type="range" min="0" max="1" value="0.00" step="0.01"><div id="bloomTv" class="pill">0.00</div></div>
+    <div class="row"><label>Motion Blur</label><input id="afterD" type="range" min="0.6" max="0.98" value="0.85" step="0.01"><div id="afterDv" class="pill">0.85</div></div>
+    <div class="row"><label>Fog Density</label><input id="fogD" type="range" min="0" max="0.005" value="0.00045" step="0.00005"><div id="fogDv" class="pill">0.00045</div></div>
+    <div class="row"><label>Ambient Light</label><input id="ambI" type="range" min="0" max="2" value="0.2" step="0.05"><div id="ambIv" class="pill">0.20</div></div>
+    <div class="row"><label>Dir Light</label><input id="dirI" type="range" min="0" max="3" value="1.0" step="0.05"><div id="dirIv" class="pill">1.00</div></div>
+    <div class="row"><label>Pixel Ratio</label><input id="pxr" type="range" min="0.5" max="2" value="1" step="0.1"><div id="pxrv" class="pill">1.0</div></div>
+    <div class="toggle"><span>Shadows</span><label class="pill"><input id="shadowT" type="checkbox" checked> on</label></div>
+    <div class="row"><label>Preset</label><select id="quality">
+      <option value="low">Low</option>
+      <option value="medium" selected>Medium</option>
+      <option value="high">High</option>
+      <option value="ultra">Ultra</option>
+      <option value="anime">Anime</option>
+      <option value="genesis">Genesis</option>
+    </select><div class="pill">quality</div></div>
+    <div class="row"><label>Filter</label><select id="filter">
+      <option value="none" selected>None</option>
+      <option value="cool">Cool</option>
+      <option value="warm">Warm</option>
+      <option value="nebula">Nebula</option>
+      <option value="monochrome">Monochrome</option>
+      <option value="cyberpunk">Cyberpunk</option>
+      <option value="vintage">Vintage</option>
+      <option value="dramatic">Dramatic</option>
+    </select><div class="pill">color</div></div>
+    <div class="row"><label>Brightness</label><input id="brightness" type="range" min="0.5" max="2.0" value="1.0" step="0.05"><div id="brightnessv" class="pill">1.00</div></div>
+    <div class="row"><label>Contrast</label><input id="contrast" type="range" min="0.8" max="1.5" value="1.0" step="0.02"><div id="contrastv" class="pill">1.00</div></div>
+    <div class="row"><label>Saturation</label><input id="saturation" type="range" min="0.0" max="2.0" value="1.0" step="0.05"><div id="saturationv" class="pill">1.00</div></div>
+    <div class="toggle"><span>Depth of Field</span><label class="pill"><input id="fx-dof" type="checkbox"> on</label></div>
+    <div class="toggle"><span>SSAO</span><label class="pill"><input id="fx-ssao" type="checkbox"> on</label></div>
+    <div class="toggle"><span>SMAA</span><label class="pill"><input id="fx-smaa" type="checkbox"> on</label></div>
+    <div class="row"><label>Quality Preset</label><select id="quality"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="ultra">Ultra</option><option value="anime">Anime</option><option value="genesis">Genesis</option></select><div class="pill">preset</div></div>
+    <div class="row"><label>Filter</label><select id="filter"><option value="none" selected>None</option><option value="cool">Cool</option><option value="warm">Warm</option><option value="nebula">Nebula</option><option value="monochrome">Monochrome</option><option value="cyberpunk">Cyberpunk</option><option value="vintage">Vintage</option><option value="dramatic">Dramatic</option></select><div class="pill">look</div></div>
+    <div class="row"><label>Brightness</label><input id="brightness" type="range" min="0.4" max="1.8" value="1.0" step="0.02"><div id="brightnessv" class="pill">1.00</div></div>
+    <div class="row"><label>Contrast</label><input id="contrast" type="range" min="0.5" max="2.0" value="1.0" step="0.02"><div id="contrastv" class="pill">1.00</div></div>
+    <div class="row"><label>Saturation</label><input id="saturation" type="range" min="0.0" max="2.0" value="1.0" step="0.02"><div id="saturationv" class="pill">1.00</div></div>
+    <div class="toggle"><span>Depth of Field</span><label class="pill"><input id="fx-dof" type="checkbox"> on</label></div>
+    <div class="toggle"><span>SSAO</span><label class="pill"><input id="fx-ssao" type="checkbox"> on</label></div>
+    <div class="toggle"><span>SMAA</span><label class="pill"><input id="fx-smaa" type="checkbox"> on</label></div>
+
+    <h2>Cosmic Data</h2>
+    <div class="row"><label>Source</label>
+      <select id="cosmic-source">
+        <option value="nasa">NASA Images</option>
+        <option value="apod">NASA APOD</option>
+        <option value="jwst">JWST (MAST)</option>
+        <option value="esasky">ESASky</option>
+      </select>
+      <div class="pill">remote</div>
+    </div>
+    <div class="row"><label>Query</label><input id="cosmic-query" type="text" placeholder="e.g., carina nebula"><button id="cosmic-fetch" class="pill" style="cursor:pointer">Fetch</button></div>
+    <div class="row"><label>APOD Date</label><input id="cosmic-date" type="date"><div class="pill">UTC</div></div>
+    <div class="row"><label>ESASky (RA,DEC,FOV)</label><input id="cosmic-ra" type="number" step="0.01" placeholder="RA°"><div class="pill"><input id="cosmic-dec" type="number" step="0.01" placeholder="DEC°"></div></div>
+    <div class="row"><label>FOV (deg)</label><input id="cosmic-fov" type="range" min="0.1" max="10" value="1" step="0.1"><div id="cosmic-fovv" class="pill">1.0</div></div>
+    <div class="toggle"><span>Guide AI with cosmic data</span><label class="pill"><input id="cosmic-bias" type="checkbox"> on</label></div>
+
+    <h2>Data Preview</h2>
+    <div class="row"><label>Knowledge Query</label><input id="kb-query" type="text" placeholder="e.g., galaxy formation"><button id="kb-run" class="pill" style="cursor:pointer">Search</button></div>
+    <div class="row"><label>Top Matches</label><div id="kb-results" class="pill" style="grid-column: span 2; overflow:auto; max-height:80px;">none</div></div>
+    <div class="row"><label>Last Cosmic Item</label><div id="cosmic-last" class="pill" style="grid-column: span 2; overflow:auto; max-height:80px;">none</div></div>
+
+    <h2>AI Creation</h2>
+    <div class="row"><label>Create</label>
+      <select id="spawn">
+        <option value="auto">Auto (AI)</option>
+        <option value="star">Star</option>
+        <option value="galaxy">Galaxy</option>
+        <option value="blackhole">Black Hole</option>
+        <option value="nebula">Nebula</option>
+        <option value="world">Water World</option>
+      </select>
+      <button id="spawn-btn" class="pill" style="cursor:pointer">Spawn</button>
+    </div>
+    <h2>Spaceship</h2>
+    <div class="toggle"><span>Enable Spaceship</span><label class="pill"><input id="ship-enable" type="checkbox"> on</label></div>
+    <div class="toggle"><span>Cockpit View</span><label class="pill"><input id="ship-cockpit" type="checkbox"> on</label></div>
+
+    <h2>World Building</h2>
+    <div class="row"><label>Generate</label>
+      <select id="world-gen">
+        <option value="planet">Planet</option>
+        <option value="terrain">Mountain Terrain</option>
+        <option value="house">House</option>
+        <option value="landmark">Monolith</option>
+      </select>
+      <button id="world-gen-btn" class="pill" style="cursor:pointer">Create</button>
+    </div>
+    <h2>Particle Objects</h2>
+    <div class="row"><label>Shape</label>
+      <select id="form-shape">
+        <option value="sphere">Sphere</option>
+        <option value="cube">Cube</option>
+        <option value="torus">Torus</option>
+        <option value="text">Text</option>
+        <option value="image">Image</option>
+      </select>
+      <button id="form-make" class="pill" style="cursor:pointer">Form</button>
+    </div>
+    <div class="row"><label>Text</label><input id="form-text" type="text" placeholder="GENESIS"><div class="pill">mesh</div></div>
+    <div class="row"><label>Image</label><input id="form-image" type="file" accept="image/*"><div class="pill">local</div></div>
+    <h2>NPC & Life</h2>
+    <div class="row"><label>NPC Type</label>
+      <select id="npc-type">
+        <option value="fox">Fox</option>
+        <option value="flamingo">Flamingo</option>
+        <option value="parrot">Parrot</option>
+        <option value="stork">Stork</option>
+        <option value="human">Human</option>
+      </select>
+      <button id="npc-spawn-btn" class="pill" style="cursor:pointer">Spawn NPC</button>
+    </div>
+    <div class="toggle"><span>Clouds</span><label class="pill"><input id="env-clouds" type="checkbox"> on</label></div>
+    <div class="toggle"><span>Rain</span><label class="pill"><input id="env-rain" type="checkbox"> on</label></div>
+
+    <h2>Knowledge</h2>
+    <div class="row"><label>Import Books</label><input id="books-input" type="file" multiple accept=".txt"><div id="books-status" class="pill">0 docs</div></div>
+    <div class="row"><label>Local Data</label><input id="local-data" type="file" multiple webkitdirectory directory accept=".txt,.json,.pdf"><div id="local-status" class="pill">browse</div></div>
+    <div class="toggle"><span>Genesis Mode (all particle)</span><label class="pill"><input id="genesis-mode" type="checkbox"> on</label></div>
+  </div>
+
+  <div id="hud">Mode: <span id="hud-mode">orbit</span> • FPS: <span id="hud-fps">--</span></div>
+  <button id="toggle-ui" title="Toggle UI">☰</button>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { AfterimagePass } from 'three/addons/postprocessing/AfterimagePass.js';
+    import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+    import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
+    import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+    import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+    import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
+    import { Water } from 'three/addons/objects/Water2.js';
+    import { Sky } from 'three/addons/objects/Sky.js';
+    import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
+    import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+    import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+    import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
+    import { FilmPass } from 'three/addons/postprocessing/FilmPass.js';
+
+    // Simple EventBus (pub-sub)
+    class EventBus {
+      constructor(){ this.e = {}; }
+      on(t, cb){ (this.e[t] ||= []).push(cb); return () => this.e[t] = (this.e[t]||[]).filter(f=>f!==cb); }
+      emit(t, d){ (this.e[t]||[]).forEach(f=>{ try{ f(d); }catch(e){ console.error(e);} }); }
+    }
+
+    // AudioManager using Web Audio API -> supplies amplitude, dominant freq, spectral complexity
+    class AudioManager {
+      constructor(bus){ this.bus = bus; this.ctx = null; this.an = null; this.data = new Uint8Array(256); this.active=false; this.amp=0; this.dominantHz=0; this.complex=0; }
+      async enable(){ if(this.ctx) { this.active=true; return true; } try{
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        this.ctx = new (window.AudioContext||window.webkitAudioContext)();
+        const src = this.ctx.createMediaStreamSource(stream);
+        this.an = this.ctx.createAnalyser(); this.an.fftSize = 512; this.an.smoothingTimeConstant = 0.85;
+        src.connect(this.an); this.active = true; return true;
+      }catch(e){ console.error('Mic denied', e); this.active=false; return false; }}
+      disable(){ this.active=false; }
+      update(){ if(!this.active||!this.an) return; this.an.getByteFrequencyData(this.data);
+        let sum=0, max=0, maxI=0; for(let i=0;i<this.data.length;i++){ const v=this.data[i]; sum+=v; if(v>max){max=v; maxI=i;} }
+        const mean = sum/this.data.length; let varsum=0; for(let i=0;i<this.data.length;i++){ const d=this.data[i]-mean; varsum+=d*d; }
+        this.amp = mean/255; this.complex = Math.min(1, Math.sqrt(varsum/this.data.length)/255*4);
+        const binHz = (this.ctx.sampleRate/2)/this.data.length; this.dominantHz = maxI*binHz;
+        this.bus.emit('audio:frame', { amp:this.amp, complex:this.complex, hz:this.dominantHz });
+      }
+    }
+
+    // Renderer + post-processing (bloom, afterimage, optional godrays)
+    class Renderer {
+      constructor(container){
+        this.scene = new THREE.Scene();
+        this.scene.fog = new THREE.FogExp2(0x000000, 0.00045);
+        this.camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1e7);
+        this.camera.position.set(0, 60, 240);
+        this.renderer = new THREE.WebGLRenderer({ antialias:true });
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.0;
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.physicallyCorrectLights = true;
+        container.appendChild(this.renderer.domElement);
+        this.composer = new EffectComposer(this.renderer);
+        this.renderPass = new RenderPass(this.scene, this.camera);
+        this.composer.addPass(this.renderPass);
+        this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+        this.bloomPass.strength = 1.2; this.composer.addPass(this.bloomPass);
+        this.afterimagePass = new AfterimagePass(); this.afterimagePass.uniforms['damp'].value = 0.85; this.composer.addPass(this.afterimagePass);
+        // custom godrays shader pass (from prior engines)
+        const godrayShader = { uniforms:{ tDiffuse:{value:null}, lightPosition:{value:new THREE.Vector2(0.5,0.5)}, exposure:{value:0.25}, decay:{value:0.97}, density:{value:0.9}, weight:{value:0.6}, samples:{value:60}},
+          vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+          fragmentShader:`varying vec2 vUv; uniform sampler2D tDiffuse; uniform vec2 lightPosition; uniform float exposure; uniform float decay; uniform float density; uniform float weight; uniform int samples; void main(){ vec2 texCoord=vUv; vec2 deltaTextCoord=(texCoord - lightPosition); deltaTextCoord *= 1.0/float(samples) * density; vec4 color = texture2D(tDiffuse, texCoord); vec4 illuminationDecay = vec4(1.0); for(int i=0;i<100;i++){ if(i==samples) break; texCoord -= deltaTextCoord; vec4 sample = texture2D(tDiffuse, texCoord); sample *= illuminationDecay * weight; color += sample; illuminationDecay *= decay; } gl_FragColor = color * exposure; }` };
+        this.godrayPass = new ShaderPass(godrayShader); this.godrayPass.enabled = false; this.composer.addPass(this.godrayPass);
+        // Color grading pass
+        const ColorGradeShader = { uniforms:{ tDiffuse:{ value:null }, brightness:{ value:1.0 }, contrast:{ value:1.0 }, saturation:{ value:1.0 }, tint:{ value: new THREE.Vector3(1,1,1) }, tintStrength:{ value:0.0 } },
+          vertexShader:`varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+          fragmentShader:`varying vec2 vUv; uniform sampler2D tDiffuse; uniform float brightness; uniform float contrast; uniform float saturation; uniform vec3 tint; uniform float tintStrength; vec3 sat(vec3 c, float s){ float l = dot(c, vec3(0.2126,0.7152,0.0722)); return mix(vec3(l), c, s); } void main(){ vec4 col = texture2D(tDiffuse, vUv); col.rgb *= brightness; col.rgb = (col.rgb - 0.5) * contrast + 0.5; col.rgb = sat(col.rgb, saturation); col.rgb = mix(col.rgb, col.rgb * tint, tintStrength); gl_FragColor = col; }` };
+        this.colorPass = new ShaderPass(ColorGradeShader); this.composer.addPass(this.colorPass);
+        // Depth of field
+        this.dofPass = new BokehPass(this.scene, this.camera, { focus: 120, aperture: 0.0002, maxblur: 0.01 });
+        this.dofPass.enabled = false; this.composer.addPass(this.dofPass);
+        // Optional AA / AO / DOF / Film (disabled by default; toggled in UI)
+        this.ssaoPass = new SSAOPass(this.scene, this.camera, window.innerWidth, window.innerHeight);
+        this.ssaoPass.enabled = false; this.ssaoPass.kernelRadius = 8; this.composer.addPass(this.ssaoPass);
+        this.bokehPass = new BokehPass(this.scene, this.camera, { focus: 100, aperture: 0.0002, maxblur: 0.01 }); this.bokehPass.enabled=false; this.composer.addPass(this.bokehPass);
+        this.smaaPass = new SMAAPass(window.innerWidth, window.innerHeight); this.smaaPass.enabled = false; this.composer.addPass(this.smaaPass);
+        this.filmPass = new FilmPass(0.2, 0.25, 648, false); this.filmPass.enabled=false; this.composer.addPass(this.filmPass);
+        window.addEventListener('resize', ()=>this.onResize());
+      }
+      onResize(){ this.camera.aspect = window.innerWidth/window.innerHeight; this.camera.updateProjectionMatrix(); this.renderer.setSize(window.innerWidth, window.innerHeight); this.composer.setSize(window.innerWidth, window.innerHeight); }
+      render(){ this.composer.render(); }
+    }
+
+    // Particle Universe implementing ψ
+    class ParticleEngine {
+      constructor(scene, bus){
+        this.bus = bus; this.scene=scene; this.count=240000; // larger field
+        this.positions = new Float32Array(this.count*3);
+        this.colors = new Float32Array(this.count*3);
+        this.velocities = new Float32Array(this.count*3);
+        this.targets = new Float32Array(this.count*3);
+        this.sizes = new Float32Array(this.count);
+        this.attractors = []; // massive bodies
+        this.params = { ec:1.0, lambda:0.05, li:0.99, omega:0.6, ugrav:0.01, psd:0.0 };
+        const geom = new THREE.BufferGeometry();
+        geom.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+        geom.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
+        const mat = new THREE.PointsMaterial({ size: 1.6, vertexColors: true, blending: THREE.AdditiveBlending, transparent:true, depthWrite:false });
+        this.points = new THREE.Points(geom, mat); scene.add(this.points);
+        // init field
+        for(let i=0;i<this.count;i++){
+          const ix=i*3; this.positions[ix] = (Math.random()-0.5)*800; this.positions[ix+1]=(Math.random()-0.5)*800; this.positions[ix+2]=(Math.random()-0.5)*800;
+          this.colors[ix]=0.6; this.colors[ix+1]=0.7; this.colors[ix+2]=1.0;
+          this.velocities[ix]=0; this.velocities[ix+1]=0; this.velocities[ix+2]=0;
+          this.targets[ix]=this.positions[ix]; this.targets[ix+1]=this.positions[ix+1]; this.targets[ix+2]=this.positions[ix+2];
+          this.sizes[i]=1.0;
+        }
+        this.points.geometry.attributes.position.needsUpdate=true; this.points.geometry.attributes.color.needsUpdate=true;
+        this.bus.on('audio:frame', d=>{ this.params.psd = d.complex; this.setHueFromHz(d.hz); });
+      }
+      setHueFromHz(hz){ const min=20, max=20000; const n = THREE.MathUtils.clamp((hz-min)/(max-min),0,1); this.params.omega = n; }
+      spawnAttractor(pos, mass, color){ const mesh = new THREE.Mesh(new THREE.SphereGeometry(Math.cbrt(mass), 24, 24), new THREE.MeshBasicMaterial({ color, toneMapped:false })); mesh.position.copy(pos); const light = new THREE.PointLight(color, 2.0, 800); mesh.add(light); this.scene.add(mesh); this.attractors.push({ position: mesh.position, mass }); }
+      setGalaxyTargets(arms=4, radius=600){ for(let i=0;i<this.count;i++){ const ix=i*3; const a = (i%arms)/arms * Math.PI*2 + i*0.0005; const r = Math.sqrt(Math.random())*radius; const x=Math.cos(a)*r, y=(Math.random()-0.5)*20, z=Math.sin(a)*r; this.targets[ix]=x; this.targets[ix+1]=y; this.targets[ix+2]=z; } }
+      setSphereTargets(radius=180){ for(let i=0;i<this.count;i++){ const ix=i*3; const v = new THREE.Vector3().randomDirection().multiplyScalar(radius*Math.cbrt(Math.random())); this.targets[ix]=v.x; this.targets[ix+1]=v.y; this.targets[ix+2]=v.z; } }
+      setNebulaTargets(scale=400){ for(let i=0;i<this.count;i++){ const ix=i*3; const x=(Math.random()-0.5)*scale, y=(Math.random()-0.5)*scale, z=(Math.random()-0.5)*scale; this.targets[ix]=x; this.targets[ix+1]=y; this.targets[ix+2]=z; } }
+      setSphereForm(radius=200){ for(let i=0;i<this.count;i++){ const ix=i*3; const v=new THREE.Vector3().randomDirection().multiplyScalar(radius); this.targets[ix]=v.x; this.targets[ix+1]=v.y; this.targets[ix+2]=v.z; } }
+      setCubeForm(size=300){ for(let i=0;i<this.count;i++){ const ix=i*3; this.targets[ix]=(Math.random()-0.5)*size; this.targets[ix+1]=(Math.random()-0.5)*size; this.targets[ix+2]=(Math.random()-0.5)*size; } }
+      setTorusForm(R=220,r=60){ for(let i=0;i<this.count;i++){ const ix=i*3; const a=Math.random()*Math.PI*2; const b=Math.random()*Math.PI*2; const x=(R+r*Math.cos(b))*Math.cos(a); const y=r*Math.sin(b); const z=(R+r*Math.cos(b))*Math.sin(a); this.targets[ix]=x; this.targets[ix+1]=y; this.targets[ix+2]=z; } }
+      async setTextForm(text){ const loader=new FontLoader(); const font= await loader.loadAsync('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json'); const geo=new TextGeometry(text||'GENESIS', { font, size:40, height:5, curveSegments:6 }); geo.center(); const pos=geo.attributes.position; const sample=[]; for(let i=0;i<pos.count;i+=3){ sample.push(new THREE.Vector3(pos.getX(i),pos.getY(i),pos.getZ(i))); }
+        for(let i=0;i<this.count;i++){ const ix=i*3; const v= sample[i % sample.length]; this.targets[ix]=v.x*3; this.targets[ix+1]=v.y*3; this.targets[ix+2]=v.z*3; }
+      }
+      async setImageForm(file){ const img = await new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=URL.createObjectURL(file); }); if(!img) return; const w=256,h=256; const cvs=document.createElement('canvas'); cvs.width=w; cvs.height=h; const ctx=cvs.getContext('2d'); ctx.drawImage(img,0,0,w,h); const data=ctx.getImageData(0,0,w,h).data; for(let i=0;i<this.count;i++){ const ix=i*3; const x=(i%w), y=((i/w)|0)%h; const di=(y*w+x)*4; const lum=(data[di]+data[di+1]+data[di+2])/765; this.targets[ix]=(x/w-0.5)*1200; this.targets[ix+1]=(0.5-y/h)*600; this.targets[ix+2]=(Math.random()-0.5)*50; this.colors[ix]=lum; this.colors[ix+1]=lum*0.9; this.colors[ix+2]=1.0; }
+        this.points.geometry.attributes.color.needsUpdate=true;
+      }
+      resizeCount(newCount){ newCount=Math.max(1000, Math.min(newCount, 600000)); if(newCount===this.count) return; this.count=newCount; const g=this.points.geometry; this.positions = new Float32Array(this.count*3); this.colors=new Float32Array(this.count*3); this.velocities=new Float32Array(this.count*3); this.targets=new Float32Array(this.count*3); this.sizes=new Float32Array(this.count); g.setAttribute('position', new THREE.BufferAttribute(this.positions,3)); g.setAttribute('color', new THREE.BufferAttribute(this.colors,3)); for(let i=0;i<this.count;i++){ const ix=i*3; this.positions[ix]=(Math.random()-0.5)*800; this.positions[ix+1]=(Math.random()-0.5)*800; this.positions[ix+2]=(Math.random()-0.5)*800; this.targets[ix]=this.positions[ix]; this.targets[ix+1]=this.positions[ix+1]; this.targets[ix+2]=this.positions[ix+2]; } g.attributes.position.needsUpdate=true; g.attributes.color.needsUpdate=true; }
+      update(dt){ const p=this.params; const omegaHue=p.omega; let h,r,g,b; // color per frame
+        const c = new THREE.Color().setHSL(omegaHue, 0.9, 0.6); r=c.r; g=c.g; b=c.b;
+        for(let i=0;i<this.count;i++){
+          const ix=i*3;
+          // baseline energy -> mass & size
+          const mass = p.ec; const size = 1.0 + p.ec*0.7; this.sizes[i]=size;
+          // chaos (λ + Σpsd)
+          const chaos = (p.psd>0.01 ? p.psd*0.8 : p.lambda) * dt * 60;
+          this.velocities[ix]   += (Math.random()-0.5) * chaos;
+          this.velocities[ix+1] += (Math.random()-0.5) * chaos;
+          this.velocities[ix+2] += (Math.random()-0.5) * chaos;
+          // grav pull to origin
+          const pullX = -this.positions[ix]   * p.ugrav * dt * 10;
+          const pullY = -this.positions[ix+1] * p.ugrav * dt * 10;
+          const pullZ = -this.positions[ix+2] * p.ugrav * dt * 10;
+          this.velocities[ix]+=pullX; this.velocities[ix+1]+=pullY; this.velocities[ix+2]+=pullZ;
+          // attractors (stars / black holes)
+          for(const a of this.attractors){ const dx=a.position.x - this.positions[ix]; const dy=a.position.y - this.positions[ix+1]; const dz=a.position.z - this.positions[ix+2]; const distSq = dx*dx+dy*dy+dz*dz + 25; const f = (0.02*mass*a.mass)/distSq * dt * 30; this.velocities[ix]+=dx/Math.sqrt(distSq)*f; this.velocities[ix+1]+=dy/Math.sqrt(distSq)*f; this.velocities[ix+2]+=dz/Math.sqrt(distSq)*f; }
+          // path history damping
+          this.velocities[ix]*=p.li; this.velocities[ix+1]*=p.li; this.velocities[ix+2]*=p.li;
+          // drift toward target (for galaxy/sphere/nebula morphs)
+          this.velocities[ix]   += (this.targets[ix]   - this.positions[ix])   * 0.02 * dt * 60;
+          this.velocities[ix+1] += (this.targets[ix+1] - this.positions[ix+1]) * 0.02 * dt * 60;
+          this.velocities[ix+2] += (this.targets[ix+2] - this.positions[ix+2]) * 0.02 * dt * 60;
+          // integrate
+          this.positions[ix]   += this.velocities[ix]   * dt * 60;
+          this.positions[ix+1] += this.velocities[ix+1] * dt * 60;
+          this.positions[ix+2] += this.velocities[ix+2] * dt * 60;
+          // vibrational color
+          this.colors[ix]=r; this.colors[ix+1]=g; this.colors[ix+2]=b;
+        }
+        const geo=this.points.geometry; geo.attributes.position.needsUpdate=true; geo.attributes.color.needsUpdate=true;
+      }
+    }
+
+    class UniverseManager {
+      constructor(renderer){ this.r = renderer; this.starfield=null; this.water=null; this.lensTextures=null; this.activeStar=null; this.ground=null; this.sky=null; this.fireflies=null; this.trees=null; this.amb=null; this.dir=null; this.addStarfield(); this.addLights(); }
+      addLights(){ this.amb = new THREE.AmbientLight(0xffffff, 0.2); this.r.scene.add(this.amb); this.dir = new THREE.DirectionalLight(0xffffff, 1.0); this.dir.position.set(200, 500, -300); this.dir.castShadow=true; this.r.scene.add(this.dir); }
+      addStarfield(){ if(this.starfield) return; const g=new THREE.BufferGeometry(); const arr=[]; for(let i=0;i<20000;i++){ arr.push((Math.random()-0.5)*9000,(Math.random()-0.5)*9000,(Math.random()-0.5)*9000); } g.setAttribute('position', new THREE.Float32BufferAttribute(arr,3)); const m=new THREE.PointsMaterial({ color:0x9fb3ff, size:1.1, sizeAttenuation:true }); this.starfield=new THREE.Points(g,m); this.r.scene.add(this.starfield); }
+      removeStarfield(){ if(this.starfield){ this.r.scene.remove(this.starfield); this.starfield.geometry.dispose(); this.starfield.material.dispose(); this.starfield=null; } }
+      ensureSky(){ if(this.sky) return; this.sky = new Sky(); this.sky.scale.setScalar(10000); this.r.scene.add(this.sky); const sun = new THREE.Vector3(); const phi = THREE.MathUtils.degToRad(88); const theta = THREE.MathUtils.degToRad(180); sun.setFromSphericalCoords(1, phi, theta); this.sky.material.uniforms['sunPosition'].value.copy(sun); this.sky.material.uniforms['turbidity'].value = 6; this.sky.material.uniforms['rayleigh'].value = 2; this.sky.material.uniforms['mieCoefficient'].value = 0.005; this.sky.material.uniforms['mieDirectionalG'].value = 0.8; new RGBELoader().load('https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr', (tex)=>{ const pm = new THREE.PMREMGenerator(this.r.renderer); const env = pm.fromEquirectangular(tex).texture; this.r.scene.environment = env; tex.dispose(); pm.dispose(); }); }
+      ensureGround(){ if(this.ground) return; const g = new THREE.PlaneGeometry(10000,10000); const m = new THREE.MeshStandardMaterial({ color:0x0e1a12, roughness:0.95, metalness:0.02 }); const mesh = new THREE.Mesh(g,m); mesh.rotation.x=-Math.PI/2; mesh.position.y=-1; mesh.receiveShadow=true; this.ground = mesh; this.r.scene.add(mesh); }
+      ensureWater({river=false}={}){ if(this.water){ this.water.material.uniforms['time'].value += 0; return; } const sizeX = river? 8000: 5000; const sizeZ = river? 700: 5000; const geom = new THREE.PlaneGeometry(sizeX,sizeZ,1,1); this.water = new Water(geom, { color: 0x1e90ff, scale: 2.0, flowDirection: new THREE.Vector2(1,1), textureWidth: 1024, textureHeight: 1024 }); this.water.rotation.x = -Math.PI/2; this.water.position.y = 0; this.r.scene.add(this.water); }
+      addLensflareTo(obj){ const textureLoader = new THREE.TextureLoader(); const tex = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare0.png'); const fl = new Lensflare(); fl.addElement(new LensflareElement(tex, 220, 0)); obj.add(fl); }
+      spawnFireflies(count=800){ if(this.fireflies){ this.r.scene.remove(this.fireflies); this.fireflies.geometry.dispose(); this.fireflies.material.dispose(); this.fireflies=null; } const g=new THREE.BufferGeometry(); const pos=[]; for(let i=0;i<count;i++){ const x=(Math.random()-0.5)*600; const z=(Math.random()-0.5)*600; const y=2+Math.random()*6; pos.push(x,y,z); } g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3)); const m=new THREE.PointsMaterial({ color:0xffdd88, size:2.5, sizeAttenuation:true, blending:THREE.AdditiveBlending, transparent:true, depthWrite:false }); this.fireflies=new THREE.Points(g,m); this.r.scene.add(this.fireflies); }
+      spawnForest(instances=1200){ if(this.trees){ this.r.scene.remove(this.trees); this.trees=null; }
+        const trunkG = new THREE.CylinderGeometry(0.4, 0.6, 8, 6);
+        const trunkM = new THREE.MeshStandardMaterial({ color:0x3a2d1a, roughness:1 });
+        const leafG = new THREE.ConeGeometry(2.2, 5, 8);
+        const leafM = new THREE.MeshStandardMaterial({ color:0x1f4d2b, roughness:1 });
+        // add gentle wind sway via onBeforeCompile
+        leafM.onBeforeCompile = (shader)=>{
+          shader.uniforms.time = { value: 0 };
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <common>',
+            `#include <common>\nuniform float time;`
+          ).replace(
+            '#include <begin_vertex>',
+            `#include <begin_vertex>\ntransformed.x += sin(position.y*0.8 + time*1.2)*0.15;\ntransformed.z += cos(position.y*0.6 + time*1.3)*0.12;`
+          );
+          this.leafUniformRef = shader.uniforms; // store ref to update time
+        };
+        const group = new THREE.Group();
+        for(let i=0;i<instances;i++){
+          const x = (Math.random()-0.5)*800; const z = (Math.random()<0.5? -350 - Math.random()*600 : 350 + Math.random()*600); const y=3.5;
+          const trunk = new THREE.Mesh(trunkG, trunkM); trunk.castShadow=true; trunk.receiveShadow=true; trunk.position.set(x,y-4,z);
+          const leaf = new THREE.Mesh(leafG, leafM.clone()); leaf.castShadow=true; leaf.receiveShadow=false; leaf.position.set(x,y+1,z);
+          group.add(trunk); group.add(leaf);
+        }
+        this.trees = group; this.r.scene.add(group);
+      }
+      update(dt){ if(this.leafUniformRef){ this.leafUniformRef.time.value += dt; } }
+    }
+
+    // Simple spaceship with cockpit overlay
+    class Spaceship {
+      constructor(scene, camera){ this.scene=scene; this.camera=camera; this.active=false; this.group=new THREE.Group();
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.6, 10, 12), new THREE.MeshStandardMaterial({ color:0x6aa2ff, metalness:0.6, roughness:0.3 })); body.rotation.z=Math.PI/2; body.castShadow=true; this.group.add(body);
+        const wingG = new THREE.BoxGeometry(9,0.2,2); const wing = new THREE.Mesh(wingG, new THREE.MeshStandardMaterial({ color:0x90caf9, metalness:0.4, roughness:0.5 })); wing.castShadow=true; this.group.add(wing);
+        const tail = new THREE.Mesh(new THREE.ConeGeometry(1.3,3,10), new THREE.MeshStandardMaterial({ color:0x335 })) ; tail.position.x=-6; tail.rotation.z=Math.PI/2; this.group.add(tail);
+        this.group.position.set(0,30,-40); scene.add(this.group);
+        // cockpit frame attached to camera
+        this.cockpit = new THREE.Group(); const ring = new THREE.RingGeometry(0.6,0.62, 64); const cockM=new THREE.MeshBasicMaterial({ color:0x88aaff, transparent:true, opacity:0.6 }); const cock=new THREE.Mesh(ring, cockM); cock.position.z=-1.2; this.cockpit.add(cock); camera.add(this.cockpit);
+        this.setActive(false);
+      }
+      setActive(v){ this.active=v; this.group.visible=v; this.cockpit.visible=false; }
+      setCockpit(v){ this.cockpit.visible = v && this.active; }
+      update(dt){ if(!this.active) return; this.group.position.copy(this.camera.position).add(this.camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(-8)); this.group.lookAt(this.camera.position.clone().add(this.camera.getWorldDirection(new THREE.Vector3()))); }
+    }
+
+    // Procedural planets / terrain / simple structures
+    class PlanetFactory {
+      constructor(scene){ this.scene=scene; this.noise=new ImprovedNoise(); }
+      createPlanet(radius=20, segments=64){ const geo=new THREE.SphereGeometry(radius, segments, segments); const mat=new THREE.MeshStandardMaterial({ color:0x9999ff, roughness:1, metalness:0 }); const m=new THREE.Mesh(geo, mat); m.castShadow=true; m.receiveShadow=true; // color by noise
+        const pos = geo.attributes.position; const colors=new Float32Array(pos.count*3); const c=new THREE.Color(); for(let i=0;i<pos.count;i++){ const v=new THREE.Vector3().fromBufferAttribute(pos,i).normalize(); const n = this.noise.noise(v.x*3,v.y*3,v.z*3); const h = 0.55 + n*0.25; c.setHSL(0.6 - n*0.2, 0.6, h); colors[i*3]=c.r; colors[i*3+1]=c.g; colors[i*3+2]=c.b; } geo.setAttribute('color', new THREE.BufferAttribute(colors,3)); mat.vertexColors=true; m.position.set((Math.random()-0.5)*600, (Math.random()-0.5)*300, (Math.random()-0.5)*600); this.scene.add(m); return m; }
+    }
+
+    class TerrainManager {
+      constructor(scene){ this.scene=scene; this.noise=new ImprovedNoise(); this.terrain=null; }
+      generate(width=2000, depth=2000, segments=200){ if(this.terrain){ this.scene.remove(this.terrain); this.terrain.geometry.dispose(); this.terrain.material.dispose(); }
+        const geo=new THREE.PlaneGeometry(width, depth, segments, segments); const pos=geo.attributes.position; const seed=Math.random()*1000; for(let i=0;i<pos.count;i++){ const x=pos.getX(i)/200, y=pos.getY(i)/200; const h=this.noise.noise(x+seed,y+seed,0)*40 + this.noise.noise(x*2+seed,y*2+seed,0)*15; pos.setZ(i, h); } pos.needsUpdate=true; geo.computeVertexNormals(); const mat=new THREE.MeshStandardMaterial({ color:0x1b2a1f, roughness:1, metalness:0, flatShading:false }); const mesh=new THREE.Mesh(geo,mat); mesh.rotation.x=-Math.PI/2; mesh.receiveShadow=true; this.scene.add(mesh); this.terrain=mesh; }
+    }
+
+    class NPCManager {
+      constructor(scene){ this.scene=scene; this.loader=new GLTFLoader(); this.npcs=[]; }
+      async spawn(type, position=new THREE.Vector3((Math.random()-0.5)*200,0,(Math.random()-0.5)*200)){
+        const urlMap = {
+          fox: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Fox/glTF/Fox.gltf',
+          flamingo: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Flamingo.glb',
+          parrot: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Parrot.glb',
+          stork: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Stork.glb',
+          human: 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb'
+        };
+        const url = urlMap[type]||urlMap.fox;
+        try{
+          const gltf = await this.loader.loadAsync(url);
+          const obj = gltf.scene || gltf.scenes?.[0];
+          obj.position.copy(position);
+          obj.scale.setScalar(type==='human'? 1 : 0.02);
+          this.scene.add(obj);
+          const npc = { obj, t:0, speed: 5 + Math.random()*5, dir: new THREE.Vector3(Math.random()-0.5,0,Math.random()-0.5).normalize() };
+          this.npcs.push(npc);
+          return npc;
+        }catch(e){ console.error('NPC load failed', e); }
+      }
+      update(dt){ for(const n of this.npcs){ n.t+=dt; const move=n.dir.clone().multiplyScalar(n.speed*dt); n.obj.position.add(move); if(Math.random()<0.01){ n.dir.set(Math.random()-0.5,0,Math.random()-0.5).normalize(); } }
+      }
+    }
+
+    class RainSystem {
+      constructor(scene){ this.scene=scene; const g=new THREE.BufferGeometry(); const N=4000; const p=new Float32Array(N*3); const v=new Float32Array(N); for(let i=0;i<N;i++){ p[i*3]=(Math.random()-0.5)*800; p[i*3+1]=Math.random()*200+50; p[i*3+2]=(Math.random()-0.5)*800; v[i]=50+Math.random()*80; } g.setAttribute('position', new THREE.BufferAttribute(p,3)); g.setAttribute('velocity', new THREE.BufferAttribute(v,1)); const m=new THREE.PointsMaterial({ color:0x88aaff, size:1.2, transparent:true, opacity:0.7, depthWrite:false }); this.points=new THREE.Points(g,m); scene.add(this.points); }
+      update(dt){ const pos=this.points.geometry.attributes.position; const vel=this.points.geometry.attributes.velocity; for(let i=0;i<vel.count;i++){ pos.array[i*3+1]-=vel.array[i]*dt; if(pos.array[i*3+1]<0){ pos.array[i*3]=(Math.random()-0.5)*800; pos.array[i*3+1]=Math.random()*200+50; pos.array[i*3+2]=(Math.random()-0.5)*800; } } pos.needsUpdate=true; }
+    }
+
+    // Simple physics wrapper (cannon-es)
+    class PhysicsEngine {
+      constructor(){ this.world = new CANNON.World({ gravity: new CANNON.Vec3(0,-9.82,0) }); this.bodies=[]; this.meshes=[]; }
+      addGround(){ const body = new CANNON.Body({ type:CANNON.Body.STATIC, shape: new CANNON.Plane() }); body.quaternion.setFromEuler(-Math.PI/2,0,0); this.world.addBody(body); }
+      addSphere(radius, position, mesh){ const shape = new CANNON.Sphere(radius); const body = new CANNON.Body({ mass: 1, shape }); body.position.set(position.x, position.y, position.z); this.world.addBody(body); this.bodies.push(body); this.meshes.push(mesh); }
+      step(dt){ this.world.step(1/60, dt, 3); for(let i=0;i<this.bodies.length;i++){ const b=this.bodies[i]; const m=this.meshes[i]; m.position.copy(b.position); m.quaternion.copy(b.quaternion); } }
+    }
+
+    // Simple local knowledge base with TF-IDF and cosine similarity
+    class KnowledgeBase {
+      constructor(documents){ this.docs=documents||[]; this.index=new Map(); this.idf=new Map(); this._tokenizeAll(); }
+      _tokenizeAll(){ const df=new Map(); this.docs.forEach((d,i)=>{ const tokens=this._tokenize(d.text); d.tokens=tokens; const uniq=new Set(tokens); uniq.forEach(t=>df.set(t,(df.get(t)||0)+1)); });
+        const N=this.docs.length||1; df.forEach((v,k)=>{ this.idf.set(k, Math.log(N/(1+v))); });
+        this.docs.forEach(d=>{ const tf=new Map(); d.tokens.forEach(t=>tf.set(t,(tf.get(t)||0)+1)); d.vec = tf; });
+      }
+      _tokenize(text){ return (text||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(Boolean); }
+      _toVec(map){ const out=new Map(); map.forEach((v,k)=>{ const idf=this.idf.get(k)||0; out.set(k, v*idf); }); return out; }
+      _cos(a,b){ let dot=0, na=0, nb=0; a.forEach((va,ka)=>{ na+=va*va; const vb=b.get(ka)||0; dot+=va*vb; }); b.forEach(vb=>{ nb+=vb*vb; }); return dot/(Math.sqrt(na)*Math.sqrt(nb)+1e-9); }
+      query(q, topK=5){ const tq=this._tokenize(q); const tf=new Map(); tq.forEach(t=>tf.set(t,(tf.get(t)||0)+1)); const qv=this._toVec(tf); const scored=this.docs.map(d=>({ name:d.name, score:this._cos(qv, this._toVec(d.vec)) })); scored.sort((a,b)=>b.score-a.score); return scored.slice(0,topK); }
+    }
+
+    class ControlsManager {
+      constructor(renderer){ this.r=renderer; this.orbit=new OrbitControls(this.r.camera, this.r.renderer.domElement); this.orbit.enableDamping=true; this.fp=new PointerLockControls(this.r.camera, this.r.renderer.domElement); this.active='orbit'; this.move={f:0,r:0,u:0}; this.speed=70; this.boost=1; this._bind(); }
+      _bind(){ document.addEventListener('keydown', e=>{ if(e.code==='KeyW')this.move.f=1; if(e.code==='KeyS')this.move.f=-1; if(e.code==='KeyA')this.move.r=-1; if(e.code==='KeyD')this.move.r=1; if(e.code==='Space')this.move.u=1; if(e.code==='ShiftLeft')this.move.u=-1; if(e.code==='KeyB')this.boost=2.5; });
+        document.addEventListener('keyup', e=>{ if(e.code==='KeyW'&&this.move.f===1)this.move.f=0; if(e.code==='KeyS'&&this.move.f===-1)this.move.f=0; if(e.code==='KeyA'&&this.move.r===-1)this.move.r=0; if(e.code==='KeyD'&&this.move.r===1)this.move.r=0; if(e.code==='Space'&&this.move.u===1)this.move.u=0; if(e.code==='ShiftLeft'&&this.move.u===-1)this.move.u=0; if(e.code==='KeyB')this.boost=1; }); }
+      setMode(mode){ this.active=mode; if(mode==='orbit'){ this.fp.unlock(); this.orbit.enabled=true; } else if(mode==='fp'){ this.orbit.enabled=false; this.fp.lock(); } }
+      update(dt){ if(this.active==='orbit'){ this.orbit.update(); return; } if(!this.fp.isLocked) return; const v = new THREE.Vector3(); const obj = this.fp.getObject(); const dir = new THREE.Vector3(); obj.getWorldDirection(dir); const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0,1,0)).normalize(); const up = new THREE.Vector3(0,1,0);
+        v.addScaledVector(dir, this.move.f); v.addScaledVector(right, this.move.r); v.addScaledVector(up, this.move.u); if(v.lengthSq()>0) v.normalize(); obj.position.addScaledVector(v, this.speed*this.boost*dt); }
+    }
+
+    class AIConsciousness {
+      constructor(bus, particles, universe){ this.bus=bus; this.p=particles; this.u=universe; this.timer=0; this.auto=true; this.intention='Observing...'; }
+      think(){ const prm=this.p.params; const suggestion = (window.engine && window.engine.knowledge && window.engine.knowledge.suggestCreation && window.engine.knowledge.suggestCreation()) || null; if(suggestion){ if(['dragon','dolphin','robot','fox','flamingo'].includes(suggestion)){ window.engine.npcs.spawn(suggestion); this.intention=`Knowledge suggests ${suggestion}`; this.state='IDLE'; return; } if(['star','galaxy','nebula','blackhole'].includes(suggestion)){ this.intention=`Knowledge suggests ${suggestion}`; if(suggestion==='star'){ const pos=new THREE.Vector3().randomDirection().multiplyScalar(250+Math.random()*300); const col=new THREE.Color().setHSL(prm.omega,1,0.6); this.p.spawnAttractor(pos, 1000, col);} if(suggestion==='galaxy'){ this.p.setGalaxyTargets(5, 900);} if(suggestion==='nebula'){ this.p.setNebulaTargets(900);} if(suggestion==='blackhole'){ this.p.spawnAttractor(new THREE.Vector3(0,0,0), 8000, 0x111111);} this.state='IDLE'; return; } }
+        if(prm.ugrav>0.08 && prm.ec>1.4){ this.intention='Manifesting star'; const pos=new THREE.Vector3().randomDirection().multiplyScalar(250+Math.random()*300); const col=new THREE.Color().setHSL(prm.omega,1,0.6); this.p.spawnAttractor(pos, 800+Math.random()*1200, col); }
+        else if(prm.lambda>0.4 || prm.psd>0.7){ this.intention='Crystalline order in chaos'; this.p.setSphereTargets(220); }
+        else { this.intention='Seeding galaxy arms'; this.p.setGalaxyTargets(4, 700); if(Math.random()<0.33){ this.u.ensureSky(); } }
+        this.bus.emit('ai:intention', this.intention);
+      }
+      update(dt){ if(!this.auto) return; this.timer += dt; if(this.timer>12){ this.timer=0; this.think(); } }
+    }
+
+    // UI wiring
+    class UIManager {
+      constructor(bus, engine){ this.bus=bus; this.e = engine; this.q = engine.particles.params; this.dom = {
+          ec:document.getElementById('ec'), ecv:document.getElementById('ecv'), lambda:document.getElementById('lambda'), lambdav:document.getElementById('lambdav'), li:document.getElementById('li'), liv:document.getElementById('liv'), omega:document.getElementById('omega'), omegav:document.getElementById('omegav'), ugrav:document.getElementById('ugrav'), ugravv:document.getElementById('ugravv'),
+          useAudio:document.getElementById('use-audio'), view:document.getElementById('view'), bloom:document.getElementById('fx-bloom'), after:document.getElementById('fx-afterimage'), god:document.getElementById('fx-godrays'), lens:document.getElementById('fx-lensflare'), water:document.getElementById('env-water'),
+          spawn:document.getElementById('spawn'), spawnBtn:document.getElementById('spawn-btn'), genesis:document.getElementById('genesis-mode'), hudMode:document.getElementById('hud-mode'),
+          tone:document.getElementById('tone'), exposure:document.getElementById('exposure'), exposurev:document.getElementById('exposurev'), bloomS:document.getElementById('bloomS'), bloomSv:document.getElementById('bloomSv'), afterD:document.getElementById('afterD'), afterDv:document.getElementById('afterDv'),
+          toggleUI:document.getElementById('toggle-ui'), saveBtn:document.getElementById('save-btn'),
+          quality:document.getElementById('quality'), filterSel:document.getElementById('filter'), brightness:document.getElementById('brightness'), brightnessv:document.getElementById('brightnessv'), contrast:document.getElementById('contrast'), contrastv:document.getElementById('contrastv'), saturation:document.getElementById('saturation'), saturationv:document.getElementById('saturationv'), dof:document.getElementById('fx-dof'), ssao:document.getElementById('fx-ssao'), smaa:document.getElementById('fx-smaa') };
+        // extra controls
+        const biomeRow = document.createElement('div'); biomeRow.className='row'; biomeRow.innerHTML = '<label>Biome</label><select id="biome"><option value="cosmos">Cosmos</option><option value="forest">Forest River</option></select><div class="pill">env</div>';
+        document.getElementById('ui').insertBefore(biomeRow, document.getElementById('ui').children[document.getElementById('ui').children.length-4]);
+        const pRow = document.createElement('div'); pRow.className='row'; pRow.innerHTML = '<label>Particles</label><input id="pcnt" type="range" min="20000" max="600000" value="240000" step="10000"><div id="pcntv" class="pill">240k</div>';
+        document.getElementById('ui').insertBefore(pRow, document.getElementById('ui').children[2]);
+        this.dom.biome = document.getElementById('biome'); this.dom.pcnt=document.getElementById('pcnt'); this.dom.pcntv=document.getElementById('pcntv');
+        this._bind(); this._sync(); }
+      _sync(){ this.dom.ecv.textContent=this.q.ec.toFixed(2); this.dom.lambdav.textContent=this.q.lambda.toFixed(2); this.dom.liv.textContent=this.q.li.toFixed(3); this.dom.omegav.textContent=this.q.omega.toFixed(2); this.dom.ugravv.textContent=this.q.ugrav.toFixed(3); }
+      _bind(){ const d=this.dom, q=this.q, e=this.e;
+        d.ec.addEventListener('input',ev=>{ q.ec=parseFloat(ev.target.value); this.dom.ecv.textContent=q.ec.toFixed(2); });
+        d.lambda.addEventListener('input',ev=>{ q.lambda=parseFloat(ev.target.value); this.dom.lambdav.textContent=q.lambda.toFixed(2); });
+        d.li.addEventListener('input',ev=>{ q.li=parseFloat(ev.target.value); this.dom.liv.textContent=q.li.toFixed(3); });
+        d.omega.addEventListener('input',ev=>{ q.omega=parseFloat(ev.target.value); this.dom.omegav.textContent=q.omega.toFixed(2); });
+        d.ugrav.addEventListener('input',ev=>{ q.ugrav=parseFloat(ev.target.value); this.dom.ugravv.textContent=q.ugrav.toFixed(3); });
+        d.useAudio.addEventListener('change', async ev=>{ if(ev.target.checked){ const ok=await e.audio.enable(); if(!ok) ev.target.checked=false; } else e.audio.disable(); });
+        d.view.addEventListener('change', ev=>{ const mode=ev.target.value; e.controls.setMode(mode==='fp'?'fp':'orbit'); d.hudMode.textContent=mode; if(mode==='cine'){ e.cinematicTimer=0; } });
+        d.bloom.addEventListener('change', ev=>{ e.renderer.bloomPass.enabled = ev.target.checked; });
+        d.after.addEventListener('change', ev=>{ e.renderer.afterimagePass.enabled = ev.target.checked; });
+        d.god.addEventListener('change', ev=>{ e.renderer.godrayPass.enabled = ev.target.checked; });
+        d.lens.addEventListener('change', ev=>{ e.useLensflare = ev.target.checked; });
+        d.water.addEventListener('change', ev=>{ if(ev.target.checked) e.universe.ensureWater({river:d.biome?.value==='forest'}); e.isSwimming = ev.target.checked; });
+        d.spawnBtn.addEventListener('click', ()=>{ const t=d.spawn.value; e.manualSpawn(t); });
+        d.genesis.addEventListener('change', ev=>{ e.isGenesisMode = ev.target.checked; if(e.isGenesisMode){ e.particles.setNebulaTargets(500); } });
+        // NPCs
+        const npcType = document.getElementById('npc-type');
+        const npcBtn = document.getElementById('npc-spawn-btn');
+        if(npcBtn){ npcBtn.addEventListener('click', ()=>{ e.npcs.spawn(npcType.value); }); }
+        // Clouds & Rain
+        const cloudsToggle = document.getElementById('env-clouds');
+        const rainToggle = document.getElementById('env-rain');
+        if(cloudsToggle){ cloudsToggle.addEventListener('change', ev=>{ if(ev.target.checked){ e.universe.ensureSky(); } }); }
+        if(rainToggle){ rainToggle.addEventListener('change', ev=>{ e.rain = ev.target.checked ? new RainSystem(e.renderer.scene) : (e.rain && (e.renderer.scene.remove(e.rain.points), null)); }); }
+        // Books import
+        const booksInput = document.getElementById('books-input');
+        const booksStatus = document.getElementById('books-status');
+        if(booksInput){ booksInput.addEventListener('change', async (ev)=>{ const files=[...ev.target.files]; const docs = []; for(const f of files){ const text = await f.text(); docs.push({ name:f.name, text }); } e.knowledge = new KnowledgeBase(docs); booksStatus.textContent = `${docs.length} docs`; }); }
+        // KB preview
+        const kbQ=document.getElementById('kb-query'); const kbRun=document.getElementById('kb-run'); const kbOut=document.getElementById('kb-results'); if(kbRun){ kbRun.addEventListener('click', ()=>{ if(!e.knowledge){ kbOut.textContent='no knowledge loaded'; return; } const res=e.knowledge.query(kbQ.value||'',5); kbOut.textContent = res.map(r=>`${r.name} (${r.score.toFixed(3)})`).join(' | '); }); }
+        // Local data directory ingestion (txt/json/pdf)
+        const localInput = document.getElementById('local-data'); const localStatus=document.getElementById('local-status');
+        if(localInput){ localInput.addEventListener('change', async ev=>{ const files=[...ev.target.files]; let read=0; const docs=[]; for(const f of files){ try{ if(f.name.endsWith('.json')){ const t=await f.text(); try{ const obj=JSON.parse(t); docs.push({ name:f.name, text: JSON.stringify(obj) }); }catch{ docs.push({ name:f.name, text: t }); } }
+              else if(f.name.endsWith('.txt')){ docs.push({ name:f.name, text: await f.text() }); }
+              else if(f.name.endsWith('.pdf')){ // basic PDF text extraction via PDF.js API if available
+                if(window.pdfjsLib){ const u=URL.createObjectURL(f); const pdf=await window.pdfjsLib.getDocument({url:u}).promise; let out=''; for(let n=1;n<=pdf.numPages;n++){ const p=await pdf.getPage(n); const c=await p.getTextContent(); out+=c.items.map(i=>i.str).join(' ')+'\n'; } URL.revokeObjectURL(u); docs.push({ name:f.name, text: out }); } else { docs.push({ name:f.name, text: f.name }); }
+              }
+              read++; }catch{ /* ignore */ }
+            }
+            e.knowledge = new KnowledgeBase(docs); localStatus.textContent = `${docs.length} files`; }); }
+        if(d.biome){ d.biome.addEventListener('change', ev=>{ e.setBiome(ev.target.value); }); }
+        if(d.pcnt){ d.pcnt.addEventListener('input', ev=>{ const val=parseInt(ev.target.value,10); d.pcntv.textContent = (val/1000|0)+'k'; }); d.pcnt.addEventListener('change', ev=>{ e.particles.resizeCount(parseInt(ev.target.value,10)); }); }
+        if(d.tone){ d.tone.addEventListener('change', ev=>{ const v=ev.target.value; const R=e.renderer.renderer; R.toneMapping = THREE[v] || THREE.ACESFilmicToneMapping; }); }
+        if(d.exposure){ d.exposure.addEventListener('input', ev=>{ const val=parseFloat(ev.target.value); e.renderer.renderer.toneMappingExposure = val; d.exposurev.textContent = val.toFixed(2); }); }
+        if(d.bloomS){ d.bloomS.addEventListener('input', ev=>{ const val=parseFloat(ev.target.value); e.renderer.bloomPass.strength = val; d.bloomSv.textContent = val.toFixed(2); }); }
+        const bloomR=document.getElementById('bloomR'), bloomRv=document.getElementById('bloomRv'); if(bloomR){ bloomR.addEventListener('input', ev=>{ const v=parseFloat(ev.target.value); e.renderer.bloomPass.radius=v; bloomRv.textContent=v.toFixed(2); }); }
+        const bloomT=document.getElementById('bloomT'), bloomTv=document.getElementById('bloomTv'); if(bloomT){ bloomT.addEventListener('input', ev=>{ const v=parseFloat(ev.target.value); e.renderer.bloomPass.threshold=v; bloomTv.textContent=v.toFixed(2); }); }
+        if(d.afterD){ d.afterD.addEventListener('input', ev=>{ const val=parseFloat(ev.target.value); e.renderer.afterimagePass.uniforms['damp'].value = val; d.afterDv.textContent = val.toFixed(2); }); }
+        const fogD=document.getElementById('fogD'), fogDv=document.getElementById('fogDv'); if(fogD){ fogD.addEventListener('input', ev=>{ const v=parseFloat(ev.target.value); e.renderer.scene.fog.density=v; fogDv.textContent=v.toFixed(5); }); }
+        const ambI=document.getElementById('ambI'), ambIv=document.getElementById('ambIv'); if(ambI){ ambI.addEventListener('input', ev=>{ const v=parseFloat(ev.target.value); e.universe.amb.intensity=v; ambIv.textContent=v.toFixed(2); }); }
+        const dirI=document.getElementById('dirI'), dirIv=document.getElementById('dirIv'); if(dirI){ dirI.addEventListener('input', ev=>{ const v=parseFloat(ev.target.value); e.universe.dir.intensity=v; dirIv.textContent=v.toFixed(2); }); }
+        const pxr=document.getElementById('pxr'), pxrv=document.getElementById('pxrv'); if(pxr){ pxr.addEventListener('input', ev=>{ const v=parseFloat(ev.target.value); e.renderer.renderer.setPixelRatio(v); pxrv.textContent=v.toFixed(1); }); }
+        const shadowT=document.getElementById('shadowT'); if(shadowT){ shadowT.addEventListener('change', ev=>{ e.renderer.renderer.shadowMap.enabled=ev.target.checked; e.universe.dir.castShadow=ev.target.checked; }); }
+        if(d.toggleUI){ d.toggleUI.addEventListener('click', ()=>{ const ui=document.getElementById('ui'); ui.style.display = (ui.style.display==='none'?'block':'none'); }); }
+        if(d.quality){ d.quality.addEventListener('change', ev=>{ const qv=ev.target.value; const R=e.renderer; if(qv==='low'){ R.bloomPass.enabled=false; R.afterimagePass.enabled=false; R.godrayPass.enabled=false; R.ssaoPass.enabled=false; R.smaaPass.enabled=false; e.particles.resizeCount(120000); e.renderer.renderer.toneMappingExposure=1.0; }
+          if(qv==='medium'){ R.bloomPass.enabled=true; R.bloomPass.strength=1.2; R.afterimagePass.enabled=true; R.ssaoPass.enabled=false; R.smaaPass.enabled=true; e.particles.resizeCount(240000); }
+          if(qv==='high'){ R.bloomPass.enabled=true; R.bloomPass.strength=1.5; R.afterimagePass.enabled=true; R.ssaoPass.enabled=true; R.smaaPass.enabled=true; e.particles.resizeCount(360000); e.renderer.dofPass.enabled=true; }
+          if(qv==='ultra'){ R.bloomPass.enabled=true; R.bloomPass.strength=2.0; R.afterimagePass.enabled=true; R.godrayPass.enabled=true; R.ssaoPass.enabled=true; R.smaaPass.enabled=true; e.particles.resizeCount(480000); e.renderer.dofPass.enabled=true; e.renderer.renderer.toneMappingExposure=1.1; }
+          if(qv==='anime'){ e.renderer.colorPass.uniforms.saturation.value=1.4; e.renderer.colorPass.uniforms.contrast.value=1.2; e.renderer.bloomPass.enabled=false; e.particles.resizeCount(200000); }
+          if(qv==='genesis'){ e.isGenesisMode=true; e.particles.setNebulaTargets(600); R.godrayPass.enabled=true; R.bloomPass.enabled=true; R.bloomPass.strength=1.8; e.particles.resizeCount(400000); }
+        }); }
+        if(d.filterSel){ d.filterSel.addEventListener('change', ev=>{ const f=ev.target.value; const u=e.renderer.colorPass.uniforms; const map={ none:[1,1,1,0], cool:[0.8,1.0,1.2,0.25], warm:[1.2,1.05,0.85,0.25], nebula:[1.0,1.1,1.4,0.35], monochrome:[1,1,1,0], cyberpunk:[1.3,1.0,1.8,0.35], vintage:[1.1,1.05,0.9,0.2], dramatic:[1.05,1.05,1.05,0.15] }; const t=map[f]||map.none; u.tint.value.set(t[0],t[1],t[2]); u.tintStrength.value=t[3]; if(f==='monochrome'){ u.saturation.value=0.0; } else { u.saturation.value=parseFloat(d.saturation.value); } }); }
+        if(d.brightness){ d.brightness.addEventListener('input', ev=>{ const v=parseFloat(ev.target.value); e.renderer.colorPass.uniforms.brightness.value=v; d.brightnessv.textContent=v.toFixed(2); }); }
+        if(d.contrast){ d.contrast.addEventListener('input', ev=>{ const v=parseFloat(ev.target.value); e.renderer.colorPass.uniforms.contrast.value=v; d.contrastv.textContent=v.toFixed(2); }); }
+        if(d.saturation){ d.saturation.addEventListener('input', ev=>{ const v=parseFloat(ev.target.value); e.renderer.colorPass.uniforms.saturation.value=v; d.saturationv.textContent=v.toFixed(2); }); }
+        if(d.dof){ d.dof.addEventListener('change', ev=>{ e.renderer.dofPass.enabled=ev.target.checked; }); }
+        if(d.ssao){ d.ssao.addEventListener('change', ev=>{ e.renderer.ssaoPass.enabled=ev.target.checked; }); }
+        if(d.smaa){ d.smaa.addEventListener('change', ev=>{ e.renderer.smaaPass.enabled=ev.target.checked; }); }
+        if(d.saveBtn){ d.saveBtn.addEventListener('click', ()=>{ const state = { biome: e.biome, params: e.particles.params, particles: e.particles.count, view: d.view.value, fx: { bloom: d.bloom.checked, after:d.after.checked, god:d.god.checked, lens:d.lens.checked }, exposure: parseFloat(d.exposure.value), tone: d.tone.value };
+          const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='genesis_state.json'; a.click(); URL.revokeObjectURL(a.href); }); }
+        this.bus.on('ai:intention', msg=>{ /* optionally show in UI */ });
+      }
+    }
+
+    class Engine {
+      constructor(){
+        this.bus = new EventBus();
+        this.renderer = new Renderer(document.body);
+        this.universe = new UniverseManager(this.renderer);
+        this.npcs = new NPCManager(this.renderer.scene);
+        this.spaceship = new Spaceship(this.renderer.scene, this.renderer.camera);
+        this.planets = new PlanetFactory(this.renderer.scene);
+        this.terrain = new TerrainManager(this.renderer.scene);
+        this.particles = new ParticleEngine(this.renderer.scene, this.bus);
+        this.controls = new ControlsManager(this.renderer);
+        this.audio = new AudioManager(this.bus);
+        this.ai = new AIConsciousness(this.bus, this.particles, this.universe);
+        this.ui = new UIManager(this.bus, this);
+        this.clock = new THREE.Clock();
+        this.isSwimming = false; this.isGenesisMode = false; this.useLensflare=false; this.cinematicTimer=0; this.biome='cosmos';
+        this._spawnCentralStar();
+        // physics for grounded biomes
+        this.physics = new PhysicsEngine(); this.physics.addGround();
+        // sample rocks
+        this.rocks = []; for(let i=0;i<12;i++){ const s= 1 + Math.random()*1.5; const m=new THREE.Mesh(new THREE.SphereGeometry(s, 10,10), new THREE.MeshStandardMaterial({ color:0x444444, roughness:1 })); m.castShadow=true; const pos=new THREE.Vector3((Math.random()-0.5)*200, 10+Math.random()*20, (Math.random()-0.5)*200); m.position.copy(pos); this.renderer.scene.add(m); this.physics.addSphere(s, pos, m); this.rocks.push(m); }
+        this.rain = null;
+        this.spaceData = { lastQuery:null };
+      }
+      _spawnCentralStar(){ const star = new THREE.Mesh(new THREE.SphereGeometry(22, 32, 32), new THREE.MeshBasicMaterial({ color: 0xfff3a0, toneMapped:false })); star.position.set(0,0,0); const light = new THREE.PointLight(0xffddaa, 2.5, 2000); star.add(light); this.renderer.scene.add(star); this.universe.activeStar = star; if(this.useLensflare) this.universe.addLensflareTo(star); }
+      manualSpawn(type){ const prm=this.particles.params; if(type==='auto'){ this.ai.think(); return; }
+        if(type==='star'){ this.particles.spawnAttractor(new THREE.Vector3().randomDirection().multiplyScalar(400), 1200, new THREE.Color().setHSL(prm.omega,1,0.6)); }
+        if(type==='galaxy'){ this.particles.setGalaxyTargets(5, 900); }
+        if(type==='blackhole'){ this.particles.spawnAttractor(new THREE.Vector3(0,0,0), 6000, 0x111111); this.renderer.scene.fog.density = 0.001; }
+        if(type==='nebula'){ this.particles.setNebulaTargets(900); }
+        if(type==='world'){ this.universe.ensureWater({river:this.biome==='forest'}); if(this.biome==='forest'){ this.universe.spawnForest(1000); this.universe.spawnFireflies(1000); } }
+      }
+      start(){ const loop = ()=>{ requestAnimationFrame(loop); const dt = this.clock.getDelta(); this.audio.update(); this.controls.update(dt); this.particles.update(dt); this.ai.update(dt); this.universe.update(dt); this.npcs.update(dt); if(this.rain) this.rain.update(dt); this.physics.step(dt); this._updatePost(dt); this.renderer.render(); this._updateHUD(dt); }; loop(); }
+      _updatePost(dt){ // cinematic light position for godrays
+        if(this.renderer.godrayPass.enabled && this.universe.activeStar){ const ndc = this.universe.activeStar.position.clone().project(this.renderer.camera); this.renderer.godrayPass.uniforms.lightPosition.value.set((ndc.x+1)/2, (ndc.y+1)/2); }
+        if(this.isSwimming && this.universe.water){ const t = performance.now()*0.001; const y = Math.sin(t*1.2)*1.2 + 1.0; const obj = (this.controls.fp.isLocked? this.controls.fp.getObject(): this.renderer.camera); obj.position.y = y; if(this.universe.water.material && this.universe.water.material.uniforms && this.universe.water.material.uniforms['time']){ this.universe.water.material.uniforms['time'].value += dt; } }
+        if(this.ui.dom.view.value==='cine'){ this.cinematicTimer += dt; const rad = 380; const ang = this.cinematicTimer*0.15; this.renderer.camera.position.x = Math.cos(ang)*rad; this.renderer.camera.position.z = Math.sin(ang)*rad; this.renderer.camera.lookAt(0,0,0); }
+      }
+      _updateHUD(dt){ const fps = (1/dt)|0; document.getElementById('hud-fps').textContent = fps; }
+      setBiome(name){ this.biome = name; if(name==='cosmos'){ this.universe.addStarfield(); if(this.universe.ground){ this.renderer.scene.remove(this.universe.ground); this.universe.ground=null; } if(this.universe.trees){ this.renderer.scene.remove(this.universe.trees); this.universe.trees=null; } if(this.universe.fireflies){ this.renderer.scene.remove(this.universe.fireflies); this.universe.fireflies=null; } }
+        if(name==='forest'){ this.universe.removeStarfield(); this.universe.ensureSky(); this.universe.ensureGround(); this.universe.ensureWater({river:true}); this.universe.spawnForest(1200); this.universe.spawnFireflies(1200); this.renderer.scene.fog.density = 0.0008; }
+      }
+    }
+
+    // Boot
+    const engine = new Engine();
+    window.engine = engine;
+    const startBtn = document.getElementById('start-btn');
+    if(startBtn){ startBtn.addEventListener('click', async ()=>{
+      const useAudio = document.getElementById('use-audio');
+      if(useAudio.checked){ const ok = await engine.audio.enable(); if(!ok) useAudio.checked=false; }
+      document.getElementById('blocker').style.opacity='0'; setTimeout(()=>document.getElementById('blocker').style.display='none', 450);
+      engine.start();
+    }); } else { console.warn('Start button not found'); }
+    // Ship and world controls
+    const shipEnable=document.getElementById('ship-enable'); if(shipEnable){ shipEnable.addEventListener('change', e=>engine.spaceship.setActive(e.target.checked)); }
+    const shipCockpit=document.getElementById('ship-cockpit'); if(shipCockpit){ shipCockpit.addEventListener('change', e=>engine.spaceship.setCockpit(e.target.checked)); }
+    const worldGenBtn=document.getElementById('world-gen-btn'); const worldSel=document.getElementById('world-gen'); if(worldGenBtn){ worldGenBtn.addEventListener('click', ()=>{ const t=worldSel.value; if(t==='planet') engine.planets.createPlanet(20+Math.random()*30); if(t==='terrain') engine.terrain.generate(); if(t==='house'){ const g=new THREE.Group(); const base=new THREE.Mesh(new THREE.BoxGeometry(10,5,10), new THREE.MeshStandardMaterial({ color:0x6b7280, roughness:1 })); base.position.y=2.5; const roof=new THREE.Mesh(new THREE.ConeGeometry(8,4,4), new THREE.MeshStandardMaterial({ color:0xb45309, roughness:1 })); roof.position.y=7; g.add(base); g.add(roof); g.position.set((Math.random()-0.5)*200,(engine.biome==='forest'?0:0),(Math.random()-0.5)*200); engine.renderer.scene.add(g);} if(t==='landmark'){ const mono=new THREE.Mesh(new THREE.BoxGeometry(4,40,4), new THREE.MeshStandardMaterial({ color:0x111111, metalness:0.2, roughness:0.4 })); mono.position.set((Math.random()-0.5)*200,20,(Math.random()-0.5)*200); engine.renderer.scene.add(mono); } }); }
+
+    // Particle object forming handlers
+    const formMake=document.getElementById('form-make'); const formShape=document.getElementById('form-shape'); const formText=document.getElementById('form-text'); const formImage=document.getElementById('form-image');
+    if(formMake){ formMake.addEventListener('click', async ()=>{ const shape=formShape.value; if(shape==='sphere') engine.particles.setSphereForm(220); if(shape==='cube') engine.particles.setCubeForm(400); if(shape==='torus') engine.particles.setTorusForm(260,60); if(shape==='text') await engine.particles.setTextForm(formText.value||'GENESIS'); if(shape==='image' && formImage.files && formImage.files[0]) await engine.particles.setImageForm(formImage.files[0]); }); }
+
+    // Cosmic data fetch wiring (NASA Images API → particle targets)
+    const cosmicFetch=document.getElementById('cosmic-fetch'); const cosmicQuery=document.getElementById('cosmic-query'); const cosmicBias=document.getElementById('cosmic-bias');
+    if(cosmicFetch){ cosmicFetch.addEventListener('click', async ()=>{ const source=(document.getElementById('cosmic-source')||{}).value||'nasa'; const q=(cosmicQuery&&cosmicQuery.value)||'nebula'; const date=(document.getElementById('cosmic-date')||{}).value; const ra=parseFloat((document.getElementById('cosmic-ra')||{}).value)||83.63; const dec=parseFloat((document.getElementById('cosmic-dec')||{}).value)||22.01; const fov=parseFloat((document.getElementById('cosmic-fov')||{}).value)||1.0; try{ let url=null;
+        if(source==='nasa'){ const r=await fetch(`https://images-api.nasa.gov/search?q=${encodeURIComponent(q)}&media_type=image`); const j=await r.json(); const items=(j.collection&&j.collection.items)||[]; if(items.length) url=(items[0].links&&items[0].links[0]&&items[0].links[0].href)||null; }
+        else if(source==='apod'){ const d=date? `&date=${date}` : ''; const r=await fetch(`https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY${d}`); const j=await r.json(); url=j.hdurl||j.url||null; }
+        else if(source==='esasky'){ const r=await fetch(`https://sky.esa.int/esasky-tap/catalogs?RA=${ra}&DEC=${dec}&FOV=${fov}`); const j=await r.json(); url=(j && j.previewUrl)||null; }
+        else if(source==='jwst'){
+          // Example JWST FITS product; we will fetch as ArrayBuffer and parse in worker
+          const fitsUrl = `https://mast.stsci.edu/api/v0.1/Download/file?uri=mast:Jwst/product/jw02731-o001_t001_miri_f1130w_i2d.fits`;
+          const buf = await (await fetch(fitsUrl)).arrayBuffer();
+          const worker = new Worker(URL.createObjectURL(new Blob([`
+            self.onmessage = (e)=>{ const buf=e.data; const dv=new DataView(buf); // very naive FITS scan: find 'END' marker
+              let headerEnd=0; for(let i=0;i<dv.byteLength-3;i+=1){ if(String.fromCharCode(dv.getUint8(i))==='E' && String.fromCharCode(dv.getUint8(i+1))==='N' && String.fromCharCode(dv.getUint8(i+2))==='D'){ headerEnd=(Math.floor((i+80)/2880))*2880; break; } }
+              const data = new Float32Array(buf, headerEnd); // assume float32 image for demo
+              let min=Infinity,max=-Infinity; for(let i=0;i<data.length;i++){ const v=data[i]; if(!Number.isFinite(v)) continue; if(v<min)min=v; if(v>max)max=v; }
+              const W = Math.floor(Math.sqrt(data.length))||256; const H=W; const out = new Uint8ClampedArray(W*H*4);
+              for(let y=0;y<H;y++){ for(let x=0;x<W;x++){ const idx=y*W+x; const v=data[idx]; const t=(v-min)/(max-min+1e-6); const g=Math.max(0,Math.min(255, Math.floor(255*Math.pow(t,0.5)))); out[idx*4]=g; out[idx*4+1]=g; out[idx*4+2]=g; out[idx*4+3]=255; } }
+              self.postMessage({width:W,height:H,pixels:out}, [out.buffer]); };
+          `], { type:'application/javascript' })));
+          worker.onmessage = (ev)=>{ const {width,height,pixels}=ev.data; const cvs=document.createElement('canvas'); cvs.width=width; cvs.height=height; const ctx=cvs.getContext('2d'); const imgData=new ImageData(new Uint8ClampedArray(pixels), width, height); ctx.putImageData(imgData,0,0); const data=imgData.data; for(let i=0;i<engine.particles.count;i++){ const ix=i*3; const x=(i%width), y=((i/width)|0)%height; const di=(y*width+x)*4; const lum=(data[di]+data[di+1]+data[di+2])/765; engine.particles.targets[ix]=(x/width-0.5)*1400; engine.particles.targets[ix+1]=(0.5-y/height)*1400; engine.particles.targets[ix+2]=(Math.random()-0.5)*120; engine.particles.colors[ix]=lum; engine.particles.colors[ix+1]=lum*0.9; engine.particles.colors[ix+2]=1.0; }
+            engine.particles.points.geometry.attributes.position.needsUpdate=true; engine.particles.points.geometry.attributes.color.needsUpdate=true; engine.spaceData.lastQuery=q; const cl=document.getElementById('cosmic-last'); if(cl) cl.textContent = `JWST FITS loaded (${width}x${height})`; }; worker.postMessage(buf, [buf]); return; }
+        if(!url) return alert('No result for source'); const img=new Image(); img.crossOrigin='anonymous'; img.onload=()=>{ const w=256,h=256; const cvs=document.createElement('canvas'); cvs.width=w; cvs.height=h; const ctx=cvs.getContext('2d'); ctx.drawImage(img,0,0,w,h); const data=ctx.getImageData(0,0,w,h).data; for(let i=0;i<engine.particles.count;i++){ const ix=i*3; const x=(i%w), y=((i/w)|0)%h; const di=(y*w+x)*4; const lum=(data[di]+data[di+1]+data[di+2])/765; engine.particles.targets[ix]=(x/w-0.5)*1400; engine.particles.targets[ix+1]=(0.5-y/h)*1400; engine.particles.targets[ix+2]=(Math.random()-0.5)*120; engine.particles.colors[ix]=lum; engine.particles.colors[ix+1]=lum*0.9; engine.particles.colors[ix+2]=1.0; }
+          engine.particles.points.geometry.attributes.position.needsUpdate=true; engine.particles.points.geometry.attributes.color.needsUpdate=true; engine.spaceData.lastQuery=q; if(cosmicBias&&cosmicBias.checked){ const map={ galaxy:'galaxy', nebula:'nebula', star:'star', cluster:'galaxy', black:'blackhole' }; let hint='nebula'; for(const k of Object.keys(map)){ if(q.toLowerCase().includes(k)) { hint=map[k]; break; } } engine.knowledge = engine.knowledge||new (class{ suggestCreation(){ return hint; }})(); }
+        };
+        img.onerror=()=>alert('Failed to load preview'); img.src=url; const cl=document.getElementById('cosmic-last'); if(cl) cl.textContent = `Source: ${source}, Query: ${q}`; }catch(e){ console.error('Cosmic fetch failed', e); alert('Cosmic fetch failed'); } }); }
+    const cosmicFov=document.getElementById('cosmic-fov'); const cosmicFovv=document.getElementById('cosmic-fovv'); if(cosmicFov){ cosmicFov.addEventListener('input', e=>{ cosmicFovv.textContent=parseFloat(e.target.value).toFixed(1); }); }
+  </script>
+</body>
+</html>
+
