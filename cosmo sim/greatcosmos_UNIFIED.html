@@ -1053,6 +1053,30 @@
                         </div>
                         <input id="in-wind" type="range" min="0.0" max="1.0" step="0.1" value="0.2" />
                     </div>
+
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Ocean Roughness</span>
+                            <span id="val-ocean-rough" class="font-mono">0.3</span>
+                        </div>
+                        <input id="in-ocean-rough" type="range" min="0.0" max="1.0" step="0.05" value="0.3" />
+                    </div>
+
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Cloud Coverage</span>
+                            <span id="val-cloud-cov" class="font-mono">0.4</span>
+                        </div>
+                        <input id="in-cloud-cov" type="range" min="0.0" max="1.0" step="0.05" value="0.4" />
+                    </div>
+
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Day Length (sec)</span>
+                            <span id="val-day-length" class="font-mono">120</span>
+                        </div>
+                        <input id="in-day-length" type="range" min="60" max="900" step="30" value="120" />
+                    </div>
                 </div>
             </div>
         </div>
@@ -2179,8 +2203,11 @@ class UIManager {
         this.pge = null;
         this.qem = null;
         this.surfaceManager = null;
+        this.weatherSystem = null;
+        this.faunaManager = null;
         this.audioReactive = null;
         this.memoryEchoEngine = null;
+        this.inputController = null;
         this.dataLogger = null;
 
         // Initialize tabs
@@ -2200,8 +2227,11 @@ class UIManager {
         this.pge = systems.pge;
         this.qem = systems.qem;
         this.surfaceManager = systems.surfaceManager;
+        this.weatherSystem = systems.weatherSystem;
+        this.faunaManager = systems.faunaManager;
         this.audioReactive = systems.audioReactive;
         this.memoryEchoEngine = systems.memoryEchoEngine;
+        this.inputController = systems.inputController;
         this.dataLogger = systems.dataLogger;
     }
 
@@ -2394,6 +2424,65 @@ class UIManager {
                 windValue.textContent = val.toFixed(1);
                 if (this.weatherSystem) {
                     this.weatherSystem.setWindStrength(val);
+                }
+                if (this.surfaceManager) {
+                    this.surfaceManager.setWind(val);
+                }
+            });
+        }
+
+        // Vegetation density slider
+        const vegDensitySlider = document.getElementById('in-veg-density');
+        const vegDensityValue = document.getElementById('val-veg-density');
+        if (vegDensitySlider && vegDensityValue) {
+            vegDensitySlider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                vegDensityValue.textContent = val.toFixed(1);
+                if (this.surfaceManager) {
+                    this.surfaceManager.setVegetationDensity(val);
+                }
+            });
+        }
+
+        // Ocean roughness slider
+        const oceanRoughSlider = document.getElementById('in-ocean-rough');
+        const oceanRoughValue = document.getElementById('val-ocean-rough');
+        if (oceanRoughSlider && oceanRoughValue) {
+            oceanRoughSlider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                oceanRoughValue.textContent = val.toFixed(2);
+                if (this.surfaceManager) {
+                    this.surfaceManager.setOceanRoughness(val);
+                }
+            });
+        }
+
+        // Cloud coverage slider
+        const cloudCovSlider = document.getElementById('in-cloud-cov');
+        const cloudCovValue = document.getElementById('val-cloud-cov');
+        if (cloudCovSlider && cloudCovValue) {
+            cloudCovSlider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                cloudCovValue.textContent = val.toFixed(2);
+                if (this.surfaceManager) {
+                    this.surfaceManager.setCloudCoverage(val);
+                }
+                if (this.weatherSystem) {
+                    this.weatherSystem.setCloudCoverage(val);
+                }
+            });
+        }
+
+        // Day length slider
+        const dayLengthSlider = document.getElementById('in-day-length');
+        const dayLengthValue = document.getElementById('val-day-length');
+        if (dayLengthSlider && dayLengthValue) {
+            dayLengthSlider.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                dayLengthValue.textContent = val;
+                if (this.surfaceManager) {
+                    this.surfaceManager.dayLengthSec = val;
+                    this.surfaceManager.dayDuration = val; // Sync both properties
                 }
             });
         }
@@ -2957,8 +3046,10 @@ class InputController {
     }
     
     getGroundHeight(x, z) {
-        // Use SurfaceManager's terrain height if available
-        if (this.surfaceManager && this.surfaceManager.getTerrainHeight) {
+        // Use SurfaceManager's raycast terrain height if available (more accurate)
+        if (this.surfaceManager && this.surfaceManager.raycastTerrainHeight) {
+            return this.surfaceManager.raycastTerrainHeight(x, z, this.camera);
+        } else if (this.surfaceManager && this.surfaceManager.getTerrainHeight) {
             return this.surfaceManager.getTerrainHeight(x, z);
         }
         // Fallback to flat ground
@@ -3051,6 +3142,10 @@ class SurfaceManager {
         this.surfaceGroup.visible = false;
         this.scene.add(this.surfaceGroup);
         this.noise = createNoise2D(this.prng);
+
+        // Reference to other managers (will be set later)
+        this.faunaManager = null;
+        this.weatherSystem = null;
         
         // Surface entities
         this.terrain = null;
@@ -3071,10 +3166,13 @@ class SurfaceManager {
         this.cloudCoverage = 0.4;
         this.vegetationDensity = 0.6;
         this.faunaActivity = 0.5;
+        this.windStrength = 0.2;
+        this.currentBiome = 'default';
 
         // Day/Night cycle
         this.timeOfDay = 0.5; // 0 = midnight, 0.5 = noon, 1 = midnight
-        this.dayDuration = 120; // seconds for full day/night cycle
+        this.dayDuration = 120; // seconds for full day/night cycle (alias: dayLengthSec)
+        this.dayLengthSec = 120; // Configurable day length in seconds
         this.sunPosition = new THREE.Vector3();
         this.moonPosition = new THREE.Vector3();
 
@@ -3365,8 +3463,8 @@ class SurfaceManager {
     update(delta, STATE, camera) {
         const time = STATE.runtime.totalTime;
 
-        // Update day/night cycle
-        this.timeOfDay += delta / this.dayDuration;
+        // Update day/night cycle (use dayLengthSec for configurability)
+        this.timeOfDay += delta / this.dayLengthSec;
         if (this.timeOfDay > 1.0) this.timeOfDay -= 1.0;
 
         // Calculate sun and moon positions (opposite sides of sky)
@@ -3446,7 +3544,8 @@ class SurfaceManager {
             for (let i = 0; i < this.vegetationData.length; i++) {
                 const data = this.vegetationData[i];
                 // Growth scale oscillates slightly over time (wind effect)
-                const growthFactor = 1.0 + Math.sin(time * 0.3 + data.growthPhase) * 0.15;
+                const windFactor = this.windStrength || 0.2;
+                const growthFactor = 1.0 + Math.sin(time * 0.3 + data.growthPhase) * 0.15 * windFactor;
                 const animatedScale = data.baseScale * growthFactor * this.vegetationDensity;
 
                 matrix.makeRotationY(data.rotation);
@@ -3463,8 +3562,9 @@ class SurfaceManager {
 
             for (let i = 0; i < this.treeData.length; i++) {
                 const data = this.treeData[i];
-                // Trees sway in wind
-                const swayAmount = Math.sin(time * 0.5 + data.swayPhase) * 0.05;
+                // Trees sway in wind (stronger sway with higher wind)
+                const windFactor = this.windStrength || 0.2;
+                const swayAmount = Math.sin(time * 0.5 + data.swayPhase) * 0.05 * (1 + windFactor * 2);
                 const rotation = data.rotation + swayAmount;
 
                 matrix.makeRotationY(rotation);
@@ -3475,9 +3575,6 @@ class SurfaceManager {
             this.trees.instanceMatrix.needsUpdate = true;
         }
 
-        // Update fauna activity (based on sentinels, motes, and FaunaManager)
-        this.faunaActivity = 0.3 + Math.sin(time * 0.3) * 0.2;
-
         // Animate sentinels (bio-inspired entities)
         for (let i = 0; i < this.sentinels.length; i++) {
             const sentinel = this.sentinels[i];
@@ -3486,8 +3583,6 @@ class SurfaceManager {
             // Gentle floating movement
             sentinel.position.y += Math.sin(time * 2 + i) * 0.05;
             sentinel.rotation.y += delta * 0.5;
-
-            this.faunaActivity += 0.01;
         }
 
         // Animate motes (smaller entities)
@@ -3499,11 +3594,18 @@ class SurfaceManager {
             mote.position.x += Math.sin(time * 3 + i * 0.5) * 0.1;
             mote.position.z += Math.cos(time * 3 + i * 0.7) * 0.1;
             mote.position.y += Math.sin(time * 4 + i) * 0.02;
-
-            this.faunaActivity += 0.005;
         }
 
-        this.faunaActivity = Math.min(1.0, this.faunaActivity);
+        // Update fauna activity from FaunaManager if available
+        if (this.faunaManager) {
+            this.faunaActivity = this.faunaManager.getFaunaActivity();
+        } else {
+            // Fallback calculation based on sentinels and motes
+            this.faunaActivity = 0.3 + Math.sin(time * 0.3) * 0.2 +
+                                 (this.sentinels.length * 0.01) +
+                                 (this.motes.length * 0.005);
+            this.faunaActivity = Math.min(1.0, this.faunaActivity);
+        }
 
         // Update surface HUD
         if (STATE.currentMode === 'surface') {
@@ -3605,6 +3707,203 @@ class SurfaceManager {
             this.motes.push(mote);
         }
         this.eventBus.publish('surface:motes_spawned', { count });
+    }
+
+    /**
+     * Set biome type and adjust visual parameters
+     */
+    setBiome(biome) {
+        this.currentBiome = biome;
+
+        switch(biome) {
+            case 'forest':
+                // Forest biome: lush vegetation, rivers, fog
+                this.vegetationDensity = 0.8;
+                this.createVegetation();
+                this.createTrees();
+
+                // Adjust terrain color to forest green
+                if (this.terrain) {
+                    this.terrain.material.color.setHex(0x3a5a2a);
+                }
+
+                // Increase fog density
+                if (this.scene.fog) {
+                    this.scene.fog.near = 50;
+                    this.scene.fog.far = 5000;
+                }
+
+                // Water becomes a river (narrower, flowing)
+                if (this.water) {
+                    this.water.scale.set(0.3, 1, 1); // Narrow in X direction
+                    this.water.material.color.setHex(0x3a5a7a);
+                }
+                break;
+
+            case 'desert':
+                // Desert biome: sparse vegetation, sandy, clear skies
+                this.vegetationDensity = 0.1;
+                this.createVegetation();
+                this.createTrees();
+
+                // Sandy terrain color
+                if (this.terrain) {
+                    this.terrain.material.color.setHex(0xc2b280);
+                }
+
+                // Reduce fog
+                if (this.scene.fog) {
+                    this.scene.fog.near = 500;
+                    this.scene.fog.far = 12000;
+                }
+
+                // Small oasis water
+                if (this.water) {
+                    this.water.scale.set(0.2, 1, 0.2);
+                    this.water.material.color.setHex(0x4a8ab8);
+                }
+                break;
+
+            case 'tundra':
+                // Tundra biome: minimal vegetation, icy water, cold colors
+                this.vegetationDensity = 0.2;
+                this.createVegetation();
+                this.createTrees();
+
+                // Icy terrain
+                if (this.terrain) {
+                    this.terrain.material.color.setHex(0xd0e0f0);
+                }
+
+                // Clear cold air
+                if (this.scene.fog) {
+                    this.scene.fog.near = 200;
+                    this.scene.fog.far = 10000;
+                }
+
+                // Ice-covered water
+                if (this.water) {
+                    this.water.scale.set(1, 1, 1);
+                    this.water.material.color.setHex(0xc0d8e8);
+                    this.water.material.opacity = 0.7;
+                }
+                break;
+
+            case 'ocean':
+                // Ocean biome: no terrain visible, vast water, minimal fog
+                this.vegetationDensity = 0.05;
+                this.createVegetation();
+
+                // Lower terrain to be underwater
+                if (this.terrain) {
+                    this.terrain.position.y = -50;
+                    this.terrain.material.color.setHex(0x4a5a6a);
+                }
+
+                // Vast ocean
+                if (this.water) {
+                    this.water.scale.set(1.5, 1, 1.5);
+                    this.water.material.color.setHex(0x2a4a7a);
+                }
+                break;
+
+            default: // cosmos or default
+                // Reset to balanced defaults
+                this.vegetationDensity = 0.6;
+                this.createVegetation();
+                this.createTrees();
+
+                if (this.terrain) {
+                    this.terrain.material.color.setHex(0x6a7863);
+                }
+
+                if (this.water) {
+                    this.water.scale.set(1, 1, 1);
+                    this.water.material.color.setHex(0x42628a);
+                }
+        }
+
+        this.eventBus.publish('surface:biome_changed', { biome });
+    }
+
+    /**
+     * Set ocean roughness (0-1)
+     */
+    setOceanRoughness(value) {
+        this.oceanRoughness = THREE.MathUtils.clamp(value, 0, 1);
+        if (this.water) {
+            this.water.material.roughness = this.oceanRoughness * 0.4;
+        }
+    }
+
+    /**
+     * Set vegetation density (0-1)
+     */
+    setVegetationDensity(value) {
+        this.updateVegetationDensity(value);
+    }
+
+    /**
+     * Set cloud coverage (delegates to WeatherSystem)
+     */
+    setCloudCoverage(value) {
+        this.cloudCoverage = THREE.MathUtils.clamp(value, 0, 1);
+        // Will be picked up by WeatherSystem if it exists
+    }
+
+    /**
+     * Set wind strength (0-1)
+     */
+    setWind(value) {
+        this.windStrength = THREE.MathUtils.clamp(value, 0, 1);
+        // Wind affects vegetation sway and water flow
+    }
+
+    /**
+     * Get surface metrics for HUD
+     */
+    getMetrics() {
+        // Calculate time of day as HH:MM string
+        const hours = Math.floor(this.timeOfDay * 24);
+        const minutes = Math.floor((this.timeOfDay * 24 - hours) * 60);
+        const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+        // Get fauna count from FaunaManager if available
+        let totalFauna = this.sentinels.length + this.motes.length;
+        if (this.faunaManager) {
+            totalFauna += this.faunaManager.getFaunaCount();
+        }
+
+        return {
+            oceanRoughness: this.oceanRoughness,
+            cloudCoverage: this.cloudCoverage,
+            vegetationDensity: this.vegetationDensity,
+            faunaCount: totalFauna,
+            wind: this.windStrength || 0,
+            timeOfDay: timeString,
+            biome: this.currentBiome || 'default'
+        };
+    }
+
+    /**
+     * Raycast to get exact terrain height at XZ position
+     */
+    raycastTerrainHeight(x, z, camera) {
+        if (!this.terrain) return this.getTerrainHeight(x, z);
+
+        // Use raycaster for more accurate height
+        const raycaster = new THREE.Raycaster();
+        const origin = new THREE.Vector3(x, 1000, z);
+        const direction = new THREE.Vector3(0, -1, 0);
+        raycaster.set(origin, direction);
+
+        const intersects = raycaster.intersectObject(this.terrain, false);
+        if (intersects.length > 0) {
+            return intersects[0].point.y;
+        }
+
+        // Fallback to noise-based calculation
+        return this.getTerrainHeight(x, z);
     }
 }
 
@@ -3791,6 +4090,20 @@ class WeatherSystem {
 
     setFogDensity(value) {
         this.fogDensity = value;
+    }
+
+    /**
+     * Get weather metrics for HUD and reporting
+     */
+    getMetrics() {
+        return {
+            cloudCoverage: this.cloudCoverage,
+            windStrength: this.windStrength,
+            rainIntensity: this.rainIntensity,
+            fogDensity: this.fogDensity,
+            cloudCount: this.clouds.length,
+            isRaining: this.rainIntensity > 0
+        };
     }
 
     show(visible) {
@@ -4151,6 +4464,35 @@ class FaunaManager {
         const npcActivity = Math.min(1, this.npcs.length / 10);
 
         return (birdActivity + insectActivity + npcActivity) / 3;
+    }
+
+    /**
+     * Get detailed fauna metrics for HUD and reporting
+     */
+    getMetrics() {
+        // Count insects across all swarms
+        let insectCount = 0;
+        this.insects.forEach(swarm => {
+            if (swarm.userData.velocities) {
+                insectCount += swarm.userData.velocities.length;
+            }
+        });
+
+        return {
+            birds: this.birds.length,
+            insects: insectCount,
+            npcs: this.npcs.length,
+            totalFauna: this.birds.length + insectCount + this.npcs.length,
+            activity: this.getFaunaActivity()
+        };
+    }
+
+    /**
+     * Get total fauna count (for SurfaceManager integration)
+     */
+    getFaunaCount() {
+        const metrics = this.getMetrics();
+        return metrics.totalFauna;
     }
 
     show(visible) {
@@ -7311,6 +7653,10 @@ class Application {
         this.cinematicCamera = new CinematicCamera(this.camera, this.eventBus);
         this.echoManager = new EnhancedEchoManager(this.scene, this.eventBus, this.prng);
 
+        // Wire surface managers together for cross-system integration
+        this.surfaceManager.faunaManager = this.faunaManager;
+        this.surfaceManager.weatherSystem = this.weatherSystem;
+
         this.audioReactive = new AudioReactiveSystem(this.scene, this.eventBus, this.camera);
         this.memoryEchoEngine = new MemoryEchoEngine(this.scene, this.camera, this.eventBus, this.dataLogger);
         this.cstCompute = new CSTComputeEngine(this.eventBus);
@@ -7327,6 +7673,7 @@ class Application {
             echoManager: this.echoManager,
             audioReactive: this.audioReactive,
             memoryEchoEngine: this.memoryEchoEngine,
+            inputController: this.inputController,
             dataLogger: this.dataLogger
         });
 
