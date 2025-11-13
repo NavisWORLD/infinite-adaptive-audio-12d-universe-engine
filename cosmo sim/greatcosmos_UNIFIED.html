@@ -1080,6 +1080,10 @@
             <span id="hudCloud" class="text-right">--</span>
             <span class="text-slate-400">Vegetation:</span>
             <span id="hudVeg" class="text-right">--</span>
+            <span class="text-slate-400">Fauna Activity:</span>
+            <span id="hudFauna" class="text-right">--</span>
+            <span class="text-slate-400">Time of Day:</span>
+            <span id="hudTimeOfDay" class="text-right">--</span>
         </div>
     </div>
 
@@ -2584,6 +2588,10 @@ class InputController {
         this.gravity = -9.8;
         this.jumpForce = 50;
         this.surfacePhysicsEnabled = false;
+        this.isCrouching = false;
+        this.normalHeight = 5;
+        this.crouchHeight = 2.5;
+        this.surfaceManager = null; // Will be set by setSurfaceManager()
 
         // Camera shake
         this.shakeIntensity = 0;
@@ -2812,14 +2820,22 @@ class InputController {
         if (this.keys['a']) direction.sub(right);
         if (this.keys['d']) direction.add(right);
         
-        // Q/E vertical movement (spaceship) or jump (FPS)
+        // Q/E vertical movement (spaceship) or jump/crouch (FPS)
         if (this.mode === 'spaceship') {
             if (this.keys['q']) direction.y -= 1;
             if (this.keys['e']) direction.y += 1;
         } else if (this.mode === 'fps') {
-            if (this.keys[' '] && this.onGround) {
+            // Jump with Space
+            if (this.keys[' '] && this.onGround && !this.isCrouching) {
                 this.velocity.y = this.jumpForce;
                 this.onGround = false;
+            }
+
+            // Crouch with C or Ctrl
+            if (this.keys['c'] || this.keys['control']) {
+                this.isCrouching = true;
+            } else {
+                this.isCrouching = false;
             }
         }
         
@@ -2843,10 +2859,19 @@ class InputController {
                 
                 // Check ground collision (simplified - would use SurfaceManager in full implementation)
                 const groundHeight = this.getGroundHeight(this.camera.position.x, this.camera.position.z);
-                if (this.camera.position.y <= groundHeight + 5) {
-                    this.camera.position.y = groundHeight + 5;
+                const cameraHeight = this.isCrouching ? this.crouchHeight : this.normalHeight;
+
+                if (this.camera.position.y <= groundHeight + cameraHeight) {
+                    this.camera.position.y = groundHeight + cameraHeight;
                     this.velocity.y = 0;
                     this.onGround = true;
+                } else if (this.camera.position.y > groundHeight + cameraHeight + 0.1) {
+                    this.onGround = false;
+                }
+
+                // Apply crouch speed modifier
+                if (this.isCrouching) {
+                    speed *= 0.5; // Move slower when crouching
                 }
             } else {
                 // Free flight (spaceship)
@@ -2856,9 +2881,16 @@ class InputController {
     }
     
     getGroundHeight(x, z) {
-        // Raycast to terrain (simplified)
-        // In full implementation, this would raycast to SurfaceManager.terrain
+        // Use SurfaceManager's terrain height if available
+        if (this.surfaceManager && this.surfaceManager.getTerrainHeight) {
+            return this.surfaceManager.getTerrainHeight(x, z);
+        }
+        // Fallback to flat ground
         return 0;
+    }
+
+    setSurfaceManager(surfaceManager) {
+        this.surfaceManager = surfaceManager;
     }
     
     applyViewPreset(preset) {
@@ -2949,14 +2981,27 @@ class SurfaceManager {
         this.water = null;
         this.sky = null;
         this.vegetation = null;
+        this.trees = null;
+        this.stars = null;
+        this.sun = null;
+        this.moon = null;
+        this.directionalLight = null;
+        this.ambientLight = null;
         this.sentinels = [];
         this.motes = [];
-        
+
         // Surface parameters
         this.oceanRoughness = 0.3;
         this.cloudCoverage = 0.4;
         this.vegetationDensity = 0.6;
-        
+        this.faunaActivity = 0.5;
+
+        // Day/Night cycle
+        this.timeOfDay = 0.5; // 0 = midnight, 0.5 = noon, 1 = midnight
+        this.dayDuration = 120; // seconds for full day/night cycle
+        this.sunPosition = new THREE.Vector3();
+        this.moonPosition = new THREE.Vector3();
+
         this.buildSurface();
     }
     
@@ -2980,7 +3025,31 @@ class SurfaceManager {
         // Add environmental fog
         this.scene.fog = new THREE.Fog(0xa0a0b0, 100, 8000);
         this.scene.fog.isFog = false; // Will be enabled when surface mode is active
-        
+
+        // Create lighting system
+        this.ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+        this.surfaceGroup.add(this.ambientLight);
+
+        this.directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        this.directionalLight.position.set(1000, 1000, 500);
+        this.directionalLight.castShadow = true;
+        this.surfaceGroup.add(this.directionalLight);
+
+        // Create sun sphere (visible sun in sky)
+        const sunGeo = new THREE.SphereGeometry(100, 32, 32);
+        const sunMat = new THREE.MeshBasicMaterial({ color: 0xffff00, emissive: 0xffff00 });
+        this.sun = new THREE.Mesh(sunGeo, sunMat);
+        this.surfaceGroup.add(this.sun);
+
+        // Create moon sphere
+        const moonGeo = new THREE.SphereGeometry(80, 32, 32);
+        const moonMat = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+        this.moon = new THREE.Mesh(moonGeo, moonMat);
+        this.surfaceGroup.add(this.moon);
+
+        // Create star field (visible at night)
+        this.createStarField();
+
         // Terrain generation using multi-octave Perlin noise
         const terrainGeo = new THREE.PlaneGeometry(8000, 8000, 200, 200);
         const pos = terrainGeo.attributes.position;
@@ -3036,8 +3105,91 @@ class SurfaceManager {
             velocity: new THREE.Vector3(0, 0, 0)
         });
         
-        // Vegetation (instanced grass)
+        // Vegetation (instanced grass and trees)
         this.createVegetation();
+        this.createTrees();
+    }
+
+    createStarField() {
+        // Create a star field visible at night
+        const starCount = 3000;
+        const starGeo = new THREE.BufferGeometry();
+        const starPositions = new Float32Array(starCount * 3);
+        const starColors = new Float32Array(starCount * 3);
+
+        for (let i = 0; i < starCount; i++) {
+            const i3 = i * 3;
+            // Position stars in a hemisphere above the horizon
+            const theta = this.prng() * Math.PI * 2;
+            const phi = this.prng() * Math.PI * 0.5; // Only upper hemisphere
+            const radius = 10000 + this.prng() * 40000;
+
+            starPositions[i3] = radius * Math.sin(phi) * Math.cos(theta);
+            starPositions[i3 + 1] = radius * Math.cos(phi);
+            starPositions[i3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
+
+            // Star colors (white to slight blue/yellow tint)
+            const temp = 0.8 + this.prng() * 0.2;
+            starColors[i3] = temp;
+            starColors[i3 + 1] = temp;
+            starColors[i3 + 2] = temp + (this.prng() - 0.5) * 0.1;
+        }
+
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+
+        const starMat = new THREE.PointsMaterial({
+            size: 40,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0,
+            sizeAttenuation: true
+        });
+
+        this.stars = new THREE.Points(starGeo, starMat);
+        this.surfaceGroup.add(this.stars);
+    }
+
+    createTrees() {
+        // Remove old trees if exists
+        if (this.trees) {
+            this.surfaceGroup.remove(this.trees);
+            this.trees.geometry.dispose();
+            this.trees.material.dispose();
+        }
+
+        // Create instanced trees
+        const treeCount = Math.floor(500 * this.vegetationDensity);
+        const trunkGeo = new THREE.CylinderGeometry(1, 1.5, 8, 8);
+        const treeMat = new THREE.MeshStandardMaterial({ color: 0x654321 });
+        const instancedMesh = new THREE.InstancedMesh(trunkGeo, treeMat, treeCount);
+
+        this.treeData = [];
+        const matrix = new THREE.Matrix4();
+
+        for (let i = 0; i < treeCount; i++) {
+            const x = (this.prng() - 0.5) * 7000;
+            const z = (this.prng() - 0.5) * 7000;
+            const y = this.getTerrainHeight(x, z);
+            const baseScale = 1.5 + this.prng() * 2.5;
+            const rotation = this.prng() * Math.PI * 2;
+            const swayPhase = this.prng() * Math.PI * 2;
+
+            this.treeData.push({
+                x, y, z, baseScale, rotation, swayPhase
+            });
+
+            matrix.makeRotationY(rotation);
+            matrix.setPosition(x, y + 4, z);
+            matrix.scale(new THREE.Vector3(baseScale, baseScale, baseScale));
+            instancedMesh.setMatrixAt(i, matrix);
+        }
+
+        instancedMesh.instanceMatrix.needsUpdate = true;
+        instancedMesh.userData.isGenerated = true;
+        instancedMesh.userData.type = 'trees';
+        this.surfaceGroup.add(instancedMesh);
+        this.trees = instancedMesh;
     }
     
     createVegetation() {
@@ -3132,24 +3284,92 @@ class SurfaceManager {
     }
     
     /**
-     * Update surface simulation with growth animation
+     * Update surface simulation with growth animation and day/night cycle
      */
     update(delta, STATE, camera) {
-        // Update water animation
+        const time = STATE.runtime.totalTime;
+
+        // Update day/night cycle
+        this.timeOfDay += delta / this.dayDuration;
+        if (this.timeOfDay > 1.0) this.timeOfDay -= 1.0;
+
+        // Calculate sun and moon positions (opposite sides of sky)
+        const sunAngle = this.timeOfDay * Math.PI * 2;
+        const sunRadius = 5000;
+        this.sunPosition.set(
+            Math.cos(sunAngle) * sunRadius,
+            Math.sin(sunAngle) * sunRadius,
+            0
+        );
+        this.moonPosition.set(
+            -Math.cos(sunAngle) * sunRadius,
+            -Math.sin(sunAngle) * sunRadius,
+            0
+        );
+
+        // Update sun and moon mesh positions
+        if (this.sun) this.sun.position.copy(this.sunPosition);
+        if (this.moon) this.moon.position.copy(this.moonPosition);
+
+        // Update directional light to follow sun
+        if (this.directionalLight) {
+            this.directionalLight.position.copy(this.sunPosition);
+        }
+
+        // Update ambient light based on time of day
+        // Brighter during day, dimmer at night
+        const dayIntensity = Math.max(0.1, Math.sin(sunAngle));
+        if (this.ambientLight) {
+            this.ambientLight.intensity = 0.2 + dayIntensity * 0.3;
+        }
+        if (this.directionalLight) {
+            this.directionalLight.intensity = dayIntensity * 1.2;
+        }
+
+        // Update sky colors based on time of day
+        if (this.sky) {
+            const uniforms = this.sky.material.uniforms;
+            // More turbid/hazy at sunrise/sunset
+            uniforms['turbidity'].value = 10 + Math.abs(Math.sin(sunAngle * 2)) * 5;
+            uniforms['sunPosition'].value.copy(this.sunPosition.normalize());
+        }
+
+        // Update fog color based on time of day
+        if (this.scene.fog) {
+            // Day: light blue-grey, Night: dark blue
+            const fogDayColor = new THREE.Color(0xa0a0b0);
+            const fogNightColor = new THREE.Color(0x101030);
+            this.scene.fog.color.lerpColors(fogNightColor, fogDayColor, dayIntensity);
+        }
+
+        // Stars fade in at night, fade out during day
+        if (this.stars) {
+            const nightFactor = 1.0 - dayIntensity;
+            this.stars.material.opacity = Math.pow(nightFactor, 2) * 0.9;
+        }
+
+        // Update water animation with dynamic roughness
         if (this.water) {
             this.water.material.roughness = this.oceanRoughness * 0.4;
-            // Simple wave animation
-            this.water.position.y = 20 + Math.sin(STATE.runtime.totalTime * 0.5) * 2;
+            // Enhanced wave animation with multiple frequencies
+            const wave1 = Math.sin(time * 0.5) * 2;
+            const wave2 = Math.sin(time * 0.8 + 1.5) * 1;
+            const wave3 = Math.cos(time * 0.3) * 0.5;
+            this.water.position.y = 20 + wave1 + wave2 + wave3;
+
+            // Animate water color slightly for realism
+            const baseColor = new THREE.Color(0x42628a);
+            const nightWaterColor = new THREE.Color(0x1a2845);
+            this.water.material.color.lerpColors(nightWaterColor, baseColor, dayIntensity);
         }
 
         // Update vegetation growth animation
         if (this.vegetation && this.vegetationData && STATE.currentMode === 'surface') {
-            const time = STATE.runtime.totalTime;
             const matrix = new THREE.Matrix4();
 
             for (let i = 0; i < this.vegetationData.length; i++) {
                 const data = this.vegetationData[i];
-                // Growth scale oscillates slightly over time
+                // Growth scale oscillates slightly over time (wind effect)
                 const growthFactor = 1.0 + Math.sin(time * 0.3 + data.growthPhase) * 0.15;
                 const animatedScale = data.baseScale * growthFactor * this.vegetationDensity;
 
@@ -3161,15 +3381,78 @@ class SurfaceManager {
             this.vegetation.instanceMatrix.needsUpdate = true;
         }
 
+        // Update tree sway animation
+        if (this.trees && this.treeData && STATE.currentMode === 'surface') {
+            const matrix = new THREE.Matrix4();
+
+            for (let i = 0; i < this.treeData.length; i++) {
+                const data = this.treeData[i];
+                // Trees sway in wind
+                const swayAmount = Math.sin(time * 0.5 + data.swayPhase) * 0.05;
+                const rotation = data.rotation + swayAmount;
+
+                matrix.makeRotationY(rotation);
+                matrix.setPosition(data.x, data.y + 4, data.z);
+                matrix.scale(new THREE.Vector3(data.baseScale, data.baseScale, data.baseScale));
+                this.trees.setMatrixAt(i, matrix);
+            }
+            this.trees.instanceMatrix.needsUpdate = true;
+        }
+
+        // Update fauna activity (based on sentinels and motes movement)
+        this.faunaActivity = 0.5 + Math.sin(time * 0.3) * 0.3;
+
+        // Animate sentinels (bio-inspired entities)
+        for (let i = 0; i < this.sentinels.length; i++) {
+            const sentinel = this.sentinels[i];
+            if (!sentinel.userData.velocity) continue;
+
+            // Gentle floating movement
+            sentinel.position.y += Math.sin(time * 2 + i) * 0.05;
+            sentinel.rotation.y += delta * 0.5;
+
+            this.faunaActivity += 0.01;
+        }
+
+        // Animate motes (smaller entities)
+        for (let i = 0; i < this.motes.length; i++) {
+            const mote = this.motes[i];
+            if (!mote.userData.velocity) continue;
+
+            // Darting movement
+            mote.position.x += Math.sin(time * 3 + i * 0.5) * 0.1;
+            mote.position.z += Math.cos(time * 3 + i * 0.7) * 0.1;
+            mote.position.y += Math.sin(time * 4 + i) * 0.02;
+
+            this.faunaActivity += 0.005;
+        }
+
+        this.faunaActivity = Math.min(1.0, this.faunaActivity);
+
         // Update surface HUD
         if (STATE.currentMode === 'surface') {
             STATE.ui.surfaceHUDVisible = true;
+
             const hudOcean = document.getElementById('hudOcean');
             if (hudOcean) hudOcean.textContent = this.oceanRoughness.toFixed(2);
+
             const hudCloud = document.getElementById('hudCloud');
             if (hudCloud) hudCloud.textContent = `${Math.round(this.cloudCoverage * 100)}%`;
+
             const hudVeg = document.getElementById('hudVeg');
             if (hudVeg) hudVeg.textContent = `${Math.round(this.vegetationDensity * 100)}%`;
+
+            const hudFauna = document.getElementById('hudFauna');
+            if (hudFauna) hudFauna.textContent = `${Math.round(this.faunaActivity * 100)}%`;
+
+            const hudTimeOfDay = document.getElementById('hudTimeOfDay');
+            if (hudTimeOfDay) {
+                const hour = Math.floor(this.timeOfDay * 24);
+                const timeLabel = hour < 6 || hour >= 20 ? 'Night' :
+                                 hour < 12 ? 'Morning' :
+                                 hour < 18 ? 'Afternoon' : 'Evening';
+                hudTimeOfDay.textContent = `${timeLabel} (${hour}:00)`;
+            }
         }
     }
 
@@ -6188,6 +6471,7 @@ class Application {
         // Initialize InputController after camera is created
         this.inputController = new InputController(this.camera, this.renderer.domElement, this.eventBus, STATE);
         this.inputController.init(this.orbitControls);
+        this.inputController.setSurfaceManager(this.surfaceManager);
 
         // Bind event handlers
         this.initEventHandlers();
