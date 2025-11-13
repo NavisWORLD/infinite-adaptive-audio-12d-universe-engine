@@ -647,6 +647,7 @@
                 </div>
                 <div class="value-display">
                     <strong>∫|Δx₁₂| dt:</strong> <span id="psi-x12int-term">0.000</span>
+                    <br><small style="color: #888; margin-left: 20px;">Avg: <span id="psi-x12int-avg">0.000</span> | Max: <span id="psi-x12int-max">0.000</span></small>
                 </div>
                 <div class="value-display">
                     <strong>Ω Term:</strong> <span id="psi-omega-term">0.000</span>
@@ -3504,21 +3505,27 @@
         }
 
         // Compute Ω term = Σ_i Ω_i · (Ec/Eref)
+        // Compute omega term Ω·(Ec/Eref) for ψ normalized breakdown
+        // Per Section 2.11: Synaptic strength weighted by normalized cosmic energy
         function computeOmegaTerm(particles, Eref) {
             let sum = 0;
             for (const p of particles) {
                 const normE = safeNormalize(p.Ec, Eref);
                 const omega = (typeof p.omega === 'number' && isFinite(p.omega)) ? p.omega : 0;
+                // Ω term = Σᵢ Ωᵢ · (Ec,i / Eref) - synaptic strength weighted by energy
                 sum += omega * normE;
             }
             return sum;
         }
 
-        // Compute potential term (U11D/Eref) including dark matter
+        // Compute potential term (Ugrav+Udm)/Eref for ψ normalized breakdown
+        // Per Sections 2.6-2.7: 11D gravitational potential + dark matter contribution
         function computePotentialTerm(particles, Eref) {
             let sum = 0;
             for (const p of particles) {
+                // U11D = Ugrav (gravitational) + Udm (dark matter NFW profile)
                 const U = ((p.Ugrav || 0) + (p.Udm || 0));
+                // Normalize by reference energy for dimensionless term
                 sum += safeNormalize(U, Eref);
             }
             return sum;
@@ -3534,6 +3541,9 @@
         }
 
         // 9) ψ normalization and breakdown
+        // Implements complete ψ function: ψ = φ·(Ec/Eref) + λ + ∫||v||dt/vref + ∫|Δx12|dt + Ω·(Ec/Eref) + (Ugrav+Udm)/Eref
+        // Per Sections 2.5-2.12: All terms computed per particle and aggregated for normalized breakdown
+        // CST v2.0+ fix: Corrected ∫|Δx12|dt calculation to properly integrate rate of change
         function updatePsiNormalized(particles, refs, accum) {
             const terms = {
                 energyTerm: 0,
@@ -3563,12 +3573,16 @@
                 const vIntNew = vIntPrev + safeNormalize(vMag, refs.vref) * timestep.dt;
                 accum.velocityIntegral.set(pid, vIntNew);
                 
-                // Update x12 integral accumulator: ∫|Δx12| dt (dimensionless)
+                // Update x12 integral accumulator: ∫|dx₁₂/dt| dt (dimensionless)
+                // Per Section 2.11: Integrate the absolute rate of change of internal state
                 const x12Prev = accum.x12Previous.get(pid);
                 if (x12Prev !== undefined) {
+                    // deltaX12 = |x12(t) - x12(t-dt)| = |dx12|
+                    // The integral is: ∫|dx₁₂/dt| dt = Σ |dx12/dt| * dt = Σ |dx12|
                     const deltaX12 = Math.abs(p.x12 - x12Prev);
                     const x12IntPrev = accum.x12Integral.get(pid) || 0;
-                    const x12IntNew = x12IntPrev + deltaX12 * timestep.dt;
+                    // CST v2.0+ fix: Don't multiply by dt again (already in deltaX12)
+                    const x12IntNew = x12IntPrev + deltaX12;
                     accum.x12Integral.set(pid, x12IntNew);
                 } else {
                     // First frame: initialize accumulator
@@ -3584,11 +3598,16 @@
             terms.x12IntegralTerm = Array.from(accum.x12Integral.values()).reduce((a, b) => a + b, 0);
             terms.omegaTerm = computeOmegaTerm(particles, refs.Eref);
             terms.potentialTerm = computePotentialTerm(particles, refs.Eref);
-            
-            const psiTotal = terms.energyTerm + terms.lambdaTerm + terms.velocityIntegralTerm + 
+
+            // CST v2.0+ additive: Compute average and max ∫|Δx₁₂|dt per particle for diagnostics
+            const x12IntValues = Array.from(accum.x12Integral.values());
+            const x12IntAvg = x12IntValues.length > 0 ? x12IntValues.reduce((a, b) => a + b, 0) / x12IntValues.length : 0;
+            const x12IntMax = x12IntValues.length > 0 ? Math.max(...x12IntValues) : 0;
+
+            const psiTotal = terms.energyTerm + terms.lambdaTerm + terms.velocityIntegralTerm +
                            terms.x12IntegralTerm + terms.omegaTerm + terms.potentialTerm;
-            
-            return { terms, psiTotal };
+
+            return { terms, psiTotal, x12IntAvg, x12IntMax };
         }
 
         // 10) Adaptive timestep
@@ -5458,14 +5477,18 @@
                 const psiLambdaEl = document.getElementById('psi-lambda-term');
                 const psiVelIntEl = document.getElementById('psi-velint-term');
                 const psiX12IntEl = document.getElementById('psi-x12int-term');
+                const psiX12IntAvgEl = document.getElementById('psi-x12int-avg');
+                const psiX12IntMaxEl = document.getElementById('psi-x12int-max');
                 const psiOmegaEl = document.getElementById('psi-omega-term');
                 const psiPotentialEl = document.getElementById('psi-potential-term');
                 const psiTotalEl = document.getElementById('psi-total-normalized');
-                
+
                 if (psiEnergyEl) psiEnergyEl.textContent = '0.000';
                 if (psiLambdaEl) psiLambdaEl.textContent = '0.000';
                 if (psiVelIntEl) psiVelIntEl.textContent = '0.000';
                 if (psiX12IntEl) psiX12IntEl.textContent = '0.000';
+                if (psiX12IntAvgEl) psiX12IntAvgEl.textContent = '0.000';
+                if (psiX12IntMaxEl) psiX12IntMaxEl.textContent = '0.000';
                 if (psiOmegaEl) psiOmegaEl.textContent = '0.000';
                 if (psiPotentialEl) psiPotentialEl.textContent = '0.000';
                 if (psiTotalEl) psiTotalEl.textContent = '0.000';
@@ -5479,15 +5502,19 @@
             const psiLambdaEl = document.getElementById('psi-lambda-term');
             const psiVelIntEl = document.getElementById('psi-velint-term');
             const psiX12IntEl = document.getElementById('psi-x12int-term');
+            const psiX12IntAvgEl = document.getElementById('psi-x12int-avg');
+            const psiX12IntMaxEl = document.getElementById('psi-x12int-max');
             const psiOmegaEl = document.getElementById('psi-omega-term');
             const psiPotentialEl = document.getElementById('psi-potential-term');
             const psiTotalEl = document.getElementById('psi-total-normalized');
-            
+
             // CST v2.0+ fix: Update all terms with proper formatting (show at least 3 decimals)
             if (psiEnergyEl) psiEnergyEl.textContent = psiResult.terms.energyTerm.toFixed(3);
             if (psiLambdaEl) psiLambdaEl.textContent = psiResult.terms.lambdaTerm.toFixed(3);
             if (psiVelIntEl) psiVelIntEl.textContent = psiResult.terms.velocityIntegralTerm.toFixed(3);
             if (psiX12IntEl) psiX12IntEl.textContent = psiResult.terms.x12IntegralTerm.toFixed(3);
+            if (psiX12IntAvgEl) psiX12IntAvgEl.textContent = (psiResult.x12IntAvg || 0).toFixed(3);
+            if (psiX12IntMaxEl) psiX12IntMaxEl.textContent = (psiResult.x12IntMax || 0).toFixed(3);
             if (psiOmegaEl) psiOmegaEl.textContent = psiResult.terms.omegaTerm.toFixed(3);
             if (psiPotentialEl) psiPotentialEl.textContent = psiResult.terms.potentialTerm.toFixed(3);
             if (psiTotalEl) psiTotalEl.textContent = psiResult.psiTotal.toFixed(3);
@@ -5672,14 +5699,18 @@
             const psiLambdaEl = document.getElementById('psi-lambda-term');
             const psiVelIntEl = document.getElementById('psi-velint-term');
             const psiX12IntEl = document.getElementById('psi-x12int-term');
+            const psiX12IntAvgEl = document.getElementById('psi-x12int-avg');
+            const psiX12IntMaxEl = document.getElementById('psi-x12int-max');
             const psiOmegaEl = document.getElementById('psi-omega-term');
             const psiPotentialEl = document.getElementById('psi-potential-term');
             const psiTotalEl = document.getElementById('psi-total-normalized');
-            
+
             if (psiEnergyEl) psiEnergyEl.textContent = psiResult.terms.energyTerm.toFixed(3);
             if (psiLambdaEl) psiLambdaEl.textContent = psiResult.terms.lambdaTerm.toFixed(3);
             if (psiVelIntEl) psiVelIntEl.textContent = psiResult.terms.velocityIntegralTerm.toFixed(3);
             if (psiX12IntEl) psiX12IntEl.textContent = psiResult.terms.x12IntegralTerm.toFixed(3);
+            if (psiX12IntAvgEl) psiX12IntAvgEl.textContent = (psiResult.x12IntAvg || 0).toFixed(3);
+            if (psiX12IntMaxEl) psiX12IntMaxEl.textContent = (psiResult.x12IntMax || 0).toFixed(3);
             if (psiOmegaEl) psiOmegaEl.textContent = psiResult.terms.omegaTerm.toFixed(3);
             if (psiPotentialEl) psiPotentialEl.textContent = psiResult.terms.potentialTerm.toFixed(3);
             if (psiTotalEl) psiTotalEl.textContent = psiResult.psiTotal.toFixed(3);
