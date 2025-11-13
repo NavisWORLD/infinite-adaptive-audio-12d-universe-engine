@@ -191,29 +191,8 @@
 
     =====================================================================================
 
-    ✅ VALIDATION CHECKLIST (2025-11-13) - SURFACE EXPERIENTIAL ENGINE UPDATE
+    ✅ VALIDATION CHECKLIST (2025-11-12)
     =====================================================================================
-
-    🌍 SURFACE EXPERIENTIAL ENGINE - COMPLETE & VALIDATED:
-    ✓ WeatherSystem class with clouds, rain, and wind
-    ✓ Cloud billboards with wind-driven drift animation
-    ✓ Rain particle system with gravity and splash effects
-    ✓ Wind strength affecting ocean roughness and vegetation sway
-    ✓ FaunaSystem class with birds (Boids algorithm), insects, and NPCs
-    ✓ Bird flocking using separation, alignment, and cohesion forces
-    ✓ Insect swarms with hovering orbital behavior
-    ✓ NPC spawning system for 6 animal types (bird, fox, parrot, flamingo, human, stork)
-    ✓ Water2 shader for ocean with reflections and flow animations
-    ✓ Surface tab UI with organized sections:
-      - Terrain & Vegetation controls
-      - Ocean & Weather controls (roughness, clouds, rain)
-      - Time & Lighting controls
-      - Fauna & Entities controls (sentinels, motes, NPCs)
-    ✓ Event handlers wired for all new sliders and buttons
-    ✓ Real-time HUD updates for ocean, clouds, vegetation, fauna, time of day
-    ✓ SurfaceManager integrated with WeatherSystem and FaunaSystem
-    ✓ Day/night cycle with dynamic lighting and fog
-    ✓ All view modes functional (Orbit, Spaceship, FPS, Cockpit, Cinematic, Echo)
 
     🎤 AUDIO SYSTEM - FIXED & VALIDATED:
     ✓ Persistent AudioContext - no longer recreated on toggle
@@ -1006,7 +985,7 @@
 
                 <!-- ========== SURFACE TAB ========== -->
                 <div id="tab-surface" class="tab-content space-y-3 text-sm text-slate-300">
-                    <h4 class="font-bold text-indigo-400">TERRAIN & VEGETATION</h4>
+                    <h4 class="font-bold text-indigo-400">SURFACE WORLD PARAMETERS</h4>
 
                     <div class="slider-container">
                         <div class="slider-label">
@@ -1019,38 +998,20 @@
                     <div class="slider-container">
                         <div class="slider-label">
                             <span>Vegetation Density</span>
-                            <span id="val-veg-density" class="font-mono">0.6</span>
+                            <span id="val-veg-density" class="font-mono">0.5</span>
                         </div>
-                        <input id="in-veg-density" type="range" min="0.0" max="1.0" step="0.1" value="0.6" />
+                        <input id="in-veg-density" type="range" min="0.0" max="1.0" step="0.1" value="0.5" />
                     </div>
 
-                    <h4 class="font-bold text-indigo-400 mt-4">OCEAN & WEATHER</h4>
-
-                    <div class="slider-container">
-                        <div class="slider-label">
-                            <span>Ocean Roughness</span>
-                            <span id="val-ocean-roughness" class="font-mono">0.3</span>
+                    <div class="toggle-container">
+                        <div class="toggle-label">
+                            <span>Ocean Waves</span>
+                            <label class="switch">
+                                <input type="checkbox" id="ocean-waves-toggle" checked>
+                                <span class="slider"></span>
+                            </label>
                         </div>
-                        <input id="in-ocean-roughness" type="range" min="0.0" max="1.0" step="0.1" value="0.3" />
                     </div>
-
-                    <div class="slider-container">
-                        <div class="slider-label">
-                            <span>Cloud Coverage</span>
-                            <span id="val-cloud-coverage" class="font-mono">0.4</span>
-                        </div>
-                        <input id="in-cloud-coverage" type="range" min="0.0" max="1.0" step="0.1" value="0.4" />
-                    </div>
-
-                    <div class="slider-container">
-                        <div class="slider-label">
-                            <span>Rain Intensity</span>
-                            <span id="val-rain-intensity" class="font-mono">0.0</span>
-                        </div>
-                        <input id="in-rain-intensity" type="range" min="0.0" max="1.0" step="0.1" value="0.0" />
-                    </div>
-
-                    <h4 class="font-bold text-indigo-400 mt-4">TIME & LIGHTING</h4>
 
                     <div class="slider-container">
                         <div class="slider-label">
@@ -1060,21 +1021,8 @@
                         <input id="in-time-of-day" type="range" min="0" max="24" step="0.5" value="12" />
                     </div>
 
-                    <h4 class="font-bold text-indigo-400 mt-4">FAUNA & ENTITIES</h4>
-
-                    <div class="grid grid-cols-2 gap-2">
-                        <button id="spawn-sentinels" class="btn bg-amber-600 hover:bg-amber-500">Sentinels</button>
-                        <button id="spawn-motes" class="btn bg-teal-600 hover:bg-teal-500">Motes</button>
-                    </div>
-
-                    <div class="grid grid-cols-3 gap-2 mt-2">
-                        <button id="spawn-npc-bird" class="btn bg-gray-700 hover:bg-gray-600 text-xs">Bird</button>
-                        <button id="spawn-npc-fox" class="btn bg-orange-700 hover:bg-orange-600 text-xs">Fox</button>
-                        <button id="spawn-npc-parrot" class="btn bg-green-700 hover:bg-green-600 text-xs">Parrot</button>
-                        <button id="spawn-npc-flamingo" class="btn bg-pink-700 hover:bg-pink-600 text-xs">Flamingo</button>
-                        <button id="spawn-npc-human" class="btn bg-blue-700 hover:bg-blue-600 text-xs">Human</button>
-                        <button id="spawn-npc-stork" class="btn bg-cyan-700 hover:bg-cyan-600 text-xs">Stork</button>
-                    </div>
+                    <button id="spawn-sentinels" class="btn w-full bg-amber-600 hover:bg-amber-500">Spawn Sentinels</button>
+                    <button id="spawn-motes" class="btn w-full bg-teal-600 hover:bg-teal-500">Spawn Motes</button>
                 </div>
             </div>
         </div>
@@ -1159,8 +1107,6 @@ import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { RGBShiftShader } from 'three/addons/shaders/RGBShiftShader.js';
 import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
 import { Sky } from 'three/addons/objects/Sky.js';
-import { Water } from 'three/addons/objects/Water2.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // =====================================================================================
 // GLOBAL CONSTANTS & CST v3 PARAMETERS
@@ -2376,18 +2322,6 @@ class UIManager {
             });
         }
 
-        // NPC Spawn buttons
-        const npcTypes = ['bird', 'fox', 'parrot', 'flamingo', 'human', 'stork'];
-        npcTypes.forEach(type => {
-            const btn = document.getElementById(`spawn-npc-${type}`);
-            if (btn) {
-                btn.addEventListener('click', () => {
-                    this.eventBus.publish('surface:spawnNPC', { type });
-                    this.log(`${type.charAt(0).toUpperCase() + type.slice(1)} spawned`, 'success');
-                });
-            }
-        });
-
         // Memory Echo Modal - Data Upload
         const dataUpload = document.getElementById('data-upload');
         const dataStatus = document.getElementById('data-status');
@@ -2457,11 +2391,7 @@ class UIManager {
             { id: 'in-li', valId: 'val-li', event: 'physics:damping' },
             { id: 'in-omega', valId: 'val-omega', event: 'physics:omega' },
             { id: 'brightness-slider', valId: 'brightness-value', event: 'graphics:brightness' },
-            { id: 'motion-blur-slider', valId: 'motion-blur-value', event: 'graphics:motionBlur' },
-            { id: 'in-veg-density', valId: 'val-veg-density', event: 'surface:vegDensity' },
-            { id: 'in-ocean-roughness', valId: 'val-ocean-roughness', event: 'surface:oceanRoughness' },
-            { id: 'in-cloud-coverage', valId: 'val-cloud-coverage', event: 'surface:cloudCoverage' },
-            { id: 'in-rain-intensity', valId: 'val-rain-intensity', event: 'surface:rainIntensity' }
+            { id: 'motion-blur-slider', valId: 'motion-blur-value', event: 'graphics:motionBlur' }
         ];
 
         sliders.forEach(({ id, valId, event }) => {
@@ -3029,477 +2959,6 @@ function createNoise2D(prng) {
 }
 
 // =====================================================================================
-// WEATHER SYSTEM
-// Complete weather simulation with clouds, rain, and wind
-// =====================================================================================
-class WeatherSystem {
-    constructor(scene, prng) {
-        this.scene = scene;
-        this.prng = prng;
-        this.weatherGroup = new THREE.Group();
-
-        // Weather parameters
-        this.cloudCoverage = 0.4;
-        this.rainIntensity = 0.0;
-        this.windStrength = 0.3;
-        this.windDirection = new THREE.Vector3(1, 0, 0);
-
-        // Cloud system
-        this.clouds = null;
-        this.cloudData = [];
-
-        // Rain system
-        this.rainParticles = null;
-        this.rainVelocities = [];
-
-        this.buildWeatherSystems();
-    }
-
-    buildWeatherSystems() {
-        // Create volumetric cloud billboards
-        this.createClouds();
-
-        // Create rain particle system
-        this.createRain();
-
-        this.weatherGroup.add(this.clouds);
-        this.weatherGroup.add(this.rainParticles);
-    }
-
-    createClouds() {
-        const cloudCount = Math.floor(100 * this.cloudCoverage);
-        const cloudGeometry = new THREE.PlaneGeometry(200, 100);
-        const cloudMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
-            transparent: true,
-            opacity: 0.6,
-            side: THREE.DoubleSide,
-            depthWrite: false
-        });
-
-        this.clouds = new THREE.InstancedMesh(cloudGeometry, cloudMaterial, 100);
-        this.cloudData = [];
-
-        const matrix = new THREE.Matrix4();
-        for (let i = 0; i < cloudCount; i++) {
-            const x = (this.prng() - 0.5) * 8000;
-            const z = (this.prng() - 0.5) * 8000;
-            const y = 200 + this.prng() * 300;
-            const scale = 1 + this.prng() * 2;
-            const rotation = this.prng() * Math.PI * 2;
-            const driftSpeed = 0.5 + this.prng() * 1.5;
-
-            this.cloudData.push({ x, y, z, scale, rotation, driftSpeed });
-
-            matrix.makeRotationY(rotation);
-            matrix.setPosition(x, y, z);
-            matrix.scale(new THREE.Vector3(scale, scale, scale));
-            this.clouds.setMatrixAt(i, matrix);
-        }
-        this.clouds.instanceMatrix.needsUpdate = true;
-        this.clouds.visible = this.cloudCoverage > 0.1;
-    }
-
-    createRain() {
-        const rainCount = 5000;
-        const rainGeometry = new THREE.BufferGeometry();
-        const rainPositions = new Float32Array(rainCount * 3);
-
-        for (let i = 0; i < rainCount; i++) {
-            const i3 = i * 3;
-            rainPositions[i3] = (this.prng() - 0.5) * 8000;
-            rainPositions[i3 + 1] = this.prng() * 1000;
-            rainPositions[i3 + 2] = (this.prng() - 0.5) * 8000;
-        }
-
-        rainGeometry.setAttribute('position', new THREE.BufferAttribute(rainPositions, 3));
-
-        const rainMaterial = new THREE.PointsMaterial({
-            color: 0x88aaff,
-            size: 2,
-            transparent: true,
-            opacity: 0.6,
-            sizeAttenuation: true
-        });
-
-        this.rainParticles = new THREE.Points(rainGeometry, rainMaterial);
-        this.rainParticles.visible = false;
-
-        // Initialize rain velocities
-        this.rainVelocities = [];
-        for (let i = 0; i < rainCount; i++) {
-            this.rainVelocities.push({ y: -50 - this.prng() * 50 });
-        }
-    }
-
-    update(delta) {
-        // Update cloud positions (wind drift)
-        if (this.clouds && this.cloudData.length > 0) {
-            const matrix = new THREE.Matrix4();
-            for (let i = 0; i < this.cloudData.length; i++) {
-                const data = this.cloudData[i];
-                data.x += this.windDirection.x * this.windStrength * data.driftSpeed * delta * 10;
-                data.z += this.windDirection.z * this.windStrength * data.driftSpeed * delta * 10;
-
-                // Wrap around
-                if (data.x > 4000) data.x = -4000;
-                if (data.x < -4000) data.x = 4000;
-                if (data.z > 4000) data.z = -4000;
-                if (data.z < -4000) data.z = 4000;
-
-                matrix.makeRotationY(data.rotation);
-                matrix.setPosition(data.x, data.y, data.z);
-                matrix.scale(new THREE.Vector3(data.scale, data.scale, data.scale));
-                this.clouds.setMatrixAt(i, matrix);
-            }
-            this.clouds.instanceMatrix.needsUpdate = true;
-        }
-
-        // Update rain particles
-        if (this.rainParticles && this.rainParticles.visible) {
-            const positions = this.rainParticles.geometry.attributes.position.array;
-            for (let i = 0; i < this.rainVelocities.length; i++) {
-                const i3 = i * 3;
-                positions[i3 + 1] += this.rainVelocities[i].y * delta;
-
-                // Reset when hits ground
-                if (positions[i3 + 1] < 0) {
-                    positions[i3 + 1] = 800 + this.prng() * 200;
-                }
-
-                // Wind effect on rain
-                positions[i3] += this.windDirection.x * this.windStrength * delta * 5;
-                positions[i3 + 2] += this.windDirection.z * this.windStrength * delta * 5;
-            }
-            this.rainParticles.geometry.attributes.position.needsUpdate = true;
-        }
-    }
-
-    setCloudCoverage(value) {
-        this.cloudCoverage = Math.max(0, Math.min(1, value));
-        if (this.clouds) {
-            this.clouds.visible = this.cloudCoverage > 0.1;
-            this.clouds.material.opacity = 0.3 + this.cloudCoverage * 0.5;
-        }
-    }
-
-    setRainIntensity(value) {
-        this.rainIntensity = Math.max(0, Math.min(1, value));
-        if (this.rainParticles) {
-            this.rainParticles.visible = this.rainIntensity > 0.1;
-            this.rainParticles.material.opacity = this.rainIntensity * 0.8;
-        }
-    }
-
-    setWindStrength(value) {
-        this.windStrength = Math.max(0, Math.min(1, value));
-    }
-
-    addToScene(parent) {
-        parent.add(this.weatherGroup);
-    }
-}
-
-// =====================================================================================
-// FAUNA SYSTEM
-// Birds (Boids), Insects, and NPC animals
-// =====================================================================================
-class FaunaSystem {
-    constructor(scene, prng) {
-        this.scene = scene;
-        this.prng = prng;
-        this.faunaGroup = new THREE.Group();
-
-        // Bird flocking (Boids)
-        this.birds = [];
-        this.birdCount = 0;
-        this.birdMesh = null;
-
-        // Insects (hovering swarms)
-        this.insects = null;
-        this.insectData = [];
-
-        // NPC animals (GLTF models)
-        this.npcs = [];
-        this.gltfLoader = new GLTFLoader();
-
-        this.buildFaunaSystems();
-    }
-
-    buildFaunaSystems() {
-        // Create bird flocking system
-        this.createBirds(20);
-
-        // Create insect swarms
-        this.createInsects();
-    }
-
-    createBirds(count) {
-        this.birdCount = count;
-        this.birds = [];
-
-        // Create instanced bird geometry (simple triangle for now)
-        const birdGeometry = new THREE.ConeGeometry(1, 3, 3);
-        const birdMaterial = new THREE.MeshStandardMaterial({
-            color: 0x4a4a4a,
-            flatShading: true
-        });
-
-        this.birdMesh = new THREE.InstancedMesh(birdGeometry, birdMaterial, count);
-
-        // Initialize bird data for Boids algorithm
-        for (let i = 0; i < count; i++) {
-            this.birds.push({
-                position: new THREE.Vector3(
-                    (this.prng() - 0.5) * 1000,
-                    100 + this.prng() * 200,
-                    (this.prng() - 0.5) * 1000
-                ),
-                velocity: new THREE.Vector3(
-                    (this.prng() - 0.5) * 10,
-                    (this.prng() - 0.5) * 2,
-                    (this.prng() - 0.5) * 10
-                ),
-                acceleration: new THREE.Vector3()
-            });
-        }
-
-        this.faunaGroup.add(this.birdMesh);
-    }
-
-    createInsects() {
-        const insectCount = 500;
-        const insectGeometry = new THREE.SphereGeometry(0.2, 4, 4);
-        const insectMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffff00,
-            emissive: 0xffaa00
-        });
-
-        this.insects = new THREE.InstancedMesh(insectGeometry, insectMaterial, insectCount);
-        this.insectData = [];
-
-        const matrix = new THREE.Matrix4();
-        for (let i = 0; i < insectCount; i++) {
-            const centerX = (this.prng() - 0.5) * 5000;
-            const centerZ = (this.prng() - 0.5) * 5000;
-            const centerY = 20 + this.prng() * 50;
-            const orbitRadius = 2 + this.prng() * 5;
-            const orbitSpeed = 1 + this.prng() * 2;
-            const phase = this.prng() * Math.PI * 2;
-
-            this.insectData.push({
-                centerX, centerY, centerZ,
-                orbitRadius, orbitSpeed, phase
-            });
-
-            matrix.setPosition(centerX, centerY, centerZ);
-            this.insects.setMatrixAt(i, matrix);
-        }
-        this.insects.instanceMatrix.needsUpdate = true;
-        this.faunaGroup.add(this.insects);
-    }
-
-    spawnNPC(type = 'bird') {
-        // Placeholder for GLTF NPC spawning
-        // In production, this would load actual GLTF models
-        const geometry = type === 'bird' ? new THREE.ConeGeometry(1, 2, 4) :
-                         type === 'fox' ? new THREE.BoxGeometry(2, 1, 3) :
-                         type === 'human' ? new THREE.CapsuleGeometry(0.5, 2, 4, 8) :
-                         new THREE.SphereGeometry(1, 8, 8);
-
-        const material = new THREE.MeshStandardMaterial({
-            color: type === 'bird' ? 0x8b4513 :
-                   type === 'fox' ? 0xff6600 :
-                   type === 'human' ? 0xffdbac :
-                   type === 'parrot' ? 0x00ff00 :
-                   type === 'flamingo' ? 0xff1493 :
-                   0x666666
-        });
-
-        const npc = new THREE.Mesh(geometry, material);
-        npc.position.set(
-            (this.prng() - 0.5) * 1000,
-            50,
-            (this.prng() - 0.5) * 1000
-        );
-        npc.userData.type = type;
-        npc.userData.velocity = new THREE.Vector3(
-            (this.prng() - 0.5) * 5,
-            0,
-            (this.prng() - 0.5) * 5
-        );
-
-        this.faunaGroup.add(npc);
-        this.npcs.push(npc);
-
-        return npc;
-    }
-
-    update(delta, time) {
-        // Update bird flocking (Boids algorithm)
-        this.updateBoids(delta);
-
-        // Update insects (hovering swarms)
-        this.updateInsects(delta, time);
-
-        // Update NPCs
-        this.updateNPCs(delta);
-    }
-
-    updateBoids(delta) {
-        if (!this.birds.length) return;
-
-        const separationDistance = 10;
-        const alignmentDistance = 50;
-        const cohesionDistance = 50;
-        const maxSpeed = 20;
-        const maxForce = 0.5;
-
-        // Calculate forces for each bird
-        for (let i = 0; i < this.birds.length; i++) {
-            const bird = this.birds[i];
-            let separation = new THREE.Vector3();
-            let alignment = new THREE.Vector3();
-            let cohesion = new THREE.Vector3();
-            let sepCount = 0, aliCount = 0, cohCount = 0;
-
-            // Check against all other birds
-            for (let j = 0; j < this.birds.length; j++) {
-                if (i === j) continue;
-                const other = this.birds[j];
-                const distance = bird.position.distanceTo(other.position);
-
-                // Separation
-                if (distance < separationDistance && distance > 0) {
-                    const diff = new THREE.Vector3().subVectors(bird.position, other.position);
-                    diff.normalize().divideScalar(distance);
-                    separation.add(diff);
-                    sepCount++;
-                }
-
-                // Alignment
-                if (distance < alignmentDistance) {
-                    alignment.add(other.velocity);
-                    aliCount++;
-                }
-
-                // Cohesion
-                if (distance < cohesionDistance) {
-                    cohesion.add(other.position);
-                    cohCount++;
-                }
-            }
-
-            // Average and apply forces
-            if (sepCount > 0) {
-                separation.divideScalar(sepCount);
-                separation.setLength(maxSpeed);
-                separation.sub(bird.velocity);
-                separation.clampLength(0, maxForce);
-            }
-
-            if (aliCount > 0) {
-                alignment.divideScalar(aliCount);
-                alignment.setLength(maxSpeed);
-                alignment.sub(bird.velocity);
-                alignment.clampLength(0, maxForce);
-            }
-
-            if (cohCount > 0) {
-                cohesion.divideScalar(cohCount);
-                cohesion.sub(bird.position);
-                cohesion.setLength(maxSpeed);
-                cohesion.sub(bird.velocity);
-                cohesion.clampLength(0, maxForce);
-            }
-
-            // Apply forces
-            bird.acceleration.set(0, 0, 0);
-            bird.acceleration.add(separation.multiplyScalar(1.5));
-            bird.acceleration.add(alignment);
-            bird.acceleration.add(cohesion);
-        }
-
-        // Update positions
-        const matrix = new THREE.Matrix4();
-        const rotation = new THREE.Euler();
-
-        for (let i = 0; i < this.birds.length; i++) {
-            const bird = this.birds[i];
-            bird.velocity.add(bird.acceleration.clone().multiplyScalar(delta));
-            bird.velocity.clampLength(0, maxSpeed);
-            bird.position.add(bird.velocity.clone().multiplyScalar(delta));
-
-            // Boundaries (wrap around)
-            if (bird.position.x > 2000) bird.position.x = -2000;
-            if (bird.position.x < -2000) bird.position.x = 2000;
-            if (bird.position.z > 2000) bird.position.z = -2000;
-            if (bird.position.z < -2000) bird.position.z = 2000;
-            if (bird.position.y > 400) bird.position.y = 100;
-            if (bird.position.y < 100) bird.position.y = 400;
-
-            // Orient bird in direction of movement
-            rotation.set(
-                Math.atan2(bird.velocity.y, Math.sqrt(bird.velocity.x * bird.velocity.x + bird.velocity.z * bird.velocity.z)),
-                Math.atan2(bird.velocity.x, bird.velocity.z),
-                0
-            );
-
-            matrix.makeRotationFromEuler(rotation);
-            matrix.setPosition(bird.position);
-            this.birdMesh.setMatrixAt(i, matrix);
-        }
-
-        this.birdMesh.instanceMatrix.needsUpdate = true;
-    }
-
-    updateInsects(delta, time) {
-        if (!this.insects || !this.insectData.length) return;
-
-        const matrix = new THREE.Matrix4();
-        for (let i = 0; i < this.insectData.length; i++) {
-            const data = this.insectData[i];
-            data.phase += data.orbitSpeed * delta;
-
-            const x = data.centerX + Math.cos(data.phase) * data.orbitRadius;
-            const z = data.centerZ + Math.sin(data.phase) * data.orbitRadius;
-            const y = data.centerY + Math.sin(time * 3 + data.phase) * 2;
-
-            matrix.setPosition(x, y, z);
-            this.insects.setMatrixAt(i, matrix);
-        }
-        this.insects.instanceMatrix.needsUpdate = true;
-    }
-
-    updateNPCs(delta) {
-        for (let i = 0; i < this.npcs.length; i++) {
-            const npc = this.npcs[i];
-            if (npc.userData.velocity) {
-                npc.position.add(npc.userData.velocity.clone().multiplyScalar(delta));
-
-                // Simple wandering behavior
-                if (this.prng() < 0.01) {
-                    npc.userData.velocity.x = (this.prng() - 0.5) * 10;
-                    npc.userData.velocity.z = (this.prng() - 0.5) * 10;
-                }
-
-                // Boundaries
-                if (Math.abs(npc.position.x) > 1000) npc.userData.velocity.x *= -1;
-                if (Math.abs(npc.position.z) > 1000) npc.userData.velocity.z *= -1;
-            }
-        }
-    }
-
-    getFaunaActivity() {
-        return Math.min(1.0, (this.birds.length + this.npcs.length) / 50);
-    }
-
-    addToScene(parent) {
-        parent.add(this.faunaGroup);
-    }
-}
-
-// =====================================================================================
 // SURFACE MANAGER
 // FROM: earth.html + CLAUDE_CODE_INTEGRATION_PROMPT.md Phase 4C
 // =====================================================================================
@@ -3543,15 +3002,7 @@ class SurfaceManager {
         this.sunPosition = new THREE.Vector3();
         this.moonPosition = new THREE.Vector3();
 
-        // Initialize Weather and Fauna Systems
-        this.weatherSystem = new WeatherSystem(this.scene, this.prng);
-        this.faunaSystem = new FaunaSystem(this.scene, this.prng);
-
         this.buildSurface();
-
-        // Add weather and fauna to surface group
-        this.weatherSystem.addToScene(this.surfaceGroup);
-        this.faunaSystem.addToScene(this.surfaceGroup);
     }
     
     buildSurface() {
@@ -3631,26 +3082,22 @@ class SurfaceManager {
             velocity: new THREE.Vector3(0, 0, 0)
         });
 
-        // Water/Ocean using Water2 shader for reflections and refractions
-        const waterGeo = new THREE.PlaneGeometry(8000, 8000, 128, 128);
-
-        this.water = new Water(waterGeo, {
+        // Water/Ocean
+        const waterGeo = new THREE.PlaneGeometry(8000, 8000);
+        const waterMat = new THREE.MeshStandardMaterial({
             color: 0x42628a,
-            scale: 2,
-            flowDirection: new THREE.Vector2(1, 1),
-            textureWidth: 1024,
-            textureHeight: 1024,
-            reflectivity: 0.3,
-            clipBias: 0.0,
-            flowSpeed: 0.03
+            transparent: true,
+            opacity: 0.85,
+            roughness: 0.2,
+            metalness: 0.5
         });
-
+        this.water = new THREE.Mesh(waterGeo, waterMat);
         this.water.rotation.x = -Math.PI / 2;
         this.water.position.y = 20;
         this.water.userData.isGenerated = true;
         this.water.userData.type = 'ocean';
         this.surfaceGroup.add(this.water);
-
+        
         // Initialize 12D state for ocean
         initialize12DState(this.water, 'ocean', {
             mass: 1e8,
@@ -3901,21 +3348,19 @@ class SurfaceManager {
             this.stars.material.opacity = Math.pow(nightFactor, 2) * 0.9;
         }
 
-        // Update water animation with dynamic flow and roughness
+        // Update water animation with dynamic roughness
         if (this.water) {
+            this.water.material.roughness = this.oceanRoughness * 0.4;
             // Enhanced wave animation with multiple frequencies
             const wave1 = Math.sin(time * 0.5) * 2;
             const wave2 = Math.sin(time * 0.8 + 1.5) * 1;
             const wave3 = Math.cos(time * 0.3) * 0.5;
             this.water.position.y = 20 + wave1 + wave2 + wave3;
 
-            // Update Water2 shader parameters
-            if (this.water.material && this.water.material.uniforms) {
-                // Adjust flow speed based on ocean roughness (wind)
-                if (this.water.material.uniforms.config) {
-                    this.water.material.uniforms.config.value.w = this.oceanRoughness * 0.1;
-                }
-            }
+            // Animate water color slightly for realism
+            const baseColor = new THREE.Color(0x42628a);
+            const nightWaterColor = new THREE.Color(0x1a2845);
+            this.water.material.color.lerpColors(nightWaterColor, baseColor, dayIntensity);
         }
 
         // Update vegetation growth animation
@@ -3954,21 +3399,8 @@ class SurfaceManager {
             this.trees.instanceMatrix.needsUpdate = true;
         }
 
-        // Update weather system (clouds, rain, wind)
-        if (this.weatherSystem) {
-            this.weatherSystem.update(delta);
-            // Sync weather parameters
-            this.cloudCoverage = this.weatherSystem.cloudCoverage;
-        }
-
-        // Update fauna system (birds, insects, NPCs)
-        if (this.faunaSystem) {
-            this.faunaSystem.update(delta, time);
-            this.faunaActivity = this.faunaSystem.getFaunaActivity();
-        }
-
         // Update fauna activity (based on sentinels and motes movement)
-        let additionalFauna = 0.5 + Math.sin(time * 0.3) * 0.3;
+        this.faunaActivity = 0.5 + Math.sin(time * 0.3) * 0.3;
 
         // Animate sentinels (bio-inspired entities)
         for (let i = 0; i < this.sentinels.length; i++) {
@@ -3979,7 +3411,7 @@ class SurfaceManager {
             sentinel.position.y += Math.sin(time * 2 + i) * 0.05;
             sentinel.rotation.y += delta * 0.5;
 
-            additionalFauna += 0.01;
+            this.faunaActivity += 0.01;
         }
 
         // Animate motes (smaller entities)
@@ -3992,10 +3424,10 @@ class SurfaceManager {
             mote.position.z += Math.cos(time * 3 + i * 0.7) * 0.1;
             mote.position.y += Math.sin(time * 4 + i) * 0.02;
 
-            additionalFauna += 0.005;
+            this.faunaActivity += 0.005;
         }
 
-        this.faunaActivity = Math.min(1.0, this.faunaActivity + additionalFauna * 0.1);
+        this.faunaActivity = Math.min(1.0, this.faunaActivity);
 
         // Update surface HUD
         if (STATE.currentMode === 'surface') {
@@ -4031,45 +3463,6 @@ class SurfaceManager {
         this.vegetationDensity = Math.max(0, Math.min(1, density));
         // Recreate vegetation with new density
         this.createVegetation();
-    }
-
-    /**
-     * Update ocean roughness (called when slider changes)
-     */
-    updateOceanRoughness(roughness) {
-        this.oceanRoughness = Math.max(0, Math.min(1, roughness));
-        if (this.weatherSystem) {
-            this.weatherSystem.setWindStrength(roughness);
-        }
-    }
-
-    /**
-     * Update cloud coverage (called when slider changes)
-     */
-    updateCloudCoverage(coverage) {
-        this.cloudCoverage = Math.max(0, Math.min(1, coverage));
-        if (this.weatherSystem) {
-            this.weatherSystem.setCloudCoverage(coverage);
-        }
-    }
-
-    /**
-     * Update rain intensity (called when slider changes)
-     */
-    updateRainIntensity(intensity) {
-        if (this.weatherSystem) {
-            this.weatherSystem.setRainIntensity(intensity);
-        }
-    }
-
-    /**
-     * Spawn NPC animal
-     */
-    spawnNPC(type = 'bird') {
-        if (this.faunaSystem) {
-            const npc = this.faunaSystem.spawnNPC(type);
-            this.eventBus.publish('surface:npc_spawned', { type, npc });
-        }
     }
     
     /**
@@ -7072,33 +6465,6 @@ class Application {
         this.eventBus.subscribe('surface:spawnMotes', (data) => {
             if (this.surfaceManager) {
                 this.surfaceManager.spawnMotes(data.count || 20);
-            }
-        });
-        this.eventBus.subscribe('surface:spawnNPC', (data) => {
-            if (this.surfaceManager) {
-                this.surfaceManager.spawnNPC(data.type || 'bird');
-            }
-        });
-
-        // Wire surface parameter events
-        this.eventBus.subscribe('surface:vegDensity', (value) => {
-            if (this.surfaceManager) {
-                this.surfaceManager.updateVegetationDensity(value);
-            }
-        });
-        this.eventBus.subscribe('surface:oceanRoughness', (value) => {
-            if (this.surfaceManager) {
-                this.surfaceManager.updateOceanRoughness(value);
-            }
-        });
-        this.eventBus.subscribe('surface:cloudCoverage', (value) => {
-            if (this.surfaceManager) {
-                this.surfaceManager.updateCloudCoverage(value);
-            }
-        });
-        this.eventBus.subscribe('surface:rainIntensity', (value) => {
-            if (this.surfaceManager) {
-                this.surfaceManager.updateRainIntensity(value);
             }
         });
         
