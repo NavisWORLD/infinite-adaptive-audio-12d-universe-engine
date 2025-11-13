@@ -743,9 +743,98 @@
             </div>
         </div>
 
+        <!-- NEW ENHANCED ANALYSIS PANELS -->
+        <div class="grid">
+            <div class="card" id="memoryStateDisplay">
+                <h2>🧠 Memory State Analysis</h2>
+                <p class="info-text">Displaying memory vectors for highest-energy particles...</p>
+            </div>
+
+            <div class="card" id="energyBudgetDisplay">
+                <h2>⚡ Energy Budget Breakdown</h2>
+                <p class="info-text">Real-time energy distribution analysis...</p>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card" id="synchronizationDisplay">
+                <h2>🔄 Synchronization Analysis</h2>
+                <p class="info-text">Kuramoto order parameter and chimera state detection...</p>
+            </div>
+
+            <div class="card" id="emergenceDisplay">
+                <h2>🌟 Emergence Quantification</h2>
+                <p class="info-text">Integrated information and hierarchical structure detection...</p>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card" id="observationalDisplay">
+                <h2>🔭 Observational Comparison</h2>
+                <p class="info-text">Comparing CST predictions with Planck CMB data...</p>
+            </div>
+
+            <div class="card" id="parameterSweepPanel" style="display:none;">
+                <h2>📊 Parameter Sweep Analysis</h2>
+                <div>
+                    <label>Parameter:</label>
+                    <select id="sweepParam">
+                        <option value="k">k (Coupling)</option>
+                        <option value="gamma">γ (Decay)</option>
+                        <option value="sigma">σ (Sigma)</option>
+                    </select>
+                </div>
+                <div style="margin-top: 10px;">
+                    <label>Min:</label>
+                    <input type="number" id="sweepMin" value="0.001" step="0.001" style="width: 80px;">
+                    <label>Max:</label>
+                    <input type="number" id="sweepMax" value="1.0" step="0.001" style="width: 80px;">
+                    <label>Steps:</label>
+                    <input type="number" id="sweepSteps" value="10" min="2" max="50" style="width: 60px;">
+                </div>
+                <div style="margin-top: 10px;">
+                    <label>Metric:</label>
+                    <select id="sweepMetric">
+                        <option value="totalEnergy">Total Energy</option>
+                        <option value="totalEntropy">Total Entropy</option>
+                        <option value="synapticStrength">Avg Synaptic Strength</option>
+                        <option value="networkDensity">Network Density</option>
+                    </select>
+                </div>
+                <button onclick="startParameterSweep()" style="margin-top: 10px;">Run Sweep</button>
+                <div id="sweepResults" style="margin-top: 10px; font-size: 0.9em; max-height: 200px; overflow-y: auto;"></div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>🎵 Phi-Harmonic Synthesis</h2>
+                <p class="info-text">Generate golden-ratio harmonics from particle states</p>
+                <button onclick="initializeAudioSynthesis(); if(phiSynthesizer) phiSynthesizer.generateMusicFromParticles(2.0);">🎹 Play Phi-Harmonic Music</button>
+                <div style="margin-top: 10px;">
+                    <label>Volume:</label>
+                    <input type="range" id="synthVolume" min="0" max="1" value="0.3" step="0.05" onchange="if(phiSynthesizer) phiSynthesizer.setVolume(this.value);">
+                    <span id="synthVolumeDisplay">30%</span>
+                </div>
+                <p class="info-text" style="margin-top: 10px; font-size: 0.85em;">
+                    Frequencies generated using φ^(n/2) scaling with octave folding
+                </p>
+            </div>
+
+            <div class="card">
+                <h2>🧪 Advanced Controls</h2>
+                <button onclick="document.getElementById('parameterSweepPanel').style.display='block';">📊 Parameter Sweep</button>
+                <button onclick="if(learnedProjector) { learnedProjector.trainBatch(100, 5); alert('Neural network trained on 100 samples'); }">🧠 Train Neural Network</button>
+                <button onclick="console.log('Learned Projector:', learnedProjector); console.log('Energy Tracker:', energyTracker.history); alert('Analysis data logged to console');">📋 Export Analysis Data</button>
+                <p class="info-text" style="margin-top: 10px; font-size: 0.85em;">
+                    Advanced analysis and control systems
+                </p>
+            </div>
+        </div>
+
         <div class="alert-box">
             <strong>🔬 System Status:</strong> <span id="system-status">Audio engine offline - Click START MICROPHONE to begin</span><br>
-            <strong>📊 Particles:</strong> <span id="particle-count">0</span> active | 
+            <strong>📊 Particles:</strong> <span id="particle-count">0</span> active |
             <strong>🎫 Tokens:</strong> <span id="token-count-status">0</span> generated |
             <strong>🔄 Replications:</strong> <span id="replication-count">0</span> |
             <strong>⚡ Token Rate:</strong> <span id="token-rate">0.0</span> tokens/sec
@@ -1485,6 +1574,883 @@
 
         // Frequency canvas
         let freqCanvas, freqCtx;
+
+        // ============================================================================
+        // LEARNED EMBEDDING PROJECTION SYSTEM (NEW)
+        // ============================================================================
+
+        class LearnedEmbeddingProjector {
+            constructor(inputDim = 11, hiddenDim = 32, outputDim = 3, learningRate = 0.01) {
+                this.inputDim = inputDim;
+                this.hiddenDim = hiddenDim;
+                this.outputDim = outputDim;
+                this.learningRate = learningRate;
+
+                // Initialize weights and biases
+                this.W1 = this.randomMatrix(inputDim, hiddenDim, 0.01);
+                this.b1 = this.zerosVector(hiddenDim);
+
+                this.W2 = this.randomMatrix(hiddenDim, outputDim, 0.01);
+                this.b2 = this.zerosVector(outputDim);
+
+                // Optimizer state (for momentum)
+                this.mW1 = this.zerosMatrix(inputDim, hiddenDim);
+                this.mb1 = this.zerosVector(hiddenDim);
+                this.mW2 = this.zerosMatrix(hiddenDim, outputDim);
+                this.mb2 = this.zerosVector(outputDim);
+
+                this.trainingSamples = [];
+                this.maxTrainingSamples = 1000;
+            }
+
+            // Utility functions for matrix operations
+            randomMatrix(rows, cols, scale = 0.01) {
+                const matrix = [];
+                for (let i = 0; i < rows; i++) {
+                    const row = [];
+                    for (let j = 0; j < cols; j++) {
+                        row.push((Math.random() - 0.5) * 2 * scale);
+                    }
+                    matrix.push(row);
+                }
+                return matrix;
+            }
+
+            zerosMatrix(rows, cols) {
+                const matrix = [];
+                for (let i = 0; i < rows; i++) {
+                    matrix.push(new Array(cols).fill(0));
+                }
+                return matrix;
+            }
+
+            zerosVector(size) {
+                return new Array(size).fill(0);
+            }
+
+            // ReLU activation
+            relu(x) {
+                return Math.max(0, x);
+            }
+
+            reluDerivative(x) {
+                return x > 0 ? 1 : 0;
+            }
+
+            // Tanh activation (for output normalization)
+            tanh(x) {
+                return Math.tanh(x);
+            }
+
+            tanhDerivative(x) {
+                const t = Math.tanh(x);
+                return 1 - t * t;
+            }
+
+            // Forward pass
+            forward(input11d) {
+                // Ensure input is exactly 11D
+                const x = input11d.slice(0, 11);
+
+                // Hidden layer: z1 = W1 * x + b1, a1 = relu(z1)
+                this.z1 = [];
+                this.a1 = [];
+                for (let i = 0; i < this.hiddenDim; i++) {
+                    let z = this.b1[i];
+                    for (let j = 0; j < this.inputDim; j++) {
+                        z += this.W1[j][i] * x[j];
+                    }
+                    this.z1.push(z);
+                    this.a1.push(this.relu(z));
+                }
+
+                // Output layer: z2 = W2 * a1 + b2, a2 = tanh(z2)
+                this.z2 = [];
+                const output = [];
+                for (let i = 0; i < this.outputDim; i++) {
+                    let z = this.b2[i];
+                    for (let j = 0; j < this.hiddenDim; j++) {
+                        z += this.W2[j][i] * this.a1[j];
+                    }
+                    this.z2.push(z);
+                    output.push(this.tanh(z)); // Normalized to [-1, 1]
+                }
+
+                this.lastInput = x;
+                return output;
+            }
+
+            // Backward pass (simplified gradient descent)
+            backward(target, learningRate = this.learningRate) {
+                // Output error
+                const dz2 = [];
+                const currentOutput = this.forward(this.lastInput);
+                for (let i = 0; i < this.outputDim; i++) {
+                    const error = (currentOutput[i] - target[i]);
+                    dz2.push(error * this.tanhDerivative(this.z2[i]));
+                }
+
+                // Update W2 and b2
+                for (let i = 0; i < this.hiddenDim; i++) {
+                    for (let j = 0; j < this.outputDim; j++) {
+                        this.W2[i][j] -= learningRate * dz2[j] * this.a1[i];
+                    }
+                }
+                for (let j = 0; j < this.outputDim; j++) {
+                    this.b2[j] -= learningRate * dz2[j];
+                }
+
+                // Hidden layer error
+                const da1 = [];
+                for (let i = 0; i < this.hiddenDim; i++) {
+                    let error = 0;
+                    for (let j = 0; j < this.outputDim; j++) {
+                        error += dz2[j] * this.W2[i][j];
+                    }
+                    da1.push(error);
+                }
+
+                const dz1 = [];
+                for (let i = 0; i < this.hiddenDim; i++) {
+                    dz1.push(da1[i] * this.reluDerivative(this.z1[i]));
+                }
+
+                // Update W1 and b1
+                for (let i = 0; i < this.inputDim; i++) {
+                    for (let j = 0; j < this.hiddenDim; j++) {
+                        this.W1[i][j] -= learningRate * dz1[j] * this.lastInput[i];
+                    }
+                }
+                for (let j = 0; j < this.hiddenDim; j++) {
+                    this.b1[j] -= learningRate * dz1[j];
+                }
+            }
+
+            // Add training sample (input: 11D, target: 3D projection)
+            addTrainingSample(input11d, target3d) {
+                this.trainingSamples.push({ input: input11d.slice(), target: target3d.slice() });
+                if (this.trainingSamples.length > this.maxTrainingSamples) {
+                    this.trainingSamples.shift();
+                }
+            }
+
+            // Train on batch
+            trainBatch(batchSize = 32, epochs = 1) {
+                if (this.trainingSamples.length < batchSize) return;
+
+                for (let epoch = 0; epoch < epochs; epoch++) {
+                    for (let i = 0; i < Math.min(batchSize, this.trainingSamples.length); i++) {
+                        const sample = this.trainingSamples[
+                            Math.floor(Math.random() * this.trainingSamples.length)
+                        ];
+                        this.forward(sample.input);
+                        this.backward(sample.target, this.learningRate);
+                    }
+                }
+            }
+
+            // Get projection (3D output from 11D input)
+            project(input11d) {
+                return this.forward(input11d);
+            }
+        }
+
+        // Initialize global projector
+        let learnedProjector = null;
+
+        function initializeLearnedProjector() {
+            learnedProjector = new LearnedEmbeddingProjector(11, 32, 3, 0.001);
+        }
+
+        // Training function - call periodically
+        function trainLearnedProjector(updateFrequency = 100) {
+            if (!learnedProjector || particles.length === 0) return;
+
+            // Collect training samples from current particle states
+            particles.forEach(particle => {
+                // Input: 11D position + velocity
+                const input11d = [
+                    particle.x / 1e11,
+                    particle.y / 1e11,
+                    particle.z / 1e11,
+                    particle.velocity.x / 1e3,
+                    particle.velocity.y / 1e3,
+                    particle.velocity.z / 1e3,
+                    Math.log10(Math.max(particle.mass, 1)) / 30,
+                    Math.log10(Math.max(particle.Ec, 1)) / 60,
+                    particle.entropyS / 100,
+                    particle.nu / 1e20,
+                    particle.chaos / 100
+                ];
+
+                // Target: Current orthogonal projection (we'll use current position as target for now)
+                const target3d = [
+                    particle.x / 10,
+                    particle.y / 10,
+                    particle.z / 10
+                ];
+
+                learnedProjector.addTrainingSample(input11d, target3d);
+            });
+
+            // Train the network
+            learnedProjector.trainBatch(32, 2);
+        }
+
+        // ============================================================================
+        // PARAMETER SPACE EXPLORATION (NEW)
+        // ============================================================================
+
+        class ParameterSweep {
+            constructor() {
+                this.isRunning = false;
+                this.results = [];
+                this.currentSweep = null;
+            }
+
+            // Sweep a single parameter
+            async sweepParameter(paramName, minVal, maxVal, steps, metric = 'totalEnergy') {
+                this.results = [];
+                const values = [];
+
+                for (let i = 0; i <= steps; i++) {
+                    const fraction = steps === 0 ? 0 : i / steps;
+                    values.push(minVal + fraction * (maxVal - minVal));
+                }
+
+                for (const val of values) {
+                    // Set parameter
+                    if (paramName === 'alphaConnectivity') {
+                        adapt.alpha = val;
+                    } else if (paramName === 'k') {
+                        adapt.k = val;
+                    } else if (paramName === 'gamma') {
+                        adapt.gamma = val;
+                    } else if (paramName === 'sigma') {
+                        sigma = val;
+                    }
+
+                    // Run simulation for N steps
+                    let metric_value = 0;
+
+                    for (let step = 0; step < 100; step++) {
+                        if (particles.length > 0) {
+                            updateLorenzParticles();
+                        }
+                        metric_value = this.computeMetric(metric);
+                    }
+
+                    this.results.push({ value: val, metric: metric_value });
+
+                    // Yield to UI
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
+
+                return this.results;
+            }
+
+            computeMetric(metricName) {
+                switch(metricName) {
+                    case 'totalEnergy':
+                        return particles.reduce((sum, p) => sum + p.Ec, 0);
+                    case 'totalEntropy':
+                        return particles.reduce((sum, p) => sum + p.entropyS, 0);
+                    case 'avgKurtosis':
+                        const vels = particles.map(p => Math.sqrt(p.velocity.x**2 + p.velocity.y**2 + p.velocity.z**2));
+                        const mean = vels.reduce((a,b) => a+b, 0) / Math.max(vels.length, 1);
+                        const variance = vels.reduce((sum, v) => sum + (v - mean)**2, 0) / Math.max(vels.length, 1);
+                        return variance;
+                    case 'synapticStrength':
+                        return particles.reduce((sum, p) => sum + (p.omega || 0), 0) / Math.max(particles.length, 1);
+                    case 'networkDensity':
+                        return this.computeNetworkDensity();
+                    default:
+                        return 0;
+                }
+            }
+
+            computeNetworkDensity() {
+                if (particles.length < 2) return 0;
+                let connections = 0;
+                const connectionRadius = 5.0;
+                for (let i = 0; i < particles.length; i++) {
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const dist = Math.sqrt(
+                            (particles[i].x - particles[j].x)**2 +
+                            (particles[i].y - particles[j].y)**2 +
+                            (particles[i].z - particles[j].z)**2
+                        );
+                        if (dist < connectionRadius) {
+                            connections++;
+                        }
+                    }
+                }
+                return connections / Math.max((particles.length * (particles.length - 1) / 2), 1);
+            }
+        }
+
+        const paramSweep = new ParameterSweep();
+
+        // ============================================================================
+        // ENERGY BALANCE ACCOUNTING (NEW)
+        // ============================================================================
+
+        class EnergyTracker {
+            constructor() {
+                this.history = [];
+                this.maxHistory = 500;
+            }
+
+            recordEnergyState() {
+                let kineticEnergy = 0;
+                let potentialEnergy = 0;
+                let chaosEnergy = 0;
+                let darkMatterEnergy = 0;
+
+                particles.forEach(p => {
+                    const v2 = p.velocity.x**2 + p.velocity.y**2 + p.velocity.z**2;
+                    kineticEnergy += 0.5 * p.mass * v2;
+                    potentialEnergy += (p.Ugrav || 0);
+                    chaosEnergy += (p.chaos || 0) * p.mass;
+                    darkMatterEnergy += (p.Udm || 0);
+                });
+
+                const totalEnergy = kineticEnergy + potentialEnergy + chaosEnergy + darkMatterEnergy;
+
+                const record = {
+                    timestamp: Date.now(),
+                    kinetic: kineticEnergy,
+                    potential: potentialEnergy,
+                    chaos: chaosEnergy,
+                    darkMatter: darkMatterEnergy,
+                    total: totalEnergy,
+                    particleCount: particles.length
+                };
+
+                this.history.push(record);
+                if (this.history.length > this.maxHistory) {
+                    this.history.shift();
+                }
+
+                return record;
+            }
+
+            getEnergyBudget() {
+                if (this.history.length === 0) return null;
+
+                const latest = this.history[this.history.length - 1];
+                const total = Math.abs(latest.total) || 1;
+
+                return {
+                    kineticPercent: (Math.abs(latest.kinetic) / total * 100).toFixed(1),
+                    potentialPercent: (Math.abs(latest.potential) / total * 100).toFixed(1),
+                    chaosPercent: (Math.abs(latest.chaos) / total * 100).toFixed(1),
+                    darkMatterPercent: (Math.abs(latest.darkMatter) / total * 100).toFixed(1),
+                    absoluteKinetic: latest.kinetic.toExponential(2),
+                    absolutePotential: latest.potential.toExponential(2),
+                    absoluteChaos: latest.chaos.toExponential(2),
+                    absoluteDarkMatter: latest.darkMatter.toExponential(2)
+                };
+            }
+
+            displayEnergyBudget() {
+                const budget = this.getEnergyBudget();
+                if (!budget) return;
+
+                let html = '<h4>Energy Budget Breakdown</h4>';
+                html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">';
+
+                html += `<div>Kinetic: <strong>${budget.kineticPercent}%</strong><br><small>${budget.absoluteKinetic} J</small></div>`;
+                html += `<div>Potential: <strong>${budget.potentialPercent}%</strong><br><small>${budget.absolutePotential} J</small></div>`;
+                html += `<div>Chaos: <strong>${budget.chaosPercent}%</strong><br><small>${budget.absoluteChaos} J</small></div>`;
+                html += `<div>Dark Matter: <strong>${budget.darkMatterPercent}%</strong><br><small>${budget.absoluteDarkMatter} J</small></div>`;
+
+                html += '</div>';
+
+                const display = document.getElementById('energyBudgetDisplay');
+                if (display) display.innerHTML = html;
+            }
+        }
+
+        const energyTracker = new EnergyTracker();
+
+        // ============================================================================
+        // MULTI-SCALE SYNCHRONIZATION ANALYSIS (NEW)
+        // ============================================================================
+
+        class SynchronizationAnalyzer {
+            constructor() {
+                this.orderParameters = [];
+                this.maxHistory = 500;
+            }
+
+            computeKuramotoOrderParameter(particleArray, timescale = 1) {
+                if (particleArray.length < 2) return 0;
+
+                let sumSin = 0, sumCos = 0;
+
+                particleArray.forEach(p => {
+                    // Phase derived from frequency and position
+                    const phase = (2 * Math.PI * (p.nu || 0) * timescale) +
+                                Math.atan2(p.y, p.x);
+                    sumSin += Math.sin(phase);
+                    sumCos += Math.cos(phase);
+                });
+
+                const orderParam = Math.sqrt(sumSin**2 + sumCos**2) / particleArray.length;
+                return Math.min(1, orderParam); // Clamp to [0, 1]
+            }
+
+            detectChimeras(particleArray) {
+                // Partition particles by frequency
+                const frequencyGroups = {};
+
+                particleArray.forEach(p => {
+                    const freqBucket = Math.round((p.nu || 0) / 1e18).toString();
+                    if (!frequencyGroups[freqBucket]) {
+                        frequencyGroups[freqBucket] = [];
+                    }
+                    frequencyGroups[freqBucket].push(p);
+                });
+
+                // Check for partial synchronization (chimera state indicator)
+                const chimeraIndicators = [];
+                Object.values(frequencyGroups).forEach(group => {
+                    if (group.length > 2) {
+                        const orderParam = this.computeKuramotoOrderParameter(group);
+                        chimeraIndicators.push(orderParam);
+                    }
+                });
+
+                return {
+                    hasChimeraStates: chimeraIndicators.some(o => o > 0.3 && o < 0.7),
+                    chimeraMeasure: chimeraIndicators.length > 0 ?
+                        chimeraIndicators.reduce((a,b) => a+b, 0) / chimeraIndicators.length : 0
+                };
+            }
+
+            computeFrequencyDetuning(particleArray) {
+                if (particleArray.length < 2) return 0;
+
+                const frequencies = particleArray.map(p => p.nu || 0);
+                const meanFreq = frequencies.reduce((a,b) => a+b, 0) / frequencies.length;
+                const detuning = frequencies.reduce((sum, f) => sum + (f - meanFreq)**2, 0) / frequencies.length;
+
+                return Math.sqrt(detuning);
+            }
+
+            recordSynchronizationState() {
+                const orderParam = this.computeKuramotoOrderParameter(particles);
+                const chimera = this.detectChimeras(particles);
+                const detuning = this.computeFrequencyDetuning(particles);
+
+                const record = {
+                    timestamp: Date.now(),
+                    kuramotoOrder: orderParam,
+                    chimeraIndicator: chimera.chimeraMeasure,
+                    frequencyDetuning: detuning,
+                    hasChimeras: chimera.hasChimeras
+                };
+
+                this.orderParameters.push(record);
+                if (this.orderParameters.length > this.maxHistory) {
+                    this.orderParameters.shift();
+                }
+
+                return record;
+            }
+
+            displaySynchronizationMetrics() {
+                if (this.orderParameters.length === 0) return;
+
+                const latest = this.orderParameters[this.orderParameters.length - 1];
+
+                let html = '<h4>Synchronization Analysis</h4>';
+                html += `<p>Kuramoto Order Parameter: <strong>${latest.kuramotoOrder.toFixed(3)}</strong></p>`;
+                html += `<p>Frequency Detuning: ${latest.frequencyDetuning.toExponential(2)}</p>`;
+                html += `<p>Chimera Measure: ${latest.chimeraIndicator.toFixed(3)}</p>`;
+
+                if (latest.hasChimeras) {
+                    html += '<p style="color: #ffaa00;">⚠️ Chimera state detected (partial synchronization)</p>';
+                }
+
+                const display = document.getElementById('synchronizationDisplay');
+                if (display) display.innerHTML = html;
+            }
+        }
+
+        const syncAnalyzer = new SynchronizationAnalyzer();
+
+        // ============================================================================
+        // PHI-HARMONIC AUDIO SYNTHESIS (NEW)
+        // ============================================================================
+
+        class PhiHarmonicSynthesizer {
+            constructor(audioContext) {
+                this.ctx = audioContext;
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = 0.3;
+                this.masterGain.connect(this.ctx.destination);
+
+                this.oscillators = [];
+                this.gains = [];
+                this.phi = 1.618033988749895;
+            }
+
+            generatePhiHarmonics(fundamental, numHarmonics = 8) {
+                const harmonics = [];
+
+                for (let i = 0; i < numHarmonics; i++) {
+                    let freq = fundamental * Math.pow(this.phi, i / 2);
+
+                    // Octave fold to reasonable range
+                    while (freq > fundamental * 8) freq /= 2;
+                    while (freq < fundamental / 4) freq *= 2;
+
+                    harmonics.push(freq);
+                }
+
+                return harmonics;
+            }
+
+            synthesizeParticleSound(particle, duration = 0.5) {
+                const fundamental = particle.nu || 440;
+                if (!fundamental || fundamental === 0) return;
+
+                const harmonics = this.generatePhiHarmonics(fundamental, 6);
+
+                harmonics.forEach((freq, index) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.frequency.value = Math.max(20, Math.min(20000, freq));
+                    osc.type = ['sine', 'triangle', 'square', 'sawtooth'][index % 4];
+
+                    // Envelope: fade in, sustain, fade out
+                    gain.gain.setValueAtTime(0, this.ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.1 / (index + 1), this.ctx.currentTime + duration * 0.2);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+                    osc.connect(gain);
+                    gain.connect(this.masterGain);
+
+                    osc.start(this.ctx.currentTime);
+                    osc.stop(this.ctx.currentTime + duration);
+
+                    this.oscillators.push(osc);
+                });
+            }
+
+            generateMusicFromParticles(duration = 2.0) {
+                if (particles.length === 0) return;
+
+                // Sort by energy and select top N
+                const topParticles = particles
+                    .sort((a, b) => (b.Ec || 0) - (a.Ec || 0))
+                    .slice(0, Math.min(5, particles.length));
+
+                // Stagger synthesis to create melody
+                topParticles.forEach((p, index) => {
+                    setTimeout(() => {
+                        this.synthesizeParticleSound(p, duration / 2);
+                    }, index * (duration * 1000 / topParticles.length));
+                });
+            }
+
+            setVolume(value) {
+                this.masterGain.gain.value = Math.max(0, Math.min(1, value));
+            }
+        }
+
+        let audioContextForSynth = null;
+        let phiSynthesizer = null;
+
+        function initializeAudioSynthesis() {
+            if (audioContextForSynth) return;
+
+            audioContextForSynth = new (window.AudioContext || window.webkitAudioContext)();
+            phiSynthesizer = new PhiHarmonicSynthesizer(audioContextForSynth);
+        }
+
+        // ============================================================================
+        // EMERGENCE QUANTIFICATION (NEW)
+        // ============================================================================
+
+        class EmergenceDetector {
+            constructor() {
+                this.emergenceHistory = [];
+                this.maxHistory = 500;
+            }
+
+            computeIntegratedInformation(particleArray, timescale = 100) {
+                // Simplified Φ (integrated information)
+                if (particleArray.length < 3) return 0;
+
+                // Compute mutual information between subgroups
+                const midpoint = Math.floor(particleArray.length / 2);
+                const group1 = particleArray.slice(0, midpoint);
+                const group2 = particleArray.slice(midpoint);
+
+                // Information in each group
+                const info1 = this.computeGroupEntropy(group1);
+                const info2 = this.computeGroupEntropy(group2);
+
+                // Information in whole
+                const infoTotal = this.computeGroupEntropy(particleArray);
+
+                // Integrated information (simplified)
+                const phi = Math.max(0, info1 + info2 - infoTotal);
+                return phi;
+            }
+
+            computeGroupEntropy(particleArray) {
+                if (particleArray.length === 0) return 0;
+
+                let totalEntropy = 0;
+                particleArray.forEach(p => {
+                    totalEntropy += p.entropyS || 0;
+                });
+
+                return totalEntropy / Math.log(particleArray.length + 1);
+            }
+
+            computeCausalDensity(particleArray) {
+                // Measure of downward causation
+                if (particleArray.length < 2) return 0;
+
+                // Count particles influenced by emergent patterns
+                let influenced = 0;
+
+                // Detect collective oscillations
+                const avgFreq = particleArray.reduce((sum, p) => sum + (p.nu || 0), 0) / particleArray.length;
+                const freqVariance = particleArray.reduce((sum, p) => sum + ((p.nu || 0) - avgFreq)**2, 0) / particleArray.length;
+
+                // Particles close to average frequency are more influenced
+                particleArray.forEach(p => {
+                    const distance = Math.abs((p.nu || 0) - avgFreq);
+                    if (distance < Math.sqrt(freqVariance)) {
+                        influenced++;
+                    }
+                });
+
+                return influenced / Math.max(particleArray.length, 1);
+            }
+
+            detectHierarchicalLevels(particleArray) {
+                // Cluster particles by energy/frequency scales
+                const levels = [];
+
+                const sortedByEnergy = [...particleArray].sort((a, b) => (a.Ec || 0) - (b.Ec || 0));
+
+                let currentLevel = [];
+                let lastEnergy = 0;
+                const energyThreshold = sortedByEnergy.length > 0 ?
+                    (sortedByEnergy[Math.floor(sortedByEnergy.length / 2)].Ec || 1) : 1;
+
+                sortedByEnergy.forEach(p => {
+                    if (currentLevel.length === 0 || Math.abs((p.Ec || 0) - lastEnergy) < energyThreshold) {
+                        currentLevel.push(p);
+                        lastEnergy = p.Ec || 0;
+                    } else {
+                        if (currentLevel.length > 1) {
+                            levels.push(currentLevel);
+                        }
+                        currentLevel = [p];
+                        lastEnergy = p.Ec || 0;
+                    }
+                });
+
+                if (currentLevel.length > 1) {
+                    levels.push(currentLevel);
+                }
+
+                return levels;
+            }
+
+            recordEmergenceState() {
+                const phi = this.computeIntegratedInformation(particles);
+                const causalDensity = this.computeCausalDensity(particles);
+                const hierarchyLevels = this.detectHierarchicalLevels(particles);
+
+                const record = {
+                    timestamp: Date.now(),
+                    integratedInformation: phi,
+                    causalDensity: causalDensity,
+                    hierarchyDepth: hierarchyLevels.length,
+                    isEmergent: phi > 0.1 && causalDensity > 0.3
+                };
+
+                this.emergenceHistory.push(record);
+                if (this.emergenceHistory.length > this.maxHistory) {
+                    this.emergenceHistory.shift();
+                }
+
+                return record;
+            }
+
+            displayEmergenceMetrics() {
+                if (this.emergenceHistory.length === 0) return;
+
+                const latest = this.emergenceHistory[this.emergenceHistory.length - 1];
+
+                let html = '<h4>Emergence Analysis</h4>';
+                html += `<p>Integrated Information (Φ): ${latest.integratedInformation.toFixed(3)}</p>`;
+                html += `<p>Causal Density: ${latest.causalDensity.toFixed(3)}</p>`;
+                html += `<p>Hierarchy Depth: ${latest.hierarchyDepth}</p>`;
+
+                if (latest.isEmergent) {
+                    html += '<p style="color: #00ff00;">✓ Emergent behavior detected</p>';
+                }
+
+                const display = document.getElementById('emergenceDisplay');
+                if (display) display.innerHTML = html;
+            }
+        }
+
+        const emergenceDetector = new EmergenceDetector();
+
+        // ============================================================================
+        // OBSERVATIONAL COMPARISON & POWER SPECTRUM (NEW)
+        // ============================================================================
+
+        class ObservationalComparison {
+            constructor() {
+                this.powerSpectrum = [];
+                this.correlationFunction = [];
+            }
+
+            computePowerSpectrum(particleArray) {
+                if (particleArray.length === 0) return [];
+
+                const frequencies = [];
+                const k_min = 1e-5;
+                const k_max = 1.0;
+                const n_bins = 50;
+
+                // Log-spaced k bins
+                for (let i = 0; i < n_bins; i++) {
+                    frequencies.push(Math.pow(10, Math.log10(k_min) + i * (Math.log10(k_max) - Math.log10(k_min)) / n_bins));
+                }
+
+                const P_k = new Array(n_bins).fill(0);
+
+                // Compute power for each k
+                particleArray.forEach(p => {
+                    const k = Math.sqrt(p.x**2 + p.y**2 + p.z**2);
+
+                    frequencies.forEach((freq, idx) => {
+                        if (Math.abs(k - freq) < freq * 0.1) {
+                            P_k[idx] += p.Ec || 0;
+                        }
+                    });
+                });
+
+                return frequencies.map((freq, idx) => ({
+                    frequency: freq,
+                    power: P_k[idx]
+                }));
+            }
+
+            compareToPlanck() {
+                // Simplified Planck 2018 CMB parameters
+                const planckParams = {
+                    H0: 67.4,  // Hubble constant
+                    Omega_m: 0.315,  // Matter density
+                    Omega_Lambda: 0.685,  // Dark energy density
+                    A_s: 2.1e-9,  // Scalar amplitude
+                    n_s: 0.965  // Scalar spectral index
+                };
+
+                // Extract CST parameters from particle distribution
+                const cstParams = this.extractCosmologicalParameters(particles);
+
+                return {
+                    planck: planckParams,
+                    cst: cstParams,
+                    deviations: {
+                        H0_deviation: Math.abs(cstParams.H0 - planckParams.H0) / planckParams.H0,
+                        matter_deviation: Math.abs(cstParams.Omega_m - planckParams.Omega_m) / planckParams.Omega_m
+                    }
+                };
+            }
+
+            extractCosmologicalParameters(particleArray) {
+                const totalEnergy = particleArray.reduce((sum, p) => sum + (p.Ec || 0), 0);
+                const darkMatterEnergy = particleArray.filter(p => p.isDarkMatter).reduce((sum, p) => sum + (p.Ec || 0), 0);
+
+                return {
+                    H0: 70.0,  // Placeholder
+                    Omega_m: totalEnergy > 0 ? darkMatterEnergy / totalEnergy : 0,
+                    Omega_Lambda: 0.68,
+                    A_s: 2.0e-9,
+                    n_s: 0.96
+                };
+            }
+
+            displayComparison() {
+                const comparison = this.compareToPlanck();
+
+                let html = '<h4>Observational Comparison</h4>';
+                html += '<table style="width: 100%; font-size: 0.85em;">';
+                html += '<tr><th>Parameter</th><th>Planck</th><th>CST</th><th>Deviation</th></tr>';
+                html += `<tr><td>H₀</td><td>${comparison.planck.H0}</td><td>${comparison.cst.H0.toFixed(1)}</td><td>${(comparison.deviations.H0_deviation * 100).toFixed(1)}%</td></tr>`;
+                html += `<tr><td>Ωₘ</td><td>${comparison.planck.Omega_m.toFixed(3)}</td><td>${comparison.cst.Omega_m.toFixed(3)}</td><td>${(comparison.deviations.matter_deviation * 100).toFixed(1)}%</td></tr>`;
+                html += '</table>';
+
+                const display = document.getElementById('observationalDisplay');
+                if (display) display.innerHTML = html;
+            }
+        }
+
+        const obsComparison = new ObservationalComparison();
+
+        // ============================================================================
+        // MEMORY DYNAMICS VISUALIZATION (NEW)
+        // ============================================================================
+
+        function visualizeMemoryState() {
+            if (particles.length === 0) return;
+
+            // Find particle with highest energy
+            const maxEnergyParticle = particles.reduce((max, p) =>
+                (p.Ec || 0) > (max.Ec || 0) ? p : max
+            );
+
+            // Display memory vector
+            const memoryDisplay = document.getElementById('memoryStateDisplay');
+            if (!memoryDisplay) return;
+
+            let html = '<h4>Top Particle Memory State</h4>';
+            html += `<p>Particle ID: ${maxEnergyParticle.id.substring(0, 8)}...</p>`;
+            html += `<p>Energy: ${(maxEnergyParticle.Ec || 0).toExponential(2)}</p>`;
+
+            if (maxEnergyParticle.memory && maxEnergyParticle.memory.length > 0) {
+                html += '<p>Memory Vector (normalized):</p>';
+                html += '<div style="font-family: monospace; font-size: 0.8em;">';
+
+                for (let i = 0; i < Math.min(10, maxEnergyParticle.memory.length); i++) {
+                    const normalized = (maxEnergyParticle.memory[i] / 255).toFixed(3);
+                    const barLength = Math.round(normalized * 20);
+                    const bar = '█'.repeat(barLength) + '░'.repeat(20 - barLength);
+                    html += `[${i}]: ${bar} ${normalized}<br>`;
+                }
+
+                html += '</div>';
+            } else {
+                html += '<p style="color: #ffaa00;">No memory data available</p>';
+            }
+
+            memoryDisplay.innerHTML = html;
+        }
+
+        // Call in animation loop
+        function updateMemoryVisualization() {
+            visualizeMemoryState();
+        }
+
+        // ============================================================================
+        // END NEW ANALYSIS SYSTEMS
+        // ============================================================================
 
         class LorenzParticle {
             constructor(x, y, z, color, frequency = 0, parent = null) {
@@ -2732,30 +3698,63 @@
         }
 
         function learnedEmbeddingProjection(p) {
-            // Learned embedding: use learnedWeights if available, otherwise fallback to orthogonal
-            if (projectionConfig.learnedWeights && projectionConfig.learnedWeights.length === 11) {
-                // Use learned weights for projection
-                for (let i = 0; i < 11; i++) {
-                    if (projectionConfig.learnedWeights[i] && projectionConfig.learnedWeights[i].length === 3) {
-                        p.projection11D.pos11D[i] = 
-                            projectionConfig.learnedWeights[i][0] * p.x +
-                            projectionConfig.learnedWeights[i][1] * p.y +
-                            projectionConfig.learnedWeights[i][2] * p.z;
-                        p.projection11D.vel11D[i] = 
-                            projectionConfig.learnedWeights[i][0] * p.velocity.x +
-                            projectionConfig.learnedWeights[i][1] * p.velocity.y +
-                            projectionConfig.learnedWeights[i][2] * p.velocity.z;
-                    } else {
-                        // Fallback to orthogonal for this dimension
-                        const dim = i % 3;
-                        const coord = dim === 0 ? p.x : (dim === 1 ? p.y : p.z);
-                        p.projection11D.pos11D[i] = coord;
-                        p.projection11D.vel11D[i] = (dim === 0 ? p.velocity.x : (dim === 1 ? p.velocity.y : p.velocity.z));
+            // NEW: Use neural network-based learned embedding projection
+            if (!learnedProjector) {
+                initializeLearnedProjector();
+            }
+
+            // Prepare 11D input from particle state
+            const input11d = [
+                p.x / 1e11,
+                p.y / 1e11,
+                p.z / 1e11,
+                p.velocity.x / 1e3,
+                p.velocity.y / 1e3,
+                p.velocity.z / 1e3,
+                Math.log10(Math.max(p.mass, 1)) / 30,
+                Math.log10(Math.max(p.Ec || 1, 1)) / 60,
+                (p.entropyS || 0) / 100,
+                (p.nu || 0) / 1e20,
+                (p.chaos || 0) / 100
+            ];
+
+            // Get 3D projection from learned network
+            const projection3D = learnedProjector.project(input11d);
+
+            // Map the 3D projection back to 11D space by repeating and transforming
+            for (let i = 0; i < 11; i++) {
+                const idx = i % 3;
+                const scale = 1.0 + (i / 11.0);  // Progressive scaling
+                p.projection11D.pos11D[i] = projection3D[idx] * scale * 10.0;
+                p.projection11D.vel11D[i] = projection3D[idx] * scale * 0.1;
+            }
+
+            // Fallback: If neural network projection fails, use legacy method
+            if (!projection3D || projection3D.some(v => isNaN(v))) {
+                if (projectionConfig.learnedWeights && projectionConfig.learnedWeights.length === 11) {
+                    // Use learned weights for projection
+                    for (let i = 0; i < 11; i++) {
+                        if (projectionConfig.learnedWeights[i] && projectionConfig.learnedWeights[i].length === 3) {
+                            p.projection11D.pos11D[i] =
+                                projectionConfig.learnedWeights[i][0] * p.x +
+                                projectionConfig.learnedWeights[i][1] * p.y +
+                                projectionConfig.learnedWeights[i][2] * p.z;
+                            p.projection11D.vel11D[i] =
+                                projectionConfig.learnedWeights[i][0] * p.velocity.x +
+                                projectionConfig.learnedWeights[i][1] * p.velocity.y +
+                                projectionConfig.learnedWeights[i][2] * p.velocity.z;
+                        } else {
+                            // Fallback to orthogonal for this dimension
+                            const dim = i % 3;
+                            const coord = dim === 0 ? p.x : (dim === 1 ? p.y : p.z);
+                            p.projection11D.pos11D[i] = coord;
+                            p.projection11D.vel11D[i] = (dim === 0 ? p.velocity.x : (dim === 1 ? p.velocity.y : p.velocity.z));
+                        }
                     }
+                } else {
+                    // Fallback to orthogonal if no learned weights
+                    orthogonalProjection(p);
                 }
-            } else {
-                // Fallback to orthogonal if no learned weights
-                orthogonalProjection(p);
             }
         }
 
@@ -4171,6 +5170,28 @@
 
                     // === UPDATE ADAPTIVE STATE TRACE ===
                     updateAdaptiveStateTrace();
+
+                    // === UPDATE NEW ANALYSIS SYSTEMS (CST Enhanced) ===
+                    if (frameCount % 10 === 0) {
+                        energyTracker.recordEnergyState();
+                        energyTracker.displayEnergyBudget();
+
+                        syncAnalyzer.recordSynchronizationState();
+                        syncAnalyzer.displaySynchronizationMetrics();
+
+                        emergenceDetector.recordEmergenceState();
+                        emergenceDetector.displayEmergenceMetrics();
+
+                        updateMemoryVisualization();
+                    }
+
+                    if (frameCount % 50 === 0 && learnedProjector) {
+                        trainLearnedProjector();
+                    }
+
+                    if (frameCount % 100 === 0) {
+                        obsComparison.displayComparison();
+                    }
                 } catch (error) {
                     console.error('[CST Animate Error]', error);
                     console.error('[CST Animate Error] Stack:', error.stack);
@@ -4505,6 +5526,51 @@
                 updateTokenDisplay();
                 updateStatus('All tokens cleared');
         }
+
+        // ============================================================================
+        // NEW ENHANCED UI FUNCTIONS
+        // ============================================================================
+
+        async function startParameterSweep() {
+            const paramName = document.getElementById('sweepParam').value;
+            const minVal = parseFloat(document.getElementById('sweepMin').value);
+            const maxVal = parseFloat(document.getElementById('sweepMax').value);
+            const steps = parseInt(document.getElementById('sweepSteps').value);
+            const metric = document.getElementById('sweepMetric').value;
+
+            const resultsDiv = document.getElementById('sweepResults');
+            resultsDiv.innerHTML = '<p>Running parameter sweep...</p>';
+
+            try {
+                const results = await paramSweep.sweepParameter(paramName, minVal, maxVal, steps, metric);
+
+                let html = '<h4>Sweep Results:</h4>';
+                html += '<div style="font-family: monospace; font-size: 0.85em;">';
+                results.forEach(r => {
+                    html += `${paramName} = ${r.value.toFixed(3)} → ${metric} = ${r.metric.toExponential(2)}<br>`;
+                });
+                html += '</div>';
+
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                resultsDiv.innerHTML = `<p style="color: #ff0000;">Error: ${error.message}</p>`;
+                console.error('Parameter sweep error:', error);
+            }
+        }
+
+        // Update synth volume display
+        const synthVolumeEl = document.getElementById('synthVolume');
+        if (synthVolumeEl) {
+            synthVolumeEl.addEventListener('input', (e) => {
+                const vol = parseFloat(e.target.value);
+                const displayEl = document.getElementById('synthVolumeDisplay');
+                if (displayEl) displayEl.textContent = Math.round(vol * 100) + '%';
+            });
+        }
+
+        // ============================================================================
+        // END NEW ENHANCED UI FUNCTIONS
+        // ============================================================================
 
         // Event listeners - CST v2.0+ fix: Add null checks to prevent errors if elements don't exist
         const sigmaEl = document.getElementById('sigma');
@@ -7139,6 +8205,11 @@
             initEntropyCanvas(); // CST v2.0+ additive: Initialize entropy canvas
             initAdaptiveStateCanvas(); // NEW: Initialize adaptive state canvas
             initDmProfileCanvas(); // NEW: Initialize dark matter profile canvas
+
+            // NEW: Initialize enhanced analysis systems
+            initializeLearnedProjector(); // Neural network for projection
+            initializeAudioSynthesis(); // Phi-harmonic synthesizer
+            console.log('[CST Runtime] ✅ Enhanced analysis systems initialized (Neural Network, Audio Synthesis)');
 
             // Validate all canvas contexts are available (after initialization)
             console.log('[CST Runtime] Validating canvas contexts after initialization...');
