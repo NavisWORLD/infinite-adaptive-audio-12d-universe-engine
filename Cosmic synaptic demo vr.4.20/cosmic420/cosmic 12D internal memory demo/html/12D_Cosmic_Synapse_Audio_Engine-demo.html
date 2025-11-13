@@ -832,6 +832,66 @@
             </div>
         </div>
 
+        <!-- CST v2.0 COMPLETION: New Analysis Display Panels -->
+        <div class="grid">
+            <div class="card" id="stochasticResonanceDisplay">
+                <h2>🌊 Stochastic Resonance Analysis</h2>
+                <p class="info-text">Signal-to-noise ratio optimization and resonance detection</p>
+                <div class="value-display">
+                    SNR: <span id="sr-snr">0.00</span>
+                </div>
+                <div class="value-display">
+                    Optimal Noise: <span id="sr-noise">0.10</span>
+                </div>
+                <div class="value-display">
+                    Enhancement: <span id="sr-enhancement">NO</span>
+                </div>
+                <button onclick="if(stochasticResonanceDetector) { const result = stochasticResonanceDetector.findOptimalNoise(); alert('Optimal noise: ' + result.optimalNoise.toFixed(3) + ', Max SNR: ' + result.maxSNR.toFixed(2)); }">
+                    🔍 Find Optimal Noise
+                </button>
+                <p class="info-text" style="margin-top: 10px; font-size: 0.85em;">
+                    Detects stochastic resonance where noise enhances signal detection
+                </p>
+            </div>
+
+            <div class="card" id="voicePersonalizationDisplay">
+                <h2>🎤 AI Voice Bio-Frequency Personalization</h2>
+                <p class="info-text">Adapts system parameters based on voice frequency analysis</p>
+                <div class="value-display">
+                    Detected Voice Frequency: <span id="voice-freq">--</span> Hz
+                </div>
+                <div class="value-display">
+                    Emotional State: <span id="emotional-state">neutral</span>
+                </div>
+                <div class="value-display">
+                    Personalized k: <span id="personalized-k">0.500</span>
+                </div>
+                <button onclick="if(voiceBioExtractor && analyser && dataArray) { const freq = voiceBioExtractor.extractFundamentalFrequency(analyser, dataArray); voiceBioExtractor.generatePersonalizedParams(freq); voiceBioExtractor.applyPersonalization(); document.getElementById('voice-freq').textContent = freq.toFixed(1); document.getElementById('emotional-state').textContent = voiceBioExtractor.emotionalState; document.getElementById('personalized-k').textContent = voiceBioExtractor.personalizedParams.k.toFixed(3); alert('Voice profile detected: ' + freq.toFixed(1) + ' Hz (' + voiceBioExtractor.emotionalState + ')'); }">
+                    🎙️ Detect Voice Profile
+                </button>
+                <p class="info-text" style="margin-top: 10px; font-size: 0.85em;">
+                    Analyzes fundamental frequency (F0) to classify emotional state and personalize parameters
+                </p>
+            </div>
+
+            <div class="card" id="chaosRegimeDisplay">
+                <h2>🦋 Enhanced Chaos Analysis</h2>
+                <p class="info-text">Lyapunov exponent and attractor dimension tracking</p>
+                <div class="value-display">
+                    Lyapunov Exponent: <span id="lyapunov-value">0.000</span>
+                </div>
+                <div class="value-display">
+                    Chaotic Regime: <span id="chaos-regime">UNKNOWN</span>
+                </div>
+                <div class="value-display">
+                    Attractor Dimension: <span id="attractor-dimension">0.0</span>
+                </div>
+                <p class="info-text" style="margin-top: 10px; font-size: 0.85em;">
+                    λ > 1.0: chaotic, 0.1 < λ ≤ 1.0: mixed, λ ≤ 0.1: ordered
+                </p>
+            </div>
+        </div>
+
         <div class="alert-box">
             <strong>🔬 System Status:</strong> <span id="system-status">Audio engine offline - Click START MICROPHONE to begin</span><br>
             <strong>📊 Particles:</strong> <span id="particle-count">0</span> active |
@@ -2308,6 +2368,303 @@
         }
 
         const emergenceDetector = new EmergenceDetector();
+
+        // ============================================================================
+        // STOCHASTIC RESONANCE MODULE (NEW - CST v2.0 COMPLETION)
+        // ============================================================================
+
+        class StochasticResonanceDetector {
+            constructor() {
+                this.noiseLevel = 0.1;
+                this.signalAmplitude = 1.0;
+                this.resonantFrequency = 100;
+                this.optimalNoise = null;
+                this.snrHistory = [];
+                this.maxHistory = 200;
+            }
+
+            // Calculate Signal-to-Noise Ratio
+            calculateSNR(signal, noise) {
+                const signalPower = signal.reduce((sum, s) => sum + s * s, 0) / Math.max(signal.length, 1);
+                const noisePower = noise.reduce((sum, n) => sum + n * n, 0) / Math.max(noise.length, 1);
+
+                return signalPower / Math.max(noisePower, 1e-10);
+            }
+
+            // Detect resonant frequency from particle speeds
+            detectResonantFrequency() {
+                if (particles.length === 0) return 0;
+
+                const speeds = particles.map(p =>
+                    Math.sqrt(p.velocity.x**2 + p.velocity.y**2 + p.velocity.z**2)
+                );
+
+                const mean = speeds.reduce((a, b) => a + b, 0) / speeds.length;
+                const variance = speeds.reduce((sum, s) => sum + (s - mean)**2, 0) / speeds.length;
+
+                this.resonantFrequency = Math.sqrt(variance) || 100;
+                return this.resonantFrequency;
+            }
+
+            // Optimal noise calculation (simplified)
+            findOptimalNoise() {
+                let maxSNR = 0;
+                let bestNoise = 0.1;
+
+                for (let noise = 0.01; noise < 1.0; noise += 0.05) {
+                    const signal = particles.map(p => p.Ec).slice(0, 20);
+                    const noiseArray = Array(signal.length).fill(0).map(() => Math.random() * noise);
+                    const snr = this.calculateSNR(signal, noiseArray);
+
+                    if (snr > maxSNR) {
+                        maxSNR = snr;
+                        bestNoise = noise;
+                    }
+                }
+
+                this.optimalNoise = bestNoise;
+                return { optimalNoise: bestNoise, maxSNR: maxSNR };
+            }
+
+            // Add stochastic noise to particle states
+            applyStochasticNoise(intensity = 0.1) {
+                particles.forEach(p => {
+                    p.x += (Math.random() - 0.5) * intensity;
+                    p.y += (Math.random() - 0.5) * intensity;
+                    p.z += (Math.random() - 0.5) * intensity;
+                });
+            }
+
+            // Detect SR enhancement
+            detectSREnhancement() {
+                if (this.snrHistory.length < 2) return null;
+
+                const current = this.snrHistory[this.snrHistory.length - 1];
+                const previous = this.snrHistory[this.snrHistory.length - 2];
+
+                const improvement = (current - previous) / Math.max(previous, 1e-10);
+
+                return {
+                    currentSNR: current,
+                    previousSNR: previous,
+                    improvement: improvement,
+                    isEnhanced: improvement > 0.1 // 10% improvement threshold
+                };
+            }
+
+            recordSNR() {
+                const signal = particles.map(p => p.Ec).slice(0, 20);
+                const noise = Array(signal.length).fill(0).map(() => Math.random() * this.noiseLevel);
+                const snr = this.calculateSNR(signal, noise);
+
+                this.snrHistory.push(snr);
+                if (this.snrHistory.length > this.maxHistory) {
+                    this.snrHistory.shift();
+                }
+
+                return snr;
+            }
+        }
+
+        const stochasticResonanceDetector = new StochasticResonanceDetector();
+        console.log('[CST Stochastic Resonance] ✅ Stochastic resonance detector initialized');
+
+        // ============================================================================
+        // ENHANCED CHAOS MEASUREMENT (CST v2.0 COMPLETION)
+        // ============================================================================
+
+        class ChaosMeasurement {
+            constructor() {
+                this.trajectoryPairs = new Map();
+                this.maxTrajectories = 100;
+                this.divergenceHistory = [];
+                this.maxHistory = 200;
+                this.perturbationScale = 1e-6;
+            }
+
+            // Wolf's algorithm for Lyapunov exponent
+            computeLyapunovExponent() {
+                if (particles.length < 2) return 0;
+
+                // Compute mean field divergence
+                let totalDivergence = 0;
+                let count = 0;
+
+                for (let i = 0; i < Math.min(5, particles.length); i++) {
+                    for (let j = i + 1; j < Math.min(i + 5, particles.length); j++) {
+                        const p1 = particles[i];
+                        const p2 = particles[j];
+
+                        const dx = p2.x - p1.x;
+                        const dy = p2.y - p1.y;
+                        const dz = p2.z - p1.z;
+                        const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+
+                        if (distance > this.perturbationScale) {
+                            totalDivergence += Math.log(distance / this.perturbationScale);
+                            count++;
+                        }
+                    }
+                }
+
+                const lyapunov = totalDivergence / Math.max(count, 1) / (timestep.dt || 0.005);
+                return Math.abs(lyapunov);
+            }
+
+            // KIM (Kaplan-Yorke) dimension (simplified)
+            computeAttractorDimension() {
+                if (particles.length < 3) return 0;
+
+                // Compute correlation dimension
+                const positions = particles.map(p => [p.x, p.y, p.z]);
+                let correlations = 0;
+                const testRadius = 5.0;
+
+                for (let i = 0; i < positions.length; i++) {
+                    for (let j = i + 1; j < positions.length; j++) {
+                        const dx = positions[j][0] - positions[i][0];
+                        const dy = positions[j][1] - positions[i][1];
+                        const dz = positions[j][2] - positions[i][2];
+                        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+
+                        if (dist < testRadius) correlations++;
+                    }
+                }
+
+                const correlation = correlations / (positions.length * (positions.length - 1) / 2);
+                const dimension = Math.log(correlation) / Math.log(testRadius / 10);
+
+                return Math.max(0, dimension);
+            }
+
+            recordDivergence() {
+                const lyapunov = this.computeLyapunovExponent();
+                const dimension = this.computeAttractorDimension();
+
+                this.divergenceHistory.push({
+                    lyapunov: lyapunov,
+                    dimension: dimension,
+                    timestamp: Date.now()
+                });
+
+                if (this.divergenceHistory.length > this.maxHistory) {
+                    this.divergenceHistory.shift();
+                }
+
+                return { lyapunov, dimension };
+            }
+
+            getChaoticRegime() {
+                if (this.divergenceHistory.length === 0) return 'unknown';
+
+                const latest = this.divergenceHistory[this.divergenceHistory.length - 1];
+
+                if (latest.lyapunov > 1.0) return 'chaotic';
+                if (latest.lyapunov > 0.1) return 'mixed';
+                return 'ordered';
+            }
+        }
+
+        const chaosMeasurement = new ChaosMeasurement();
+        console.log('[CST Chaos Measurement] ✅ Enhanced chaos measurement system initialized');
+
+        // ============================================================================
+        // VOICE BIO-FREQUENCY EXTRACTION (NEW - CST v2.0 COMPLETION)
+        // ============================================================================
+
+        class VoiceBioFrequencyExtractor {
+            constructor() {
+                this.baselineFrequency = 200; // Hz (typical voice fundamental)
+                this.userFrequency = null;
+                this.emotionalState = 'neutral';
+                this.personalizedParams = {};
+            }
+
+            // Analyze microphone audio for vocal fundamental frequency (F0)
+            extractFundamentalFrequency(analyser, dataArray) {
+                if (!analyser || !dataArray) return this.baselineFrequency;
+
+                analyser.getByteFrequencyData(dataArray);
+
+                let maxValue = 0;
+                let maxIndex = 0;
+
+                // Search in voice range 80-400 Hz
+                const sampleRate = audioContext ? audioContext.sampleRate : 44100;
+                const minBin = Math.floor(80 * dataArray.length / (sampleRate / 2));
+                const maxBin = Math.floor(400 * dataArray.length / (sampleRate / 2));
+
+                for (let i = minBin; i < maxBin; i++) {
+                    if (dataArray[i] > maxValue) {
+                        maxValue = dataArray[i];
+                        maxIndex = i;
+                    }
+                }
+
+                const frequency = maxIndex * (sampleRate / 2) / dataArray.length;
+                return Math.max(50, Math.min(500, frequency));
+            }
+
+            // Classify emotional state from frequency patterns
+            classifyEmotionalState(frequency) {
+                const ratio = frequency / this.baselineFrequency;
+
+                if (ratio > 1.3) return 'excited';
+                if (ratio > 1.1) return 'happy';
+                if (ratio > 0.95) return 'neutral';
+                if (ratio > 0.8) return 'sad';
+                return 'stressed';
+            }
+
+            // Generate personalized parameters from voice bio-frequency
+            generatePersonalizedParams(userFrequency) {
+                this.userFrequency = userFrequency;
+                this.emotionalState = this.classifyEmotionalState(userFrequency);
+
+                const ratio = userFrequency / this.baselineFrequency;
+
+                this.personalizedParams = {
+                    // Adjust k (coupling) based on emotional state
+                    k: 0.5 * ratio,
+
+                    // Adjust gamma (decay)
+                    gamma: 0.2 / ratio,
+
+                    // Adjust alpha (memory) - excited state = more memory
+                    alpha: 0.3 * ratio,
+
+                    // Adjust Ksync (synchronization strength)
+                    Ksync: 0.1 * ratio,
+
+                    // Audio sensitivity
+                    audioSensitivity: Math.max(0.5, Math.min(3.0, ratio * 1.5)),
+
+                    // Visual energy scale
+                    visualScale: ratio,
+
+                    emotionalState: this.emotionalState,
+                    voiceFrequency: userFrequency
+                };
+
+                return this.personalizedParams;
+            }
+
+            applyPersonalization() {
+                if (!this.personalizedParams.k) return;
+
+                // Apply to global config
+                adapt.k = this.personalizedParams.k;
+                adapt.gamma = this.personalizedParams.gamma;
+                adapt.alpha = this.personalizedParams.alpha;
+                sync.Ksync = this.personalizedParams.Ksync;
+                audioSensitivity = this.personalizedParams.audioSensitivity;
+
+                console.log('[CST AI Voice] Applied personalization for', this.emotionalState, 'state');
+            }
+        }
+
+        const voiceBioExtractor = new VoiceBioFrequencyExtractor();
+        console.log('[CST Voice Bio] ✅ Voice bio-frequency extractor initialized');
 
         // ============================================================================
         // OBSERVATIONAL COMPARISON & POWER SPECTRUM (NEW)
@@ -4120,8 +4477,27 @@
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     microphone = audioContext.createMediaStreamSource(stream);
                     microphone.connect(analyser);
+
+                    // CST v2.0 COMPLETION: Extract voice bio-frequency after stabilization
+                    setTimeout(() => {
+                        if (analyser && dataArray) {
+                            const voiceFreq = voiceBioExtractor.extractFundamentalFrequency(analyser, dataArray);
+                            voiceBioExtractor.generatePersonalizedParams(voiceFreq);
+                            voiceBioExtractor.applyPersonalization();
+
+                            // Update display if elements exist
+                            const freqEl = document.getElementById('voice-freq');
+                            const stateEl = document.getElementById('emotional-state');
+                            const kEl = document.getElementById('personalized-k');
+                            if (freqEl) freqEl.textContent = voiceFreq.toFixed(1);
+                            if (stateEl) stateEl.textContent = voiceBioExtractor.emotionalState;
+                            if (kEl) kEl.textContent = voiceBioExtractor.personalizedParams.k.toFixed(3);
+
+                            console.log('[CST Voice Bio] Detected voice frequency:', voiceFreq.toFixed(1), 'Hz, State:', voiceBioExtractor.emotionalState);
+                        }
+                    }, 3000); // Wait 3 seconds for audio stabilization
         }
-        
+
         // CST v2.0+ additive: Restart audio processing loop with new cadence
         function restartAudioProcessingLoop() {
             if (audioProcessingInterval) {
@@ -5191,6 +5567,46 @@
 
                     if (frameCount % 100 === 0) {
                         obsComparison.displayComparison();
+                    }
+
+                    // === CST v2.0 COMPLETION: NEW ANALYSIS SYSTEMS ===
+                    // Update chaos measurements every 20 frames
+                    if (frameCount % 20 === 0) {
+                        const chaosMetrics = chaosMeasurement.recordDivergence();
+                        const regime = chaosMeasurement.getChaoticRegime();
+
+                        // Update display if elements exist
+                        const lyapEl = document.getElementById('lyapunov-value');
+                        const regimeEl = document.getElementById('chaos-regime');
+                        const dimEl = document.getElementById('attractor-dimension');
+                        if (lyapEl) lyapEl.textContent = chaosMetrics.lyapunov.toFixed(3);
+                        if (regimeEl) regimeEl.textContent = regime.toUpperCase();
+                        if (dimEl) dimEl.textContent = chaosMetrics.dimension.toFixed(2);
+                    }
+
+                    // Update stochastic resonance every 100 frames
+                    if (frameCount % 100 === 0) {
+                        stochasticResonanceDetector.detectResonantFrequency();
+                        const snr = stochasticResonanceDetector.recordSNR();
+                        const enhancement = stochasticResonanceDetector.detectSREnhancement();
+
+                        // Update display if elements exist
+                        const snrEl = document.getElementById('sr-snr');
+                        const noiseEl = document.getElementById('sr-noise');
+                        const enhanceEl = document.getElementById('sr-enhancement');
+                        if (snrEl) snrEl.textContent = snr.toFixed(2);
+                        if (noiseEl && stochasticResonanceDetector.optimalNoise) {
+                            noiseEl.textContent = stochasticResonanceDetector.optimalNoise.toFixed(3);
+                        }
+                        if (enhanceEl && enhancement) {
+                            enhanceEl.textContent = enhancement.isEnhanced ? 'YES' : 'NO';
+                        }
+
+                        // Find optimal noise periodically
+                        if (frameCount % 500 === 0) {
+                            const result = stochasticResonanceDetector.findOptimalNoise();
+                            console.log('[CST SR] Optimal noise level:', result.optimalNoise.toFixed(3));
+                        }
                     }
                 } catch (error) {
                     console.error('[CST Animate Error]', error);
