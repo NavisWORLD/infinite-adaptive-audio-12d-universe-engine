@@ -635,6 +635,34 @@
             </div>
 
             <div class="card">
+                <h2>🧬 12D Internal State Metrics</h2>
+                <div class="stats">
+                    <div class="stat-box">
+                        <div class="stat-label">Avg x₁₂</div>
+                        <div class="stat-value" id="12d-avg-x12">0.000</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Avg m₁₂</div>
+                        <div class="stat-value" id="12d-avg-m12">0.000</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Avg Ω</div>
+                        <div class="stat-value" id="12d-avg-omega">0.000</div>
+                    </div>
+                </div>
+                <div class="value-display">
+                    <strong>Avg |dx₁₂/dt|:</strong> <span id="12d-avg-dx12">0.000</span>
+                </div>
+                <div class="value-display">
+                    <strong>Avg ψ:</strong> <span id="12d-avg-psi">0.000</span>
+                </div>
+                <div class="value-display">
+                    <strong>x₁₂ Range:</strong> <span id="12d-x12-min">0.00</span> to <span id="12d-x12-max">0.00</span>
+                </div>
+                <p class="info-text">Real-time 12D internal state evolution tracking</p>
+            </div>
+
+            <div class="card">
                 <h2>🌀 ψ Normalized Breakdown</h2>
                 <div class="value-display">
                     <strong>Energy Term:</strong> <span id="psi-energy-term">0.000</span>
@@ -2787,9 +2815,14 @@
                 html += '<div style="font-family: monospace; font-size: 0.8em;">';
 
                 for (let i = 0; i < Math.min(10, maxEnergyParticle.memory.length); i++) {
-                    const normalized = (maxEnergyParticle.memory[i] / 255).toFixed(3);
-                    const barLength = Math.round(normalized * 20);
-                    const bar = '█'.repeat(barLength) + '░'.repeat(20 - barLength);
+                    // Fix: Add bounds checking to prevent negative values in String.repeat()
+                    const memValue = maxEnergyParticle.memory[i];
+                    const normalized = (typeof memValue === 'number' && isFinite(memValue))
+                        ? (memValue / 255).toFixed(3)
+                        : '0.000';
+                    const barLength = Math.max(0, Math.min(20, Math.round(parseFloat(normalized) * 20)));
+                    const emptyLength = Math.max(0, 20 - barLength);
+                    const bar = '█'.repeat(barLength) + '░'.repeat(emptyLength);
                     html += `[${i}]: ${bar} ${normalized}<br>`;
                 }
 
@@ -2830,23 +2863,44 @@
                 this.createdAt = Date.now();
                 
                 // ============================================================================
-                // 12D CST NEW PROPERTIES
+                // 12D CST NEW PROPERTIES - COMPLETE IMPLEMENTATION
                 // ============================================================================
+                // Internal adaptive state (12th dimension)
                 this.x12 = 0; // Adaptive state (dimensionless, bounded [-1, 1])
                 this.m12 = 0; // Memory of x12
+                this.dx12_dt = 0; // Rate of change of internal state
+                this.dm12_dt = 0; // Rate of change of memory
+
+                // 12D evolution parameters (Equation 2.11 from paper)
+                this.k_adaptation = 0.01;    // Rate constant for interaction-driven changes (1/s)
+                this.gamma_decay = 0.005;    // Decay constant for stability (1/s)
+                this.alpha_memory = 0.1;     // Memory adaptation rate (1/s)
+                this.sigma_similarity = 1.0; // Spread parameter for Gaussian similarity
+
+                // Energy and potential
                 this.Ec = 0; // Cosmic energy = kinetic + potential + dark matter
                 this.Ugrav = 0; // Gravitational potential energy
                 this.Udm = 0; // Dark matter potential contribution
                 this.vi = 0; // Characteristic frequency = Ec/h
                 this.theta = getRandom() * 2 * Math.PI; // Phase (initialized randomly)
+
+                // Network properties
                 this.neighbors = []; // Cached neighbor indices
-                this.omega = 0; // Ωi = synaptic strength
+                this.omega = 0; // Ωi = synaptic strength (includes Gaussian similarity)
                 this.entropyS = 0; // Boltzmann-style coarse-grained entropy
+
+                // State function tracking (ψ breakdown - Section 2.8)
+                this.total_x12_variation = 0.0; // ∫|Δx₁₂|dt - accumulated over time
+                this.total_velocity_integral = 0.0; // ∫||v||dt - accumulated over time
+                this.psi = 0.0; // Complete 12D state function
+                this.x12_history = []; // Track internal state evolution
+
+                // 11D projection
                 this.projection11D = {
                     pos11D: new Float64Array(11).fill(0),
                     vel11D: new Float64Array(11).fill(0)
                 };
-                
+
                 // Initialize 11D projection (project 3D position to 11D)
                 this.update11DProjection();
                 
@@ -3031,6 +3085,52 @@
                     eventType: 'frequency_assignment'
                 };
                 this.tokens.push(tokenObj);
+            }
+
+            /**
+             * Update 12th dimension internal state and memory
+             * Implements evolution equations from Section 2.11 of the 12D CST paper
+             *
+             * @param {number} Omega_i - Total synaptic strength for this particle
+             * @param {number} dt - Time step (seconds)
+             *
+             * Evolution equations:
+             *   dx₁₂/dt = k·Ωᵢ - γ·x₁₂  (Equation 2.11)
+             *   dm₁₂/dt = α·(x₁₂ - m₁₂)  (Memory adaptation)
+             */
+            update12thDimension(Omega_i, dt) {
+                // Validate inputs
+                if (!isFinite(Omega_i) || !isFinite(dt)) {
+                    console.warn('Invalid inputs to update12thDimension:', { Omega_i, dt });
+                    return;
+                }
+
+                // Evolution equation: dx12/dt = k·Ω - γ·x12 (Equation 2.11)
+                // This drives internal state toward high connectivity (high Ω) while decay provides stability
+                this.dx12_dt = this.k_adaptation * Omega_i - this.gamma_decay * this.x12;
+
+                // Update internal state using forward Euler integration
+                this.x12 += this.dx12_dt * dt;
+
+                // Clamp to reasonable bounds [-1, 1] to prevent runaway
+                this.x12 = Math.max(-1, Math.min(1, this.x12));
+
+                // Track total variation for ψ calculation: ∫|Δx₁₂|dt (Section 2.8, Term 4)
+                this.total_x12_variation += Math.abs(this.dx12_dt) * dt;
+
+                // Memory evolution: dm12/dt = α·(x12 - m12)
+                // Memory tracks internal state with time constant τ = 1/α
+                this.dm12_dt = this.alpha_memory * (this.x12 - this.m12);
+                this.m12 += this.dm12_dt * dt;
+
+                // Clamp memory as well
+                this.m12 = Math.max(-1, Math.min(1, this.m12));
+
+                // Store history for analysis (limit to prevent memory issues)
+                this.x12_history.push(this.x12);
+                if (this.x12_history.length > 1000) {
+                    this.x12_history.shift(); // Keep last 1000 values
+                }
             }
 
             destroy() {
@@ -3230,7 +3330,19 @@
             });
         }
 
-        // Implements Section 2.11: Enhanced Synaptic Strength with Internal State Similarity
+        /**
+         * Compute Enhanced Synaptic Strength with Internal State Similarity
+         * Implements Section 2.11 of the 12D CST paper
+         *
+         * Key innovation: Connection strength depends on BOTH gravitational coupling
+         * AND cognitive similarity (Gaussian kernel on internal state difference)
+         * This creates Hebbian-like learning: "neurons that fire together, wire together"
+         *
+         * @param {Array} particles - Array of all particles
+         * @param {Object} index - Spatial index for neighbor queries
+         * @param {Object} physics - Physics parameters
+         * @param {Object} adapt - Adaptation parameters (fallback values)
+         */
         function computeSynapticStrength(particles, index, physics, adapt) {
             particles.forEach((pi, i) => {
                 let omegaSum = 0;
@@ -3252,33 +3364,47 @@
                     const gravTerm = (physics.G * pi.mass * pj.mass) / (r_eff2 * physics.a0 * physics.m0);
 
                     // Gaussian similarity measure (Hebbian-like: "neurons that fire together, wire together")
+                    // Use particle-specific sigma_similarity (fallback to global adapt parameter)
+                    const sigma = pi.sigma_similarity || adapt.sigmaSimilarity || 1.0;
                     const x12Diff = pi.x12 - pj.x12;
-                    const similarity = Math.exp(-(x12Diff * x12Diff) / (2 * adapt.sigmaSimilarity * adapt.sigmaSimilarity));
+                    const similarity = Math.exp(-(x12Diff * x12Diff) / (2 * sigma * sigma));
 
                     // Combined synaptic strength
-                    omegaSum += gravTerm * similarity;
+                    const omega_ij = gravTerm * similarity;
+
+                    // Validate result
+                    if (isFinite(omega_ij)) {
+                        omegaSum += omega_ij;
+                    }
                 });
-                
+
                 pi.omega = omegaSum;
             });
         }
 
-        // 5) 12th dimension evolution and memory
-        // Implements Section 2.9: Internal State Evolution Dynamics
+        /**
+         * Update 12th dimension evolution and memory for all particles
+         * Implements Section 2.9: Internal State Evolution Dynamics
+         *
+         * Now uses particle-specific update12thDimension() method for consistency
+         */
         function updateAdaptiveStates(particles, adapt, dt) {
             particles.forEach(p => {
-                // Paper Section 2.9: dx₁₂,ᵢ/dt = k · Ωᵢ − γ · x₁₂,ᵢ
-                // where Ω (synaptic strength) comes from neighbor interactions
-                const stimulus = p.omega; // Ω from neighbor interactions
-                const dx12 = (adapt.k * stimulus - adapt.gamma * p.x12) * dt;
-                p.x12 += dx12;
+                // Use the particle's update12thDimension method which implements:
+                // - dx₁₂/dt = k·Ωᵢ - γ·x₁₂  (Equation 2.11)
+                // - dm₁₂/dt = α·(x₁₂ - m₁₂)  (Memory adaptation)
+                // - Accumulation of ∫|Δx₁₂|dt for ψ calculation
+                p.update12thDimension(p.omega, dt);
 
-                // Bound x12 to [-1, 1]
-                p.x12 = Math.max(-1, Math.min(1, p.x12));
-
-                // Paper Section 2.10: dm₁₂,ᵢ/dt = α · (x₁₂,ᵢ − m₁₂,ᵢ)
-                const dm12 = adapt.alpha * (p.x12 - p.m12) * dt;
-                p.m12 += dm12;
+                // Track velocity integral for ψ calculation (Section 2.8, Term 3)
+                const velocityMag = Math.sqrt(
+                    p.velocity.x * p.velocity.x +
+                    p.velocity.y * p.velocity.y +
+                    p.velocity.z * p.velocity.z
+                );
+                if (isFinite(velocityMag)) {
+                    p.total_velocity_integral += velocityMag * dt;
+                }
 
                 // === NEURAL NETWORK ENERGY MODULATION ===
                 if (neuralConfig.enabled && p.neighbors && p.neighbors.length > 0) {
@@ -3610,6 +3736,117 @@
             return { terms, psiTotal, x12IntAvg, x12IntMax };
         }
 
+        /**
+         * Compute complete 12D state function (ψ) for a single particle
+         * Implements Section 2.8 of the 12D CST paper
+         *
+         * ψ = φ·(Ec/c²) + λ + ∫||v||dt + ∫|Δx₁₂|dt + Ω·Ec + (Ugrav+Udm)
+         *
+         * @param {Object} particle - The particle to compute ψ for
+         * @param {number} phi - Golden ratio (1.618...)
+         * @param {number} c - Speed of light
+         * @returns {number} Complete 12D state function value
+         */
+        function computeParticlePsi(particle, phi = 1.618033988749895, c = 3.0e8) {
+            // Term 1: φ·Ec/c² (mass-energy equivalence term scaled by golden ratio)
+            const term1 = (phi * particle.Ec) / (c * c);
+
+            // Term 2: λ (cosmological constant / chaos term - normalized)
+            const lambda_normalized = (particle.lambda || 0) / 1e-52; // Normalize to reasonable scale
+            const term2 = lambda_normalized;
+
+            // Term 3: ∫||v||dt (integrated 11D velocity - cumulative path)
+            const term3 = particle.total_velocity_integral || 0;
+
+            // Term 4: ∫|Δx₁₂|dt (total variation of internal state - NEW IN 12D)
+            const term4 = particle.total_x12_variation || 0;
+
+            // Term 5: Ω·Ec (synaptic interaction term)
+            const term5 = (particle.omega || 0) * particle.Ec;
+
+            // Term 6: Ugrav + Udm (gravitational + dark matter potential)
+            const term6 = (particle.Ugrav || 0) + (particle.Udm || 0);
+
+            // Combine all terms
+            const psi = term1 + term2 + term3 + term4 + term5 + term6;
+
+            // Validate result
+            return isFinite(psi) ? psi : 0;
+        }
+
+        /**
+         * Calculate spectral centroid from frequency data
+         * The spectral centroid is the "center of mass" of the spectrum
+         *
+         * @param {Array} frequencyData - Array of {frequency, magnitude} objects
+         * @returns {number} Spectral centroid in Hz
+         */
+        function calculateSpectralCentroid(frequencyData) {
+            if (!frequencyData || frequencyData.length === 0) return 1000;
+
+            let numerator = 0;
+            let denominator = 0;
+
+            frequencyData.forEach(data => {
+                const freq = data.frequency || 0;
+                const mag = data.magnitude || 0;
+                numerator += freq * mag;
+                denominator += mag;
+            });
+
+            if (denominator === 0) return 1000;
+            return numerator / denominator;
+        }
+
+        /**
+         * Map audio features to 12D internal state parameters
+         * Implements Section 5 of the 12D CST paper: Audio-Driven Modulation
+         *
+         * Audio modulates the 12th dimension evolution parameters:
+         * - High frequencies increase adaptation rate (k)
+         * - Low frequencies increase stability (higher γ decay)
+         * - Spectral centroid influences similarity spread (σ)
+         * - RMS energy directly nudges internal state (x₁₂)
+         *
+         * @param {Object} particle - Particle to modulate
+         * @param {Array} audioFrequencies - Array of frequency values
+         * @param {Array} audioMagnitudes - Array of magnitude values
+         * @param {number} rmsEnergy - RMS energy of audio signal
+         * @param {number} spectralCentroid - Spectral centroid (Hz)
+         */
+        function mapAudioToInternalState(particle, audioFrequencies, audioMagnitudes, rmsEnergy, spectralCentroid) {
+            // Validate inputs
+            if (!audioFrequencies || audioFrequencies.length === 0) return;
+
+            // 1. High-frequency content increases adaptation rate
+            const highFreqCount = audioFrequencies.filter(f => f > 1000).length;
+            const highFreqRatio = highFreqCount / audioFrequencies.length;
+            particle.k_adaptation = 0.005 + highFreqRatio * 0.015; // Range: [0.005, 0.020]
+
+            // 2. Low-frequency content increases stability (higher decay)
+            const lowFreqCount = audioFrequencies.filter(f => f < 200).length;
+            const lowFreqRatio = lowFreqCount / audioFrequencies.length;
+            particle.gamma_decay = 0.003 + lowFreqRatio * 0.007; // Range: [0.003, 0.010]
+
+            // 3. Spectral centroid influences similarity parameter
+            // Higher centroid = broader similarity (more connections)
+            const centroid = spectralCentroid || 1000;
+            particle.sigma_similarity = 0.5 + (centroid / 2000) * 1.5; // Map [0, 2000Hz] to [0.5, 2.0]
+            particle.sigma_similarity = Math.min(2.0, Math.max(0.5, particle.sigma_similarity));
+
+            // 4. RMS energy directly nudges internal state
+            // This creates direct audio-to-consciousness coupling
+            if (isFinite(rmsEnergy)) {
+                const audio_nudge = 0.1 * (rmsEnergy - 0.5); // Center around 0
+                particle.x12 += audio_nudge * 0.01; // Small perturbation
+                particle.x12 = Math.max(-1, Math.min(1, particle.x12)); // Clamp
+            }
+
+            // 5. Overall magnitude affects memory adaptation rate
+            const avgMagnitude = audioMagnitudes.reduce((a, b) => a + b, 0) / audioMagnitudes.length;
+            particle.alpha_memory = 0.05 + avgMagnitude * 0.15; // Range: [0.05, 0.20]
+        }
+
         // 10) Adaptive timestep
         function computeAdaptiveDt(particles, physics, timestepConfig) {
             if (!timestepConfig.adaptive || particles.length === 0) {
@@ -3874,7 +4111,8 @@
                 p.z = i * 0.1 - jitter;
 
                 const baseHue = 180 + Math.floor(getRandom() * 360);
-                const color = new THREE.Color(`hsl(${baseHue}, 100%, 50%)`);
+                const color = new THREE.Color();
+                color.setHSL(baseHue / 360, 1.0, 0.5); // Fix: Use setHSL instead of HSL string
                 p.line.material.color.setHex(color.getHex());
                 p.sphere.material.color.setHex(color.getHex());
             }
@@ -4737,8 +4975,9 @@
             frequencyData.forEach((freqData, idx) => {
                 // Sound-to-color mapping
                 const colorHue = (freqData.frequency / 20000) * 360;
-                const color = new THREE.Color(`hsl(${colorHue}, ${freqData.magnitude * 100}%, 50%)`);
-                
+                const color = new THREE.Color();
+                color.setHSL(colorHue / 360, freqData.magnitude, 0.5); // Fix: Use setHSL instead of HSL string
+
                 // Create or update particle for this frequency
                 if (particles.length < 20) {
                     createParticleFromFrequency(freqData.frequency, freqData.magnitude, color.getHex());
@@ -5029,8 +5268,9 @@
         function addParticleFromAudio(frequency, energy) {
             const offset = particles.length * 0.1;
             const hue = (frequency / 20000) * 360;
-            const color = new THREE.Color(`hsl(${hue}, 100%, 50%)`);
-            
+            const color = new THREE.Color();
+            color.setHSL(hue / 360, 1.0, 0.5); // Fix: Use setHSL instead of HSL string
+
             const particle = new LorenzParticle(
                 0.1 + offset + energy * 5,
                 offset,
@@ -5268,7 +5508,27 @@
             const gravAccelerations = computeGravitationalAccelerations(particles, spatialIndex, physics);
             computeGravitationalEnergy(particles, spatialIndex, physics);
             computeDarkMatterPotential(particles, dmParams);
-                computeSynapticStrength(particles, spatialIndex, physics, adapt);
+            computeSynapticStrength(particles, spatialIndex, physics, adapt);
+
+            // === AUDIO-TO-INTERNAL-STATE MAPPING (12D CST Section 5) ===
+            if (isAudioActive && frequencyData && frequencyData.length > 0) {
+                // Extract audio features for mapping
+                const audioFrequencies = frequencyData.map(f => f.frequency || 0);
+                const audioMagnitudes = frequencyData.map(f => f.magnitude || 0);
+                const rmsEnergy = audioEnergy || 0;
+                const spectralCentroid = calculateSpectralCentroid(frequencyData);
+
+                // Map audio features to each particle's 12D parameters
+                particles.forEach(particle => {
+                    mapAudioToInternalState(
+                        particle,
+                        audioFrequencies,
+                        audioMagnitudes,
+                        rmsEnergy,
+                        spectralCentroid
+                    );
+                });
+            }
 
             // === UPDATE MEMORY FROM NEIGHBORS ===
             if (frequencyData && frequencyData.length > 0) {
@@ -5277,6 +5537,7 @@
                 });
             }
 
+            // === UPDATE 12TH DIMENSION EVOLUTION ===
             updateAdaptiveStates(particles, adapt, timestep.dt);
             updatePhases(particles, sync, spatialIndex, timestep.dt);
 
@@ -5291,12 +5552,15 @@
                 chaosSum += Math.abs(d.dx) + Math.abs(d.dy) + Math.abs(d.dz);
                 });
 
-            // Recompute energies and vi
+            // Recompute energies, vi, and complete 12D state function (ψ)
             particles.forEach(p => {
                 const v2 = p.velocity.x*p.velocity.x + p.velocity.y*p.velocity.y + p.velocity.z*p.velocity.z;
                 const K = 0.5 * p.mass * v2;
                 p.Ec = K + p.Ugrav + p.Udm;
                 p.vi = p.Ec / h;
+
+                // Compute complete 12D state function (Section 2.8)
+                p.psi = computeParticlePsi(p);
             });
             
             // Entropy every N frames (performance)
@@ -5467,7 +5731,77 @@
             const thetaStd = computeThetaStd(particles);
             if (syncStdEl) syncStdEl.textContent = (thetaStd * 180 / Math.PI).toFixed(1) + '°';
         }
-        
+
+        /**
+         * Update 12D Internal State Metrics Display
+         * Shows real-time statistics for the 12th dimension evolution
+         */
+        function update12DMetrics() {
+            if (particles.length === 0) {
+                // Reset all displays to zero
+                const avgX12El = document.getElementById('12d-avg-x12');
+                const avgM12El = document.getElementById('12d-avg-m12');
+                const avgOmegaEl = document.getElementById('12d-avg-omega');
+                const avgDx12El = document.getElementById('12d-avg-dx12');
+                const avgPsiEl = document.getElementById('12d-avg-psi');
+                const x12MinEl = document.getElementById('12d-x12-min');
+                const x12MaxEl = document.getElementById('12d-x12-max');
+
+                if (avgX12El) avgX12El.textContent = '0.000';
+                if (avgM12El) avgM12El.textContent = '0.000';
+                if (avgOmegaEl) avgOmegaEl.textContent = '0.000';
+                if (avgDx12El) avgDx12El.textContent = '0.000';
+                if (avgPsiEl) avgPsiEl.textContent = '0.000';
+                if (x12MinEl) x12MinEl.textContent = '0.00';
+                if (x12MaxEl) x12MaxEl.textContent = '0.00';
+                return;
+            }
+
+            // Calculate 12D metrics
+            let sumX12 = 0, sumM12 = 0, sumOmega = 0, sumDx12 = 0, sumPsi = 0;
+            let minX12 = Infinity, maxX12 = -Infinity;
+
+            particles.forEach(p => {
+                const x12 = isFinite(p.x12) ? p.x12 : 0;
+                const m12 = isFinite(p.m12) ? p.m12 : 0;
+                const omega = isFinite(p.omega) ? p.omega : 0;
+                const dx12 = isFinite(p.dx12_dt) ? Math.abs(p.dx12_dt) : 0;
+                const psi = isFinite(p.psi) ? p.psi : 0;
+
+                sumX12 += x12;
+                sumM12 += m12;
+                sumOmega += omega;
+                sumDx12 += dx12;
+                sumPsi += psi;
+
+                minX12 = Math.min(minX12, x12);
+                maxX12 = Math.max(maxX12, x12);
+            });
+
+            const avgX12 = sumX12 / particles.length;
+            const avgM12 = sumM12 / particles.length;
+            const avgOmega = sumOmega / particles.length;
+            const avgDx12 = sumDx12 / particles.length;
+            const avgPsi = sumPsi / particles.length;
+
+            // Update display elements
+            const avgX12El = document.getElementById('12d-avg-x12');
+            const avgM12El = document.getElementById('12d-avg-m12');
+            const avgOmegaEl = document.getElementById('12d-avg-omega');
+            const avgDx12El = document.getElementById('12d-avg-dx12');
+            const avgPsiEl = document.getElementById('12d-avg-psi');
+            const x12MinEl = document.getElementById('12d-x12-min');
+            const x12MaxEl = document.getElementById('12d-x12-max');
+
+            if (avgX12El) avgX12El.textContent = avgX12.toFixed(3);
+            if (avgM12El) avgM12El.textContent = avgM12.toFixed(3);
+            if (avgOmegaEl) avgOmegaEl.textContent = avgOmega.toExponential(2);
+            if (avgDx12El) avgDx12El.textContent = avgDx12.toExponential(2);
+            if (avgPsiEl) avgPsiEl.textContent = avgPsi.toExponential(2);
+            if (x12MinEl) x12MinEl.textContent = minX12.toFixed(2);
+            if (x12MaxEl) x12MaxEl.textContent = maxX12.toFixed(2);
+        }
+
         // Standalone ψ breakdown update function
         // CST v2.0+ fix: Ensures all ψ normalized breakdown terms update in real-time
         function updatePsiBreakdown() {
@@ -5542,6 +5876,7 @@
                     // === UPDATE METRICS ===
                     updateChaosMetrics();
                     updateSynchronizationMetrics();
+                    update12DMetrics(); // Update 12D internal state metrics display
                     updateConservationDiagnostics();
                     updatePsiBreakdown();
 
@@ -5721,7 +6056,8 @@
 
         function addParticle() {
             const offset = particles.length * 0.1;
-            const color = new THREE.Color(`hsl(${colorHue + offset * 30}, 100%, 50%)`);
+            const color = new THREE.Color();
+            color.setHSL((colorHue + offset * 30) / 360, 1.0, 0.5); // Fix: Use setHSL instead of HSL string
             const particle = new LorenzParticle(0.1 + offset, offset, offset, color.getHex(), 440 + offset * 100);
             particles.push(particle);
             
@@ -5757,7 +6093,8 @@
         function changeColor() {
             colorHue = (colorHue + 60) % 360;
             particles.forEach((p, i) => {
-                const color = new THREE.Color(`hsl(${colorHue + i * 30}, 100%, 50%)`);
+                const color = new THREE.Color();
+                color.setHSL((colorHue + i * 30) / 360, 1.0, 0.5); // Fix: Use setHSL instead of HSL string
                 p.line.material.color.setHex(color.getHex());
                 p.sphere.material.color.setHex(color.getHex());
             });
@@ -6107,12 +6444,15 @@
             });
         }
 
+        // Enhanced 12D parameter controls: Update both global and per-particle parameters
         const kEl = document.getElementById('k');
         if (kEl) {
             kEl.addEventListener('input', (e) => {
                 adapt.k = parseFloat(e.target.value);
                 const displayEl = document.getElementById('k-display');
                 if (displayEl) displayEl.textContent = adapt.k.toFixed(1);
+                // Update all particles' adaptation rate
+                particles.forEach(p => { p.k_adaptation = adapt.k * 0.01; });
             });
         }
 
@@ -6122,6 +6462,8 @@
                 adapt.gamma = parseFloat(e.target.value);
                 const displayEl = document.getElementById('gamma-display');
                 if (displayEl) displayEl.textContent = adapt.gamma.toFixed(2);
+                // Update all particles' decay rate
+                particles.forEach(p => { p.gamma_decay = adapt.gamma * 0.01; });
             });
         }
 
@@ -6131,6 +6473,8 @@
                 adapt.alpha = parseFloat(e.target.value);
                 const displayEl = document.getElementById('alpha-display');
                 if (displayEl) displayEl.textContent = adapt.alpha.toFixed(2);
+                // Update all particles' memory adaptation rate
+                particles.forEach(p => { p.alpha_memory = adapt.alpha; });
             });
         }
 
@@ -6140,6 +6484,8 @@
                 adapt.sigmaSimilarity = parseFloat(e.target.value);
                 const displayEl = document.getElementById('sigma-sim-display');
                 if (displayEl) displayEl.textContent = adapt.sigmaSimilarity.toFixed(2);
+                // Update all particles' similarity spread
+                particles.forEach(p => { p.sigma_similarity = adapt.sigmaSimilarity; });
             });
         }
 
@@ -6795,7 +7141,8 @@
               p.z = i * 0.1 - jitter;
 
               const baseHue = 180 + Math.floor(getRandom() * 360);
-              const color = new THREE.Color(`hsl(${baseHue}, 100%, 50%)`);
+              const color = new THREE.Color();
+              color.setHSL(baseHue / 360, 1.0, 0.5); // Fix: Use setHSL instead of HSL string
               p.line.material.color.setHex(color.getHex());
               p.sphere.material.color.setHex(color.getHex());
             }
