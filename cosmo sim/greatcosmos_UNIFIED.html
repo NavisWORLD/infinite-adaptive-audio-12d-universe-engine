@@ -1023,6 +1023,36 @@
 
                     <button id="spawn-sentinels" class="btn w-full bg-amber-600 hover:bg-amber-500">Spawn Sentinels</button>
                     <button id="spawn-motes" class="btn w-full bg-teal-600 hover:bg-teal-500">Spawn Motes</button>
+
+                    <div class="group mt-4">
+                        <h4 class="font-bold text-indigo-400 mb-2">FAUNA SPAWNING</h4>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="spawn-npc-fox" class="btn bg-orange-600 hover:bg-orange-500">Fox</button>
+                            <button id="spawn-npc-flamingo" class="btn bg-pink-600 hover:bg-pink-500">Flamingo</button>
+                            <button id="spawn-npc-parrot" class="btn bg-green-600 hover:bg-green-500">Parrot</button>
+                            <button id="spawn-npc-stork" class="btn bg-slate-300 hover:bg-slate-200 text-slate-900">Stork</button>
+                            <button id="spawn-npc-human" class="btn bg-amber-700 hover:bg-amber-600">Human</button>
+                            <button id="spawn-birds" class="btn bg-blue-600 hover:bg-blue-500">More Birds</button>
+                        </div>
+                    </div>
+
+                    <div class="toggle-container mt-4">
+                        <div class="toggle-label">
+                            <span>Rain</span>
+                            <label class="switch">
+                                <input type="checkbox" id="weather-rain-toggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Wind Strength</span>
+                            <span id="val-wind" class="font-mono">0.2</span>
+                        </div>
+                        <input id="in-wind" type="range" min="0.0" max="1.0" step="0.1" value="0.2" />
+                    </div>
                 </div>
             </div>
         </div>
@@ -2322,6 +2352,52 @@ class UIManager {
             });
         }
 
+        // NPC Spawn buttons
+        const npcTypes = ['fox', 'flamingo', 'parrot', 'stork', 'human'];
+        npcTypes.forEach(type => {
+            const btn = document.getElementById(`spawn-npc-${type}`);
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    this.eventBus.publish('fauna:spawnNPC', { type });
+                    this.uiManager.log(`Spawned ${type} NPC`, 'success');
+                });
+            }
+        });
+
+        // Spawn more birds button
+        const spawnBirdsBtn = document.getElementById('spawn-birds');
+        if (spawnBirdsBtn) {
+            spawnBirdsBtn.addEventListener('click', () => {
+                if (this.faunaManager) {
+                    this.faunaManager.spawnBirds(10);
+                    this.uiManager.log('Spawned 10 more birds', 'success');
+                }
+            });
+        }
+
+        // Weather rain toggle
+        const rainToggle = document.getElementById('weather-rain-toggle');
+        if (rainToggle) {
+            rainToggle.addEventListener('change', (e) => {
+                if (this.weatherSystem) {
+                    this.weatherSystem.setRainIntensity(e.target.checked ? 1.0 : 0.0);
+                }
+            });
+        }
+
+        // Wind strength slider
+        const windSlider = document.getElementById('in-wind');
+        const windValue = document.getElementById('val-wind');
+        if (windSlider && windValue) {
+            windSlider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                windValue.textContent = val.toFixed(1);
+                if (this.weatherSystem) {
+                    this.weatherSystem.setWindStrength(val);
+                }
+            });
+        }
+
         // Memory Echo Modal - Data Upload
         const dataUpload = document.getElementById('data-upload');
         const dataStatus = document.getElementById('data-status');
@@ -3399,8 +3475,8 @@ class SurfaceManager {
             this.trees.instanceMatrix.needsUpdate = true;
         }
 
-        // Update fauna activity (based on sentinels and motes movement)
-        this.faunaActivity = 0.5 + Math.sin(time * 0.3) * 0.3;
+        // Update fauna activity (based on sentinels, motes, and FaunaManager)
+        this.faunaActivity = 0.3 + Math.sin(time * 0.3) * 0.2;
 
         // Animate sentinels (bio-inspired entities)
         for (let i = 0; i < this.sentinels.length; i++) {
@@ -3529,6 +3605,793 @@ class SurfaceManager {
             this.motes.push(mote);
         }
         this.eventBus.publish('surface:motes_spawned', { count });
+    }
+}
+
+// =====================================================================================
+// WEATHER SYSTEM
+// Implements clouds, rain, wind, and dynamic fog
+// =====================================================================================
+class WeatherSystem {
+    constructor(eventBus, scene, surfaceGroup, prng) {
+        this.eventBus = eventBus;
+        this.scene = scene;
+        this.surfaceGroup = surfaceGroup;
+        this.prng = prng;
+
+        // Weather parameters
+        this.cloudCoverage = 0.4;
+        this.windStrength = 0.2;
+        this.rainIntensity = 0.0;
+        this.fogDensity = 0.0001;
+
+        // Weather entities
+        this.clouds = [];
+        this.rainParticles = null;
+        this.rainVelocities = null;
+
+        this.buildWeatherSystem();
+    }
+
+    buildWeatherSystem() {
+        // Create volumetric cloud billboards
+        this.createClouds();
+
+        // Create rain particle system
+        this.createRainSystem();
+    }
+
+    createClouds() {
+        // Create billboard clouds at various heights
+        const cloudCount = Math.floor(50 * this.cloudCoverage);
+        const cloudTexture = this.createCloudTexture();
+
+        const cloudMaterial = new THREE.SpriteMaterial({
+            map: cloudTexture,
+            transparent: true,
+            opacity: 0.6,
+            depthWrite: false,
+            fog: false
+        });
+
+        for (let i = 0; i < cloudCount; i++) {
+            const cloud = new THREE.Sprite(cloudMaterial.clone());
+            const x = (this.prng() - 0.5) * 12000;
+            const z = (this.prng() - 0.5) * 12000;
+            const y = 300 + this.prng() * 400;
+            const scale = 200 + this.prng() * 300;
+
+            cloud.position.set(x, y, z);
+            cloud.scale.set(scale, scale * 0.6, 1);
+            cloud.userData.driftSpeed = (this.prng() - 0.5) * 0.5;
+            cloud.userData.initialX = x;
+
+            this.surfaceGroup.add(cloud);
+            this.clouds.push(cloud);
+        }
+    }
+
+    createCloudTexture() {
+        // Generate procedural cloud texture
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+
+        // Create radial gradient for cloud
+        const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+        gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.6)');
+        gradient.addColorStop(0.7, 'rgba(240, 240, 240, 0.3)');
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 256, 256);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        return texture;
+    }
+
+    createRainSystem() {
+        // Create particle system for rain
+        const rainCount = 5000;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(rainCount * 3);
+        const velocities = new Float32Array(rainCount * 3);
+
+        for (let i = 0; i < rainCount; i++) {
+            const i3 = i * 3;
+            positions[i3] = (this.prng() - 0.5) * 8000;
+            positions[i3 + 1] = this.prng() * 1000;
+            positions[i3 + 2] = (this.prng() - 0.5) * 8000;
+
+            velocities[i3] = 0;
+            velocities[i3 + 1] = -50 - this.prng() * 20;
+            velocities[i3 + 2] = 0;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+        const material = new THREE.PointsMaterial({
+            color: 0x88aacc,
+            size: 2,
+            transparent: true,
+            opacity: 0.6
+        });
+
+        this.rainParticles = new THREE.Points(geometry, material);
+        this.rainParticles.visible = false;
+        this.rainVelocities = velocities;
+        this.surfaceGroup.add(this.rainParticles);
+    }
+
+    update(delta, time) {
+        // Update clouds - drift based on wind
+        for (let i = 0; i < this.clouds.length; i++) {
+            const cloud = this.clouds[i];
+            cloud.position.x += this.windStrength * cloud.userData.driftSpeed * delta * 10;
+
+            // Wrap around
+            if (Math.abs(cloud.position.x - cloud.userData.initialX) > 6000) {
+                cloud.position.x = cloud.userData.initialX;
+            }
+
+            // Adjust opacity based on cloud coverage
+            cloud.material.opacity = 0.3 + this.cloudCoverage * 0.5;
+        }
+
+        // Update rain particles
+        if (this.rainParticles && this.rainIntensity > 0) {
+            this.rainParticles.visible = true;
+            this.rainParticles.material.opacity = this.rainIntensity * 0.6;
+
+            const positions = this.rainParticles.geometry.attributes.position.array;
+
+            for (let i = 0; i < positions.length / 3; i++) {
+                const i3 = i * 3;
+                positions[i3 + 1] += this.rainVelocities[i3 + 1] * delta;
+
+                // Reset rain drop if it falls below ground
+                if (positions[i3 + 1] < 0) {
+                    positions[i3 + 1] = 800 + this.prng() * 200;
+                }
+            }
+
+            this.rainParticles.geometry.attributes.position.needsUpdate = true;
+        } else {
+            if (this.rainParticles) this.rainParticles.visible = false;
+        }
+
+        // Update fog density based on weather
+        if (this.scene.fog) {
+            const targetDensity = this.fogDensity * (1 + this.rainIntensity * 2 + this.cloudCoverage);
+            this.scene.fog.density = THREE.MathUtils.lerp(
+                this.scene.fog.density,
+                targetDensity * 0.00015,
+                delta * 0.5
+            );
+        }
+    }
+
+    setCloudCoverage(value) {
+        this.cloudCoverage = THREE.MathUtils.clamp(value, 0, 1);
+        // Recreate clouds with new density
+        this.clouds.forEach(cloud => this.surfaceGroup.remove(cloud));
+        this.clouds = [];
+        this.createClouds();
+    }
+
+    setWindStrength(value) {
+        this.windStrength = THREE.MathUtils.clamp(value, 0, 1);
+    }
+
+    setRainIntensity(value) {
+        this.rainIntensity = THREE.MathUtils.clamp(value, 0, 1);
+    }
+
+    setFogDensity(value) {
+        this.fogDensity = value;
+    }
+
+    show(visible) {
+        this.clouds.forEach(cloud => cloud.visible = visible);
+        if (this.rainParticles) {
+            this.rainParticles.visible = visible && this.rainIntensity > 0;
+        }
+    }
+}
+
+// =====================================================================================
+// FAUNA MANAGER
+// Implements birds (Boids), insects, and NPC animals
+// =====================================================================================
+class FaunaManager {
+    constructor(eventBus, scene, surfaceGroup, prng) {
+        this.eventBus = eventBus;
+        this.scene = scene;
+        this.surfaceGroup = surfaceGroup;
+        this.prng = prng;
+
+        // Fauna entities
+        this.birds = [];
+        this.insects = [];
+        this.npcs = [];
+
+        // Boids parameters
+        this.boidParams = {
+            separationDistance: 20,
+            alignmentDistance: 40,
+            cohesionDistance: 50,
+            separationForce: 1.5,
+            alignmentForce: 1.0,
+            cohesionForce: 1.0,
+            maxSpeed: 25,
+            maxForce: 0.5
+        };
+
+        this.createInitialFauna();
+
+        // Listen for NPC spawn events
+        this.eventBus.subscribe('fauna:spawnNPC', (data) => {
+            this.spawnNPC(data.type);
+        });
+    }
+
+    createInitialFauna() {
+        // Create initial bird flock
+        this.spawnBirds(20);
+
+        // Create insect swarms
+        this.spawnInsects(50);
+    }
+
+    spawnBirds(count) {
+        for (let i = 0; i < count; i++) {
+            const geometry = new THREE.ConeGeometry(0.5, 2, 4);
+            const material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color().setHSL(this.prng(), 0.6, 0.5)
+            });
+            const bird = new THREE.Mesh(geometry, material);
+
+            // Random initial position in the sky
+            bird.position.set(
+                (this.prng() - 0.5) * 2000,
+                200 + this.prng() * 300,
+                (this.prng() - 0.5) * 2000
+            );
+
+            // Velocity for Boids algorithm
+            bird.userData.velocity = new THREE.Vector3(
+                (this.prng() - 0.5) * 10,
+                (this.prng() - 0.5) * 2,
+                (this.prng() - 0.5) * 10
+            );
+            bird.userData.acceleration = new THREE.Vector3(0, 0, 0);
+            bird.userData.type = 'bird';
+
+            this.surfaceGroup.add(bird);
+            this.birds.push(bird);
+        }
+    }
+
+    spawnInsects(count) {
+        // Create particle system for insects
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(count * 3);
+        const velocities = [];
+
+        for (let i = 0; i < count; i++) {
+            const i3 = i * 3;
+            positions[i3] = (this.prng() - 0.5) * 1000;
+            positions[i3 + 1] = 2 + this.prng() * 10;
+            positions[i3 + 2] = (this.prng() - 0.5) * 1000;
+
+            velocities.push(new THREE.Vector3(
+                (this.prng() - 0.5) * 2,
+                (this.prng() - 0.5) * 2,
+                (this.prng() - 0.5) * 2
+            ));
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+        const material = new THREE.PointsMaterial({
+            color: 0xffdd44,
+            size: 1.5,
+            transparent: true,
+            opacity: 0.8
+        });
+
+        const insectSwarm = new THREE.Points(geometry, material);
+        insectSwarm.userData.velocities = velocities;
+        insectSwarm.userData.type = 'insects';
+
+        this.surfaceGroup.add(insectSwarm);
+        this.insects.push(insectSwarm);
+    }
+
+    spawnNPC(type = 'generic') {
+        // For now, create simple placeholder NPCs
+        // In production, this would use GLTFLoader to load models
+        const geometry = new THREE.CapsuleGeometry(1, 3, 8, 16);
+        let color;
+
+        switch(type) {
+            case 'fox':
+                color = 0xff8844;
+                break;
+            case 'flamingo':
+                color = 0xff66cc;
+                break;
+            case 'parrot':
+                color = 0x44ff44;
+                break;
+            case 'stork':
+                color = 0xeeeeee;
+                break;
+            case 'human':
+                color = 0xccaa88;
+                break;
+            default:
+                color = 0x888888;
+        }
+
+        const material = new THREE.MeshStandardMaterial({ color });
+        const npc = new THREE.Mesh(geometry, material);
+
+        // Random spawn position
+        const x = (this.prng() - 0.5) * 3000;
+        const z = (this.prng() - 0.5) * 3000;
+        npc.position.set(x, 5, z);
+
+        npc.userData.type = type;
+        npc.userData.velocity = new THREE.Vector3(0, 0, 0);
+        npc.userData.wanderAngle = this.prng() * Math.PI * 2;
+
+        this.surfaceGroup.add(npc);
+        this.npcs.push(npc);
+
+        this.eventBus.publish('fauna:npc_spawned', { type, count: this.npcs.length });
+    }
+
+    // Boids algorithm implementation
+    updateBoids(delta) {
+        for (let i = 0; i < this.birds.length; i++) {
+            const bird = this.birds[i];
+            const acceleration = new THREE.Vector3(0, 0, 0);
+
+            // Calculate separation, alignment, cohesion
+            const separation = this.calculateSeparation(bird, i);
+            const alignment = this.calculateAlignment(bird, i);
+            const cohesion = this.calculateCohesion(bird, i);
+
+            // Apply forces
+            separation.multiplyScalar(this.boidParams.separationForce);
+            alignment.multiplyScalar(this.boidParams.alignmentForce);
+            cohesion.multiplyScalar(this.boidParams.cohesionForce);
+
+            acceleration.add(separation);
+            acceleration.add(alignment);
+            acceleration.add(cohesion);
+
+            // Add slight upward tendency to keep birds in air
+            acceleration.y += 0.5;
+
+            // Limit acceleration
+            if (acceleration.length() > this.boidParams.maxForce) {
+                acceleration.normalize().multiplyScalar(this.boidParams.maxForce);
+            }
+
+            // Update velocity
+            bird.userData.velocity.add(acceleration.multiplyScalar(delta));
+
+            // Limit speed
+            if (bird.userData.velocity.length() > this.boidParams.maxSpeed) {
+                bird.userData.velocity.normalize().multiplyScalar(this.boidParams.maxSpeed);
+            }
+
+            // Update position
+            bird.position.add(bird.userData.velocity.clone().multiplyScalar(delta));
+
+            // Point bird in direction of movement
+            if (bird.userData.velocity.length() > 0.1) {
+                bird.lookAt(bird.position.clone().add(bird.userData.velocity));
+            }
+
+            // Boundary wrapping
+            if (Math.abs(bird.position.x) > 4000) bird.position.x *= -0.9;
+            if (Math.abs(bird.position.z) > 4000) bird.position.z *= -0.9;
+            if (bird.position.y < 100) bird.position.y = 100;
+            if (bird.position.y > 600) bird.position.y = 600;
+        }
+    }
+
+    calculateSeparation(bird, index) {
+        const steer = new THREE.Vector3(0, 0, 0);
+        let count = 0;
+
+        for (let i = 0; i < this.birds.length; i++) {
+            if (i === index) continue;
+
+            const other = this.birds[i];
+            const distance = bird.position.distanceTo(other.position);
+
+            if (distance > 0 && distance < this.boidParams.separationDistance) {
+                const diff = new THREE.Vector3().subVectors(bird.position, other.position);
+                diff.normalize();
+                diff.divideScalar(distance);
+                steer.add(diff);
+                count++;
+            }
+        }
+
+        if (count > 0) {
+            steer.divideScalar(count);
+        }
+
+        return steer;
+    }
+
+    calculateAlignment(bird, index) {
+        const sum = new THREE.Vector3(0, 0, 0);
+        let count = 0;
+
+        for (let i = 0; i < this.birds.length; i++) {
+            if (i === index) continue;
+
+            const other = this.birds[i];
+            const distance = bird.position.distanceTo(other.position);
+
+            if (distance > 0 && distance < this.boidParams.alignmentDistance) {
+                sum.add(other.userData.velocity);
+                count++;
+            }
+        }
+
+        if (count > 0) {
+            sum.divideScalar(count);
+            sum.normalize();
+            return sum;
+        }
+
+        return new THREE.Vector3(0, 0, 0);
+    }
+
+    calculateCohesion(bird, index) {
+        const sum = new THREE.Vector3(0, 0, 0);
+        let count = 0;
+
+        for (let i = 0; i < this.birds.length; i++) {
+            if (i === index) continue;
+
+            const other = this.birds[i];
+            const distance = bird.position.distanceTo(other.position);
+
+            if (distance > 0 && distance < this.boidParams.cohesionDistance) {
+                sum.add(other.position);
+                count++;
+            }
+        }
+
+        if (count > 0) {
+            sum.divideScalar(count);
+            const desired = new THREE.Vector3().subVectors(sum, bird.position);
+            desired.normalize();
+            return desired;
+        }
+
+        return new THREE.Vector3(0, 0, 0);
+    }
+
+    update(delta, time) {
+        // Update birds with Boids algorithm
+        this.updateBoids(delta);
+
+        // Update insects (hovering/swarming behavior)
+        for (let swarm of this.insects) {
+            const positions = swarm.geometry.attributes.position.array;
+            const velocities = swarm.userData.velocities;
+
+            for (let i = 0; i < velocities.length; i++) {
+                const i3 = i * 3;
+
+                // Add random jitter
+                velocities[i].x += (this.prng() - 0.5) * 0.5;
+                velocities[i].y += (this.prng() - 0.5) * 0.5;
+                velocities[i].z += (this.prng() - 0.5) * 0.5;
+
+                // Damping
+                velocities[i].multiplyScalar(0.95);
+
+                // Limit speed
+                if (velocities[i].length() > 3) {
+                    velocities[i].normalize().multiplyScalar(3);
+                }
+
+                // Update position
+                positions[i3] += velocities[i].x * delta;
+                positions[i3 + 1] += velocities[i].y * delta;
+                positions[i3 + 2] += velocities[i].z * delta;
+
+                // Keep insects near ground
+                if (positions[i3 + 1] < 1) positions[i3 + 1] = 1;
+                if (positions[i3 + 1] > 15) positions[i3 + 1] = 15;
+            }
+
+            swarm.geometry.attributes.position.needsUpdate = true;
+        }
+
+        // Update NPCs (simple wandering behavior)
+        for (let npc of this.npcs) {
+            // Wander behavior
+            npc.userData.wanderAngle += (this.prng() - 0.5) * 0.1;
+
+            const moveSpeed = 5;
+            npc.userData.velocity.x = Math.cos(npc.userData.wanderAngle) * moveSpeed;
+            npc.userData.velocity.z = Math.sin(npc.userData.wanderAngle) * moveSpeed;
+
+            npc.position.x += npc.userData.velocity.x * delta;
+            npc.position.z += npc.userData.velocity.z * delta;
+
+            // Boundary wrapping
+            if (Math.abs(npc.position.x) > 3500) npc.position.x *= -0.9;
+            if (Math.abs(npc.position.z) > 3500) npc.position.z *= -0.9;
+
+            // Rotate NPC to face movement direction
+            if (npc.userData.velocity.length() > 0.1) {
+                npc.rotation.y = Math.atan2(npc.userData.velocity.x, npc.userData.velocity.z);
+            }
+        }
+    }
+
+    getFaunaActivity() {
+        // Calculate fauna activity metric (0-1)
+        const birdActivity = Math.min(1, this.birds.length / 50);
+        const insectActivity = Math.min(1, this.insects.length / 10);
+        const npcActivity = Math.min(1, this.npcs.length / 10);
+
+        return (birdActivity + insectActivity + npcActivity) / 3;
+    }
+
+    show(visible) {
+        this.birds.forEach(bird => bird.visible = visible);
+        this.insects.forEach(swarm => swarm.visible = visible);
+        this.npcs.forEach(npc => npc.visible = visible);
+    }
+}
+
+// =====================================================================================
+// CINEMATIC CAMERA
+// Implements scripted camera paths using Bezier curves
+// =====================================================================================
+class CinematicCamera {
+    constructor(camera, eventBus) {
+        this.camera = camera;
+        this.eventBus = eventBus;
+        this.isActive = false;
+        this.currentPath = null;
+        this.pathProgress = 0;
+        this.pathDuration = 30; // seconds
+        this.paths = this.createCameraPaths();
+        this.currentPathIndex = 0;
+    }
+
+    createCameraPaths() {
+        // Define multiple cinematic camera paths
+        return [
+            {
+                name: 'Orbit',
+                points: [
+                    new THREE.Vector3(0, 300, 800),
+                    new THREE.Vector3(800, 400, 0),
+                    new THREE.Vector3(0, 300, -800),
+                    new THREE.Vector3(-800, 400, 0),
+                    new THREE.Vector3(0, 300, 800)
+                ],
+                lookAt: new THREE.Vector3(0, 100, 0)
+            },
+            {
+                name: 'Flyover',
+                points: [
+                    new THREE.Vector3(-3000, 500, -3000),
+                    new THREE.Vector3(-1000, 300, -1000),
+                    new THREE.Vector3(0, 150, 0),
+                    new THREE.Vector3(1000, 300, 1000),
+                    new THREE.Vector3(3000, 500, 3000)
+                ],
+                lookAt: null // Look forward
+            },
+            {
+                name: 'Ascent',
+                points: [
+                    new THREE.Vector3(0, 50, 500),
+                    new THREE.Vector3(0, 200, 300),
+                    new THREE.Vector3(0, 500, 200),
+                    new THREE.Vector3(0, 1000, 100),
+                    new THREE.Vector3(0, 2000, 0)
+                ],
+                lookAt: new THREE.Vector3(0, 0, 0)
+            }
+        ];
+    }
+
+    activate() {
+        this.isActive = true;
+        this.pathProgress = 0;
+        this.currentPath = this.paths[this.currentPathIndex];
+        this.eventBus.publish('cinematic:activated', { path: this.currentPath.name });
+    }
+
+    deactivate() {
+        this.isActive = false;
+        this.eventBus.publish('cinematic:deactivated');
+    }
+
+    nextPath() {
+        this.currentPathIndex = (this.currentPathIndex + 1) % this.paths.length;
+        this.currentPath = this.paths[this.currentPathIndex];
+        this.pathProgress = 0;
+    }
+
+    update(delta) {
+        if (!this.isActive || !this.currentPath) return;
+
+        // Update path progress
+        this.pathProgress += delta / this.pathDuration;
+
+        if (this.pathProgress >= 1.0) {
+            // Loop or switch to next path
+            this.nextPath();
+        }
+
+        // Calculate position along Catmull-Rom spline
+        const curve = new THREE.CatmullRomCurve3(this.currentPath.points);
+        const position = curve.getPointAt(this.pathProgress % 1.0);
+
+        this.camera.position.copy(position);
+
+        // Update camera look-at
+        if (this.currentPath.lookAt) {
+            this.camera.lookAt(this.currentPath.lookAt);
+        } else {
+            // Look forward along the path
+            const t = Math.min(this.pathProgress + 0.01, 1.0);
+            const lookTarget = curve.getPointAt(t);
+            this.camera.lookAt(lookTarget);
+        }
+    }
+}
+
+// =====================================================================================
+// ENHANCED ECHO MANAGER
+// Implements memory artifacts visualization
+// =====================================================================================
+class EnhancedEchoManager {
+    constructor(scene, eventBus, prng) {
+        this.scene = scene;
+        this.eventBus = eventBus;
+        this.prng = prng;
+        this.isActive = false;
+        this.artifacts = [];
+        this.echoGroup = new THREE.Group();
+        this.echoGroup.visible = false;
+        this.scene.add(this.echoGroup);
+    }
+
+    activate() {
+        this.isActive = true;
+        this.echoGroup.visible = true;
+        this.createArtifacts();
+        this.eventBus.publish('echo:activated');
+    }
+
+    deactivate() {
+        this.isActive = false;
+        this.echoGroup.visible = false;
+        this.clearArtifacts();
+        this.eventBus.publish('echo:deactivated');
+    }
+
+    createArtifacts() {
+        // Create holographic memory shards
+        for (let i = 0; i < 20; i++) {
+            const geometry = new THREE.OctahedronGeometry(10 + this.prng() * 20);
+            const material = new THREE.MeshBasicMaterial({
+                color: new THREE.Color().setHSL(0.5 + this.prng() * 0.2, 0.8, 0.6),
+                transparent: true,
+                opacity: 0.4,
+                wireframe: true
+            });
+
+            const artifact = new THREE.Mesh(geometry, material);
+            artifact.position.set(
+                (this.prng() - 0.5) * 1000,
+                (this.prng() - 0.5) * 500,
+                (this.prng() - 0.5) * 1000
+            );
+
+            artifact.userData.rotationSpeed = new THREE.Vector3(
+                (this.prng() - 0.5) * 0.5,
+                (this.prng() - 0.5) * 0.5,
+                (this.prng() - 0.5) * 0.5
+            );
+
+            this.echoGroup.add(artifact);
+            this.artifacts.push(artifact);
+        }
+
+        // Create particle field
+        this.createEchoParticles();
+    }
+
+    createEchoParticles() {
+        const particleCount = 2000;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount; i++) {
+            const i3 = i * 3;
+            const r = 200 + this.prng() * 800;
+            const theta = this.prng() * Math.PI * 2;
+            const phi = this.prng() * Math.PI;
+
+            positions[i3] = r * Math.sin(phi) * Math.cos(theta);
+            positions[i3 + 1] = r * Math.cos(phi);
+            positions[i3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+
+            const hue = 0.5 + this.prng() * 0.2;
+            const color = new THREE.Color().setHSL(hue, 0.8, 0.6);
+            colors[i3] = color.r;
+            colors[i3 + 1] = color.g;
+            colors[i3 + 2] = color.b;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const material = new THREE.PointsMaterial({
+            size: 3,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending
+        });
+
+        const particles = new THREE.Points(geometry, material);
+        this.echoGroup.add(particles);
+        this.artifacts.push(particles);
+    }
+
+    clearArtifacts() {
+        this.artifacts.forEach(artifact => {
+            this.echoGroup.remove(artifact);
+            if (artifact.geometry) artifact.geometry.dispose();
+            if (artifact.material) artifact.material.dispose();
+        });
+        this.artifacts = [];
+    }
+
+    update(delta, time) {
+        if (!this.isActive) return;
+
+        // Rotate artifacts
+        for (let artifact of this.artifacts) {
+            if (artifact.userData.rotationSpeed) {
+                artifact.rotation.x += artifact.userData.rotationSpeed.x * delta;
+                artifact.rotation.y += artifact.userData.rotationSpeed.y * delta;
+                artifact.rotation.z += artifact.userData.rotationSpeed.z * delta;
+            }
+
+            // Pulsate opacity
+            if (artifact.material && artifact.material.opacity !== undefined) {
+                artifact.material.opacity = 0.3 + Math.sin(time * 2 + artifact.position.x) * 0.2;
+            }
+        }
+    }
+
+    show(visible) {
+        this.echoGroup.visible = visible;
     }
 }
 
@@ -6441,6 +7304,13 @@ class Application {
         this.pge = new ProceduralGenerationEngine(this.eventBus, this.scene, this.prng);
         this.qem = new QuantumEventManager(this.eventBus, this.scene);
         this.surfaceManager = new SurfaceManager(this.eventBus, this.scene, this.prng);
+
+        // Initialize new surface systems
+        this.weatherSystem = new WeatherSystem(this.eventBus, this.scene, this.surfaceManager.surfaceGroup, this.prng);
+        this.faunaManager = new FaunaManager(this.eventBus, this.scene, this.surfaceManager.surfaceGroup, this.prng);
+        this.cinematicCamera = new CinematicCamera(this.camera, this.eventBus);
+        this.echoManager = new EnhancedEchoManager(this.scene, this.eventBus, this.prng);
+
         this.audioReactive = new AudioReactiveSystem(this.scene, this.eventBus, this.camera);
         this.memoryEchoEngine = new MemoryEchoEngine(this.scene, this.camera, this.eventBus, this.dataLogger);
         this.cstCompute = new CSTComputeEngine(this.eventBus);
@@ -6451,6 +7321,10 @@ class Application {
             pge: this.pge,
             qem: this.qem,
             surfaceManager: this.surfaceManager,
+            weatherSystem: this.weatherSystem,
+            faunaManager: this.faunaManager,
+            cinematicCamera: this.cinematicCamera,
+            echoManager: this.echoManager,
             audioReactive: this.audioReactive,
             memoryEchoEngine: this.memoryEchoEngine,
             dataLogger: this.dataLogger
@@ -6684,6 +7558,10 @@ class Application {
                 pge: this.pge,
                 qem: this.qem,
                 surfaceManager: this.surfaceManager,
+                weatherSystem: this.weatherSystem,
+                faunaManager: this.faunaManager,
+                cinematicCamera: this.cinematicCamera,
+                echoManager: this.echoManager,
                 audioReactive: this.audioReactive,
                 memoryEchoEngine: this.memoryEchoEngine,
                 inputController: this.inputController,
@@ -6889,13 +7767,41 @@ class Application {
                         }
                         break;
                     case 'surface':
+                    case 'fps':
                         if (this.surfaceManager && this.surfaceManager.update) {
                             this.surfaceManager.update(delta, STATE, this.camera);
+                        }
+                        if (this.weatherSystem && this.weatherSystem.update) {
+                            this.weatherSystem.update(delta, elapsedTime);
+                        }
+                        if (this.faunaManager && this.faunaManager.update) {
+                            this.faunaManager.update(delta, elapsedTime);
+                        }
+                        break;
+                    case 'cinematic':
+                        // Update all systems for cinematic view
+                        if (this.pge && this.pge.updatePhysics) {
+                            this.pge.updatePhysics(delta);
+                        }
+                        if (this.surfaceManager && this.surfaceManager.update) {
+                            this.surfaceManager.update(delta, STATE, this.camera);
+                        }
+                        if (this.weatherSystem && this.weatherSystem.update) {
+                            this.weatherSystem.update(delta, elapsedTime);
+                        }
+                        if (this.faunaManager && this.faunaManager.update) {
+                            this.faunaManager.update(delta, elapsedTime);
+                        }
+                        if (this.cinematicCamera && this.cinematicCamera.update) {
+                            this.cinematicCamera.update(delta);
                         }
                         break;
                     case 'echo':
                         if (this.memoryEchoEngine && this.memoryEchoEngine.update) {
                             this.memoryEchoEngine.update(delta, STATE);
+                        }
+                        if (this.echoManager && this.echoManager.update) {
+                            this.echoManager.update(delta, elapsedTime);
                         }
                         break;
                 }
@@ -7372,9 +8278,13 @@ function _applyMode(mode, systems) {
             if (systems.pge) systems.pge.setVisible(true);
             if (systems.qem) systems.qem.setVisible(true);
             if (systems.audioReactive) systems.audioReactive.setVisible(true);
-            // Hide: Surface, MemoryEcho
+            // Hide: Surface, Weather, Fauna, Echo
             if (systems.surfaceManager) systems.surfaceManager.setVisible(false);
+            if (systems.weatherSystem) systems.weatherSystem.show(false);
+            if (systems.faunaManager) systems.faunaManager.show(false);
             if (systems.memoryEchoEngine) systems.memoryEchoEngine.setVisible(false);
+            if (systems.echoManager) systems.echoManager.show(false);
+            if (systems.cinematicCamera) systems.cinematicCamera.deactivate();
             // Update input controller
             if (systems.inputController) systems.inputController.setMode('orbit');
             break;
@@ -7383,10 +8293,14 @@ function _applyMode(mode, systems) {
         case 'surface':
             // Show: Surface terrain, vegetation, sentinels, motes
             if (systems.surfaceManager) systems.surfaceManager.setVisible(true);
+            if (systems.weatherSystem) systems.weatherSystem.show(true);
+            if (systems.faunaManager) systems.faunaManager.show(true);
             // Fade: Galaxy particles (keep visible but distant)
             if (systems.pge) systems.pge.setVisible(true);
             if (systems.qem) systems.qem.setVisible(false);
             if (systems.audioReactive) systems.audioReactive.setVisible(false);
+            if (systems.echoManager) systems.echoManager.show(false);
+            if (systems.cinematicCamera) systems.cinematicCamera.deactivate();
             if (systems.inputController) {
                 systems.inputController.setMode('fps');
                 systems.inputController.enableSurfacePhysics(true);
@@ -7421,19 +8335,28 @@ function _applyMode(mode, systems) {
             if (systems.pge) systems.pge.setVisible(true);
             if (systems.qem) systems.qem.setVisible(true);
             if (systems.audioReactive) systems.audioReactive.setVisible(true);
-            if (systems.surfaceManager) systems.surfaceManager.setVisible(false);
+            if (systems.surfaceManager) systems.surfaceManager.setVisible(true);
+            if (systems.weatherSystem) systems.weatherSystem.show(true);
+            if (systems.faunaManager) systems.faunaManager.show(true);
             if (systems.memoryEchoEngine) systems.memoryEchoEngine.setVisible(false);
+            if (systems.echoManager) systems.echoManager.show(false);
+            // Activate cinematic camera
+            if (systems.cinematicCamera) systems.cinematicCamera.activate();
             if (systems.inputController) systems.inputController.setMode('cinematic');
             break;
 
         case 'echo':
-            // Show: MemoryEcho visualization
+            // Show: Enhanced Echo Manager visualization
+            if (systems.echoManager) systems.echoManager.activate();
             if (systems.memoryEchoEngine) systems.memoryEchoEngine.setVisible(true);
             // Hide: All other engines
             if (systems.pge) systems.pge.setVisible(false);
             if (systems.qem) systems.qem.setVisible(false);
             if (systems.surfaceManager) systems.surfaceManager.setVisible(false);
+            if (systems.weatherSystem) systems.weatherSystem.show(false);
+            if (systems.faunaManager) systems.faunaManager.show(false);
             if (systems.audioReactive) systems.audioReactive.setVisible(false);
+            if (systems.cinematicCamera) systems.cinematicCamera.deactivate();
             if (systems.inputController) systems.inputController.setMode('echo');
             break;
 
