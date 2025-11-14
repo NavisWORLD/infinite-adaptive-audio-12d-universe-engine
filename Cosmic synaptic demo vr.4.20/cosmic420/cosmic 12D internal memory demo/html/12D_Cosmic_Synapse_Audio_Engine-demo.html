@@ -5512,6 +5512,23 @@
             if (binsEl) binsEl.textContent = JSON.stringify(histogram.slice(0, 5)); // Show first 5 bins as preview
             if (tempEl) tempEl.textContent = entropyState.tempProxy.toFixed(3);
 
+            // DEBUG LOGGING - Monitor entropy metrics
+            if (frameCount % 60 === 0) { // Log every 60 frames (~1 second)
+                console.log('[DEBUG Entropy]', {
+                    entropy12D: entropyState.lastEntropy.toFixed(3),
+                    entropyDisplay: (entropyState.lastEntropy * 1.5).toFixed(3),
+                    tempProxy: entropyState.tempProxy.toFixed(3),
+                    S_velocity: S_velocity.toFixed(3),
+                    S_x12: S_x12.toFixed(3),
+                    particleCount: particles.length,
+                    elementsFound: {
+                        entropyEl: !!entropyEl,
+                        binsEl: !!binsEl,
+                        tempEl: !!tempEl
+                    }
+                });
+            }
+
             // CST v2.0+ additive: Draw entropy trace after updating metrics
             drawEntropyTrace(entropyState.lastEntropy);
         }
@@ -6829,16 +6846,53 @@
             const regimeEl = document.getElementById('chaos-regime');
             const dimEl = document.getElementById('attractor-dimension');
 
-            if (lyEl) lyEl.textContent = lyapunov.toFixed(3);
+            if (lyEl) {
+                lyEl.textContent = lyapunov.toFixed(3);
+                // Add visual feedback when audio is active
+                if (audioRMS > 0.05) {
+                    lyEl.style.color = '#00ff88';
+                    lyEl.style.fontWeight = 'bold';
+                } else {
+                    lyEl.style.color = '#ffffff';
+                    lyEl.style.fontWeight = 'normal';
+                }
+            }
             if (chaosEl) chaosEl.textContent = chaos.toFixed(3);
-            if (regimeEl) regimeEl.textContent = chaosRegime;
-            if (dimEl) dimEl.textContent = attractorDim.toFixed(2);
+            if (regimeEl) {
+                regimeEl.textContent = chaosRegime;
+                // Add visual indicator when audio is active
+                if (audioRMS > 0.05) {
+                    regimeEl.style.color = '#00ff88';
+                } else {
+                    regimeEl.style.color = '#ffffff';
+                }
+            }
+            if (dimEl) {
+                dimEl.textContent = attractorDim.toFixed(2);
+                // Add visual feedback when audio is active
+                if (audioRMS > 0.05) {
+                    dimEl.style.color = '#00ff88';
+                    dimEl.style.fontWeight = 'bold';
+                } else {
+                    dimEl.style.color = '#ffffff';
+                    dimEl.style.fontWeight = 'normal';
+                }
+            }
 
-            // Add visual indicator when audio is active
-            if (regimeEl && audioRMS > 0.05) {
-                regimeEl.style.color = '#00ff88'; // Green when audio is driving the system
-            } else if (regimeEl) {
-                regimeEl.style.color = '#ffffff';
+            // DEBUG LOGGING - Monitor metrics in real-time
+            if (frameCount % 60 === 0) { // Log every 60 frames (~1 second)
+                console.log('[DEBUG Chaos Metrics]', {
+                    audioRMS: audioRMS.toFixed(4),
+                    lyapunov: lyapunov.toFixed(3),
+                    attractorDim: attractorDim.toFixed(2),
+                    chaosRegime: chaosRegime,
+                    particleCount: particles.length,
+                    elementsFound: {
+                        lyEl: !!lyEl,
+                        regimeEl: !!regimeEl,
+                        dimEl: !!dimEl
+                    }
+                });
             }
         }
 
@@ -7104,6 +7158,23 @@
                     freqDetuneEl.style.color = '#ffffff';
                     freqDetuneEl.style.fontWeight = 'normal';
                 }
+            } else {
+                console.warn('[DEBUG Sync] frequency-detuning-live element NOT FOUND in DOM!');
+            }
+
+            // DEBUG LOGGING - Monitor synchronization metrics
+            if (frameCount % 60 === 0) { // Log every 60 frames (~1 second)
+                console.log('[DEBUG Sync Metrics]', {
+                    audioRMS: audioRMS.toFixed(4),
+                    syncR: syncMetric.r.toFixed(3),
+                    frequencyDetuning: frequencyDetuning_LIVE.toExponential(2),
+                    audioSpectralCentroid: audioSpectralCentroid.toFixed(1),
+                    particleCount: particles.length,
+                    elementsFound: {
+                        syncREl: !!syncREl,
+                        freqDetuneEl: !!freqDetuneEl
+                    }
+                });
             }
         }
 
@@ -7227,6 +7298,18 @@
             if (psiOmegaEl) psiOmegaEl.textContent = psiResult.terms.omegaTerm.toFixed(3);
             if (psiPotentialEl) psiPotentialEl.textContent = psiResult.terms.potentialTerm.toFixed(3);
             if (psiTotalEl) psiTotalEl.textContent = psiResult.psiTotal.toFixed(3);
+
+            // DEBUG LOGGING - Monitor Psi breakdown
+            if (frameCount % 60 === 0) { // Log every 60 frames (~1 second)
+                console.log('[DEBUG Psi Breakdown]', {
+                    psiTotal: psiResult.psiTotal.toFixed(3),
+                    energyTerm: psiResult.terms.energyTerm.toFixed(3),
+                    lambdaTerm: psiResult.terms.lambdaTerm.toFixed(3),
+                    velocityIntegral: psiResult.terms.velocityIntegralTerm.toFixed(3),
+                    x12Integral: psiResult.terms.x12IntegralTerm.toFixed(3),
+                    particleCount: particles.length
+                });
+            }
         }
 
         /**
@@ -7301,8 +7384,26 @@
                     causalDensityEl.style.color = '#ffffff';
                     causalDensityEl.style.fontWeight = 'normal';
                 }
+            } else {
+                console.warn('[DEBUG Emergence] causal-density-live element NOT FOUND in DOM!');
             }
             if (hierarchyEl) hierarchyEl.textContent = hierarchyLevels.length;
+
+            // DEBUG LOGGING - Monitor emergence metrics
+            if (frameCount % 60 === 0) { // Log every 60 frames (~1 second)
+                console.log('[DEBUG Emergence Metrics]', {
+                    audioRMS: audioRMS.toFixed(4),
+                    causalDensity: causalDensity_LIVE.toFixed(3),
+                    phi: phi.toFixed(3),
+                    hierarchyLevels: hierarchyLevels.length,
+                    particleCount: particles.length,
+                    elementsFound: {
+                        causalDensityEl: !!causalDensityEl,
+                        phiEl: !!phiEl,
+                        hierarchyEl: !!hierarchyEl
+                    }
+                });
+            }
         }
 
         function animate() {
@@ -7324,12 +7425,13 @@
                     // === DRAW VISUALIZATIONS ===
                     drawFrequencySpectrum();
 
-                    // === UPDATE METRICS ===
+                    // === UPDATE METRICS (EVERY FRAME for live audio responsiveness) ===
                     updateChaosMetrics();
                     updateSynchronizationMetrics();
                     update12DMetrics(); // Update 12D internal state metrics display
                     updateConservationDiagnostics();
                     updatePsiBreakdown();
+                    updateEmergenceMetrics(); // Moved from every 10 frames to every frame for live audio
 
                     // === UPDATE ENTROPY ===
                     if (frameCount % 2 === 0 || frameCount === 0) {
@@ -7368,8 +7470,7 @@
                         syncAnalyzer.recordSynchronizationState();
                         syncAnalyzer.displaySynchronizationMetrics();
 
-                        // Use new updateEmergenceMetrics with audio integration
-                        updateEmergenceMetrics();
+                        // updateEmergenceMetrics() now called every frame above (line 7388)
 
                         updateMemoryVisualization();
                     }
@@ -7383,18 +7484,16 @@
                     }
 
                     // === CST v2.0 COMPLETION: NEW ANALYSIS SYSTEMS ===
-                    // Update chaos measurements every 20 frames
+                    // Update chaos measurements every 20 frames (DISABLED - using updateChaosMetrics() instead)
+                    // The chaos metrics are now updated every frame by updateChaosMetrics() at line 7328
+                    // This prevents conflicting updates that were overwriting the proper 12D Lyapunov calculations
                     if (frameCount % 20 === 0) {
+                        // Still record divergence for internal tracking, but don't update UI
                         const chaosMetrics = chaosMeasurement.recordDivergence();
                         const regime = chaosMeasurement.getChaoticRegime();
 
-                        // Update display if elements exist
-                        const lyapEl = document.getElementById('lyapunov-value');
-                        const regimeEl = document.getElementById('chaos-regime');
-                        const dimEl = document.getElementById('attractor-dimension');
-                        if (lyapEl) lyapEl.textContent = chaosMetrics.lyapunov.toFixed(3);
-                        if (regimeEl) regimeEl.textContent = regime.toUpperCase();
-                        if (dimEl) dimEl.textContent = chaosMetrics.dimension.toFixed(2);
+                        // UI is now updated by updateChaosMetrics() every frame
+                        // This ensures live audio-driven chaos metrics are visible
                     }
 
                     // Update stochastic resonance every 100 frames
