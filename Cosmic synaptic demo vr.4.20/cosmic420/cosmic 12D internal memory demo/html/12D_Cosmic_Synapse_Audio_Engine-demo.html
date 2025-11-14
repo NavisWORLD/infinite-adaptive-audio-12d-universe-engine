@@ -6791,36 +6791,13 @@
 
         // 4) Chaos, Lyapunov, and synchronization displays
         function updateChaosMetrics() {
-            // === STEP 1: Extract LIVE audio feature vectors ===
-            let audioFreqData = [];
+            // === STEP 1: Extract LIVE audio RMS ===
             let audioRMS = 0;
-            let audioSpectralCentroid = 0;
-
             if (analyser && dataArray) {
                 analyser.getByteFrequencyData(dataArray);
-
-                // 12D: frequency/magnitude array creation
-                const sampleRate = audioContext?.sampleRate || 44100;
-                for (let i = 0; i < dataArray.length; i++) {
-                    if (dataArray[i] > 0) {
-                        const freq = i * (sampleRate / 2) / dataArray.length;
-                        const magnitude = dataArray[i] / 255.0;
-                        audioFreqData.push({ frequency: freq, magnitude });
-                    }
-                }
-
-                // Compute RMS energy from audio
                 audioRMS = Math.sqrt(
                     Array.from(dataArray).reduce((sum, val) => sum + (val/255)**2, 0) / dataArray.length
                 );
-
-                // Compute spectral centroid
-                let num = 0, den = 0;
-                audioFreqData.forEach(({ frequency, magnitude }) => {
-                    num += frequency * magnitude;
-                    den += magnitude;
-                });
-                audioSpectralCentroid = den > 0 ? num / den : 0;
             }
 
             const chaos = calculateAudioChaos();
