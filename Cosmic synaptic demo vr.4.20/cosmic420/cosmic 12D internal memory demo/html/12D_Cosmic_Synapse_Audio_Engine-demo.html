@@ -943,12 +943,6 @@
                 <div class="value-display">
                     Attractor Dimension: <span id="attractor-dimension">0.0</span>
                 </div>
-                <div class="value-display" style="border-left: 3px solid #00ff88; padding-left: 10px; background: rgba(0, 255, 136, 0.05); margin-top: 10px;">
-                    <strong>🎵 Live Freq Detuning:</strong> <span id="chaos-frequency-detuning-live">0.00e+0</span> Hz
-                </div>
-                <div class="value-display" style="border-left: 3px solid #00ff88; padding-left: 10px; background: rgba(0, 255, 136, 0.05);">
-                    <strong>🎤 Live Causal Density:</strong> <span id="chaos-causal-density-live">0.000</span>
-                </div>
                 <p class="info-text" style="margin-top: 10px; font-size: 0.85em;">
                     λ > 1.0: chaotic, 0.1 < λ ≤ 1.0: mixed, λ ≤ 0.1: ordered
                 </p>
@@ -6852,43 +6846,7 @@
                 }
             }
 
-            // === STEP 3: ENHANCED - Live Frequency Detuning ===
-            let frequencyDetuning_LIVE = 0;
-            if (audioFreqData.length > 0 && particles.length > 0) {
-                const dominantAudioFreq = audioSpectralCentroid;
-                const particleFreqs = particles.map(p => {
-                    const nu = isFinite(p.nu) ? p.nu : 0;
-                    const x12 = isFinite(p.x12) ? p.x12 : 0;
-                    return nu * (1 + x12 * 0.1);
-                });
-                const avgParticleFreq = particleFreqs.reduce((a, b) => a + b, 0) / particleFreqs.length;
-                const audioInfluence = audioRMS * dominantAudioFreq;
-                frequencyDetuning_LIVE = Math.sqrt(
-                    particleFreqs.reduce((sum, f) => {
-                        const deviation = f - (avgParticleFreq + audioInfluence * 0.001);
-                        return sum + deviation ** 2;
-                    }, 0) / particleFreqs.length
-                );
-            } else if (emergenceDetector && emergenceDetector.computeFrequencyDetuning) {
-                frequencyDetuning_LIVE = emergenceDetector.computeFrequencyDetuning(particles);
-            }
-
-            // === STEP 4: ENHANCED - Live Causal Density ===
-            let causalDensity_LIVE = 0;
-            if (audioRMS > 0.01 && particles.length > 0) {
-                let audioInfluencedCount = 0;
-                particles.forEach(p => {
-                    const dx12 = Math.abs(p.dx12_dt ?? 0);
-                    const psi = Math.abs(p.psi ?? 0);
-                    const isCorrelated = (dx12 > audioRMS * 0.1) && (psi > audioRMS * 0.05);
-                    if (isCorrelated) audioInfluencedCount++;
-                });
-                causalDensity_LIVE = particles.length > 0 ? audioInfluencedCount / particles.length : 0;
-            } else {
-                causalDensity_LIVE = emergenceDetector?.computeCausalDensity(particles) ?? 0;
-            }
-
-            // === STEP 5: Update UI with LIVE values ===
+            // === STEP 3: Update UI with LIVE values ===
             const lyEl = document.getElementById('lyapunov-value');
             const chaosEl = document.getElementById('audio-chaos');
             const regimeEl = document.getElementById('chaos-regime');
@@ -6898,23 +6856,6 @@
             if (chaosEl) chaosEl.textContent = chaos.toFixed(3);
             if (regimeEl) regimeEl.textContent = chaosRegime;
             if (dimEl) dimEl.textContent = attractorDim.toFixed(2);
-
-            // Update new LIVE metrics in Chaos card
-            const freqDetuneEl = document.getElementById('chaos-frequency-detuning-live');
-            const causalDensityEl = document.getElementById('chaos-causal-density-live');
-
-            if (freqDetuneEl) freqDetuneEl.textContent = frequencyDetuning_LIVE.toExponential(2);
-            if (causalDensityEl) {
-                causalDensityEl.textContent = causalDensity_LIVE.toFixed(3);
-                // Visual feedback for audio activity
-                if (audioRMS > 0.05) {
-                    causalDensityEl.style.color = '#00ff88';
-                    causalDensityEl.style.fontWeight = 'bold';
-                } else {
-                    causalDensityEl.style.color = '#ffffff';
-                    causalDensityEl.style.fontWeight = 'normal';
-                }
-            }
 
             // Add visual indicator when audio is active
             if (regimeEl && audioRMS > 0.05) {
@@ -7175,8 +7116,18 @@
             if (rOmegaEl && syncMetric.R_omega !== undefined) rOmegaEl.textContent = syncMetric.R_omega.toFixed(3);
             if (rPsiEl && syncMetric.R_psi !== undefined) rPsiEl.textContent = syncMetric.R_psi.toFixed(3);
 
-            // Display LIVE frequency detuning
-            if (freqDetuneEl) freqDetuneEl.textContent = frequencyDetuning_LIVE.toExponential(2);
+            // *** CRITICAL: Display LIVE frequency detuning ***
+            if (freqDetuneEl) {
+                freqDetuneEl.textContent = frequencyDetuning_LIVE.toExponential(2);
+                // Visual feedback when audio is active
+                if (audioRMS > 0.05) {
+                    freqDetuneEl.style.color = '#00ff88';
+                    freqDetuneEl.style.fontWeight = 'bold';
+                } else {
+                    freqDetuneEl.style.color = '#ffffff';
+                    freqDetuneEl.style.fontWeight = 'normal';
+                }
+            }
         }
 
         /**
