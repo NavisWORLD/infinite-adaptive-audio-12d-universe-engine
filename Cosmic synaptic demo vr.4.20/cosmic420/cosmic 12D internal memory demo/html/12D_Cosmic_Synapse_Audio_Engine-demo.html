@@ -921,6 +921,83 @@
             </div>
         </div>
 
+        <!-- ♾️ PERPETUAL OPERATION SYSTEM UI -->
+        <div class="grid">
+            <div class="card">
+                <h2>♾️ Perpetual System Status</h2>
+                <div class="stats">
+                    <div class="stat-box">
+                        <div class="stat-label">System Status</div>
+                        <div class="stat-value" id="perpetual-status">ONLINE</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Particles</div>
+                        <div class="stat-value"><span id="perpetual-particle-count">0</span> / <span id="perpetual-particle-max">50</span></div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Total Energy</div>
+                        <div class="stat-value" id="perpetual-total-energy">0</div>
+                    </div>
+                </div>
+                <div class="value-display">
+                    <strong>Healed Particles:</strong> <span id="perpetual-healed-count">0</span>
+                </div>
+                <div class="value-display">
+                    <strong>Energy Injections:</strong> <span id="perpetual-energy-injections">0</span>
+                </div>
+                <div class="value-display">
+                    <strong>Tokens Generated:</strong> <span id="perpetual-token-count">0</span>
+                </div>
+                <div class="value-display">
+                    <strong>Audio Source:</strong> <span id="perpetual-audio-source">Synthetic</span>
+                </div>
+                <p class="info-text">System configured for infinite perpetual operation</p>
+            </div>
+
+            <div class="card">
+                <h2>♾️ Perpetual Operation Settings</h2>
+                <div class="controls">
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox" id="perpetual-auto-regen" checked>
+                            Auto-Regenerate Particles
+                        </label>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox" id="perpetual-energy-inject" checked>
+                            Energy Injection (Anti Heat-Death)
+                        </label>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox" id="perpetual-self-heal" checked>
+                            Self-Healing System
+                        </label>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox" id="perpetual-fallback-audio" checked>
+                            Fallback Audio Generation
+                        </label>
+                    </div>
+                    <div class="control-group">
+                        <label>Min Particles: <span id="perpetual-min-display">5</span></label>
+                        <input type="range" id="perpetual-min" min="1" max="20" value="5" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>Max Particles: <span id="perpetual-max-display">50</span></label>
+                        <input type="range" id="perpetual-max" min="10" max="100" value="50" step="5">
+                    </div>
+                    <div class="control-group">
+                        <label>Energy Injection Rate: <span id="perpetual-inject-rate-display">0.001</span></label>
+                        <input type="range" id="perpetual-inject-rate" min="0" max="0.01" value="0.001" step="0.0001">
+                    </div>
+                </div>
+                <p class="info-text">Control perpetual operation parameters for infinite self-sustaining operation</p>
+            </div>
+        </div>
+
         <div class="alert-box">
             <strong>🔬 System Status:</strong> <span id="system-status">Audio engine offline - Click START MICROPHONE to begin</span><br>
             <strong>📊 Particles:</strong> <span id="particle-count">0</span> active |
@@ -1157,7 +1234,144 @@
         const phi = (1 + Math.sqrt(5)) / 2;
         const h = 6.62607015e-34; // Planck's constant
         const kB = 1.380649e-23; // Boltzmann constant
-        
+
+        // ============================================================================
+        // UNIVERSAL NaN PREVENTION SYSTEM
+        // ============================================================================
+
+        /**
+         * Safe division with fallback - NEVER returns NaN
+         * @param {number} numerator
+         * @param {number} denominator
+         * @param {number} fallback - Default value if division fails
+         * @returns {number} Safe division result or fallback
+         */
+        function safeDivide(numerator, denominator, fallback = 0) {
+            if (!isFinite(numerator) || !isFinite(denominator)) return fallback;
+            if (denominator === 0) return fallback;
+            const result = numerator / denominator;
+            return isFinite(result) ? result : fallback;
+        }
+
+        /**
+         * Safe square root - NEVER returns NaN
+         * @param {number} value
+         * @param {number} fallback
+         * @returns {number}
+         */
+        function safeSqrt(value, fallback = 0) {
+            if (!isFinite(value) || value < 0) return fallback;
+            const result = Math.sqrt(value);
+            return isFinite(result) ? result : fallback;
+        }
+
+        /**
+         * Safe logarithm - NEVER returns NaN
+         * @param {number} value
+         * @param {number} fallback
+         * @returns {number}
+         */
+        function safeLog(value, fallback = 0) {
+            if (!isFinite(value) || value <= 0) return fallback;
+            const result = Math.log(value);
+            return isFinite(result) ? result : fallback;
+        }
+
+        /**
+         * Safe exponential - NEVER returns NaN or Infinity
+         * @param {number} value
+         * @param {number} fallback
+         * @param {number} maxValue - Cap to prevent Infinity
+         * @returns {number}
+         */
+        function safeExp(value, fallback = 1, maxValue = 1e10) {
+            if (!isFinite(value)) return fallback;
+            if (value > 100) return maxValue; // Prevent overflow
+            if (value < -100) return 1e-10; // Prevent underflow
+            const result = Math.exp(value);
+            return isFinite(result) ? Math.min(result, maxValue) : fallback;
+        }
+
+        /**
+         * Safe array average - NEVER returns NaN
+         * @param {Array} arr
+         * @param {number} fallback
+         * @returns {number}
+         */
+        function safeAverage(arr, fallback = 0) {
+            if (!arr || arr.length === 0) return fallback;
+            const validValues = arr.filter(v => isFinite(v));
+            if (validValues.length === 0) return fallback;
+            const sum = validValues.reduce((a, b) => a + b, 0);
+            return sum / validValues.length;
+        }
+
+        /**
+         * Safe value clamping with validation
+         * @param {number} value
+         * @param {number} min
+         * @param {number} max
+         * @param {number} fallback
+         * @returns {number}
+         */
+        function safeClamp(value, min, max, fallback = 0) {
+            if (!isFinite(value)) return fallback;
+            if (!isFinite(min) || !isFinite(max)) return fallback;
+            return Math.max(min, Math.min(max, value));
+        }
+
+        /**
+         * Validate and sanitize particle state - removes ALL NaN/Infinity
+         * @param {Object} particle
+         */
+        function sanitizeParticleState(particle) {
+            // Positions
+            particle.x = isFinite(particle.x) ? particle.x : 0.1;
+            particle.y = isFinite(particle.y) ? particle.y : 0;
+            particle.z = isFinite(particle.z) ? particle.z : 0;
+
+            // Velocities
+            particle.velocity.x = isFinite(particle.velocity.x) ? particle.velocity.x : 0;
+            particle.velocity.y = isFinite(particle.velocity.y) ? particle.velocity.y : 0;
+            particle.velocity.z = isFinite(particle.velocity.z) ? particle.velocity.z : 0;
+
+            // 12D states
+            particle.x12 = safeClamp(particle.x12, -1, 1, 0);
+            particle.m12 = safeClamp(particle.m12, -1, 1, 0);
+            particle.dx12_dt = isFinite(particle.dx12_dt) ? particle.dx12_dt : 0;
+            particle.dm12_dt = isFinite(particle.dm12_dt) ? particle.dm12_dt : 0;
+
+            // Energy values (must be positive)
+            particle.Ec = isFinite(particle.Ec) && particle.Ec > 0 ? particle.Ec : 0.01;
+            particle.energy = isFinite(particle.energy) && particle.energy > 0 ? particle.energy : 0.01;
+            particle.Ugrav = isFinite(particle.Ugrav) ? particle.Ugrav : 0;
+            particle.Udm = isFinite(particle.Udm) ? particle.Udm : 0;
+
+            // Synaptic strength
+            particle.omega = isFinite(particle.omega) && particle.omega >= 0 ? particle.omega : 0;
+
+            // Mass (must be positive)
+            particle.mass = isFinite(particle.mass) && particle.mass > 0 ? particle.mass : 1;
+
+            // Frequency
+            particle.frequency = isFinite(particle.frequency) && particle.frequency > 0 ? particle.frequency : 440;
+
+            // Parameters
+            particle.k_adaptation = isFinite(particle.k_adaptation) && particle.k_adaptation > 0 ? particle.k_adaptation : 0.01;
+            particle.gamma_decay = isFinite(particle.gamma_decay) && particle.gamma_decay > 0 ? particle.gamma_decay : 0.005;
+            particle.alpha_memory = isFinite(particle.alpha_memory) && particle.alpha_memory > 0 ? particle.alpha_memory : 0.1;
+            particle.sigma_similarity = isFinite(particle.sigma_similarity) && particle.sigma_similarity > 0 ? particle.sigma_similarity : 1.0;
+
+            // Accumulators
+            particle.total_x12_variation = isFinite(particle.total_x12_variation) && particle.total_x12_variation >= 0 ? particle.total_x12_variation : 0;
+            particle.total_velocity_integral = isFinite(particle.total_velocity_integral) && particle.total_velocity_integral >= 0 ? particle.total_velocity_integral : 0;
+
+            // Psi
+            particle.psi = isFinite(particle.psi) ? particle.psi : 0;
+        }
+
+        console.log('[PERPETUAL] ✅ NaN Prevention System initialized');
+
         // Audio variables
         let audioContext = null;
         let analyser = null;
@@ -1663,6 +1877,294 @@
 
         // Frequency canvas
         let freqCanvas, freqCtx;
+
+        // ============================================================================
+        // INFINITE PERPETUAL OPERATION SYSTEM
+        // ============================================================================
+
+        const PERPETUAL_CONFIG = {
+            minParticles: 5,              // Never drop below this
+            maxParticles: 50,             // Automatic cap
+            autoRegenerate: true,         // Auto-create particles when low
+            energyInjectionRate: 0.001,   // Continuous energy input (violates conservation for perpetual motion)
+            minSystemEnergy: 100,         // Inject energy if total drops below
+            autoReplicationEnabled: true, // Allow particles to self-replicate
+            minOmegaForLife: 0.001,      // Minimum connectivity to stay alive
+            tokenGenerationInterval: 100, // Generate tokens every 100ms
+            fallbackAudioEnabled: true,   // Generate synthetic audio if no input
+            selfHealingEnabled: true,     // Auto-fix broken states
+            preventHeatDeath: true        // Continuously inject entropy
+        };
+
+        // Perpetual system counters
+        let perpetualStats = {
+            healedCount: 0,
+            energyInjectionsCount: 0,
+            generatedTokensCount: 0
+        };
+
+        /**
+         * Auto-regenerate particles to maintain minimum count
+         * Ensures the system NEVER runs out of particles
+         */
+        function autoRegenerateParticles() {
+            if (!PERPETUAL_CONFIG.autoRegenerate) return;
+
+            const deficit = PERPETUAL_CONFIG.minParticles - particles.length;
+            if (deficit > 0) {
+                console.log(`[PERPETUAL] Auto-regenerating ${deficit} particles to maintain minimum`);
+
+                for (let i = 0; i < deficit; i++) {
+                    // Create particle with random but valid initial state
+                    const offset = Math.random() * 2;
+                    const hue = Math.random() * 360;
+                    const color = new THREE.Color();
+                    color.setHSL(hue / 360, 1.0, 0.5);
+
+                    const particle = new LorenzParticle(
+                        0.1 + offset,
+                        offset,
+                        offset,
+                        color.getHex(),
+                        440 + Math.random() * 880 // Random frequency 440-1320 Hz
+                    );
+
+                    // Give it initial energy to kickstart
+                    particle.Ec = 10 + Math.random() * 40;
+                    particle.energy = particle.Ec;
+
+                    // Random initial internal state
+                    particle.x12 = (Math.random() * 2 - 1) * 0.5; // [-0.5, 0.5]
+                    particle.m12 = particle.x12;
+
+                    particles.push(particle);
+                }
+
+                updateStatus(`Auto-regenerated ${deficit} particles`);
+            }
+
+            // Also cap maximum to prevent infinite growth
+            if (particles.length > PERPETUAL_CONFIG.maxParticles) {
+                // Remove lowest energy particles
+                particles.sort((a, b) => a.Ec - b.Ec);
+                const toRemove = particles.length - PERPETUAL_CONFIG.maxParticles;
+                for (let i = 0; i < toRemove; i++) {
+                    const p = particles.shift();
+                    if (p && p.destroy) p.destroy();
+                }
+                console.log(`[PERPETUAL] Removed ${toRemove} low-energy particles to maintain maximum`);
+            }
+        }
+
+        /**
+         * Inject energy into the system to prevent heat death
+         * Violates energy conservation intentionally for perpetual operation
+         */
+        function injectSystemEnergy() {
+            if (!PERPETUAL_CONFIG.preventHeatDeath || particles.length === 0) return;
+
+            // Calculate total system energy
+            const totalEnergy = particles.reduce((sum, p) => sum + (p.Ec || 0), 0);
+
+            // Inject energy if below minimum
+            if (totalEnergy < PERPETUAL_CONFIG.minSystemEnergy) {
+                const injectionNeeded = PERPETUAL_CONFIG.minSystemEnergy - totalEnergy;
+                const perParticle = injectionNeeded / particles.length;
+
+                particles.forEach(p => {
+                    p.Ec += perParticle;
+                    p.energy += perParticle;
+                });
+
+                perpetualStats.energyInjectionsCount++;
+                console.log(`[PERPETUAL] Injected ${injectionNeeded.toFixed(2)} energy to prevent heat death`);
+            }
+
+            // Continuous small energy injection to all particles
+            particles.forEach(p => {
+                p.Ec += PERPETUAL_CONFIG.energyInjectionRate;
+                p.energy += PERPETUAL_CONFIG.energyInjectionRate;
+            });
+        }
+
+        /**
+         * Self-healing system - detect and fix broken particle states
+         */
+        function selfHealingCheck() {
+            if (!PERPETUAL_CONFIG.selfHealingEnabled || particles.length === 0) return;
+
+            let healedCount = 0;
+
+            particles.forEach(particle => {
+                let wasHealed = false;
+
+                // Check for NaN/Infinity in critical values
+                const criticalChecks = [
+                    particle.x, particle.y, particle.z,
+                    particle.velocity.x, particle.velocity.y, particle.velocity.z,
+                    particle.x12, particle.m12, particle.Ec, particle.omega
+                ];
+
+                const hasBadValues = criticalChecks.some(v => !isFinite(v));
+
+                if (hasBadValues) {
+                    sanitizeParticleState(particle);
+                    wasHealed = true;
+                }
+
+                // Check for stuck particles (zero velocity for too long)
+                const velocityMag = safeSqrt(
+                    particle.velocity.x ** 2 +
+                    particle.velocity.y ** 2 +
+                    particle.velocity.z ** 2
+                );
+
+                if (velocityMag < 0.001 && particle.Ec < 1) {
+                    // Inject random kick
+                    particle.velocity.x += (Math.random() - 0.5) * 0.1;
+                    particle.velocity.y += (Math.random() - 0.5) * 0.1;
+                    particle.velocity.z += (Math.random() - 0.5) * 0.1;
+                    particle.Ec += 5;
+                    wasHealed = true;
+                }
+
+                // Check for dead internal state
+                if (Math.abs(particle.x12) < 0.001 && Math.abs(particle.dx12_dt) < 0.001) {
+                    // Nudge internal state
+                    particle.x12 += (Math.random() - 0.5) * 0.1;
+                    wasHealed = true;
+                }
+
+                if (wasHealed) healedCount++;
+            });
+
+            if (healedCount > 0) {
+                perpetualStats.healedCount += healedCount;
+                console.log(`[PERPETUAL] Self-healed ${healedCount} particles`);
+            }
+        }
+
+        /**
+         * Generate synthetic audio when no microphone input
+         * Ensures continuous brain data production
+         */
+        function generateFallbackAudio() {
+            if (!PERPETUAL_CONFIG.fallbackAudioEnabled) return;
+            if (isAudioActive) return; // Don't override real audio
+
+            // Generate synthetic frequency data based on current particle states
+            const syntheticFrequencyData = [];
+
+            // Use particle frequencies to generate synthetic spectrum
+            particles.forEach((p, idx) => {
+                if (idx < 20) { // Top 20 particles
+                    syntheticFrequencyData.push({
+                        frequency: p.frequency || (440 + idx * 50),
+                        magnitude: 0.3 + Math.random() * 0.4,
+                        phase: p.theta || 0
+                    });
+                }
+            });
+
+            // Add some base frequencies for richness
+            if (syntheticFrequencyData.length < 10) {
+                for (let i = 0; i < 10; i++) {
+                    syntheticFrequencyData.push({
+                        frequency: 200 + i * 150,
+                        magnitude: 0.2 + Math.random() * 0.3,
+                        phase: Math.random() * Math.PI * 2
+                    });
+                }
+            }
+
+            // Update global frequency data
+            frequencyData = syntheticFrequencyData;
+
+            // Calculate synthetic audio energy
+            audioEnergy = safeAverage(syntheticFrequencyData.map(f => f.magnitude), 0.5);
+        }
+
+        /**
+         * Forced token generation - ensures continuous cognitive output
+         */
+        function forceContinuousTokenGeneration() {
+            if (particles.length === 0) return;
+
+            // Find most active particle
+            let maxEnergyParticle = particles[0];
+            particles.forEach(p => {
+                if ((p.Ec || 0) > (maxEnergyParticle.Ec || 0)) {
+                    maxEnergyParticle = p;
+                }
+            });
+
+            // Generate token from most active particle
+            const token = {
+                id: nextDeterministicId ? nextDeterministicId() : `token_${Date.now()}_${Math.random()}`,
+                type: 'perpetual_cognitive_output',
+                timestamp: Date.now() / 1000,
+                particleId: maxEnergyParticle.id,
+                frequency: maxEnergyParticle.frequency || 440,
+                energy: maxEnergyParticle.Ec || 0,
+                x12_state: maxEnergyParticle.x12 || 0,
+                m12_memory: maxEnergyParticle.m12 || 0,
+                omega: maxEnergyParticle.omega || 0,
+                psi: maxEnergyParticle.psi || 0,
+                position: [maxEnergyParticle.x, maxEnergyParticle.y, maxEnergyParticle.z],
+                audioActive: isAudioActive
+            };
+
+            // Add to token stream
+            tokens.push(token);
+            perpetualStats.generatedTokensCount++;
+        }
+
+        // Set up perpetual token generation timer
+        let perpetualTokenTimer = null;
+        function startPerpetualTokenGeneration() {
+            if (perpetualTokenTimer) clearInterval(perpetualTokenTimer);
+
+            perpetualTokenTimer = setInterval(() => {
+                if (particles.length > 0) {
+                    forceContinuousTokenGeneration();
+                }
+            }, PERPETUAL_CONFIG.tokenGenerationInterval);
+
+            console.log('[PERPETUAL] Continuous token generation started');
+        }
+
+        /**
+         * Update perpetual system status display
+         */
+        function updatePerpetualStatus() {
+            const statusEl = document.getElementById('perpetual-status');
+            const countEl = document.getElementById('perpetual-particle-count');
+            const maxEl = document.getElementById('perpetual-particle-max');
+            const energyEl = document.getElementById('perpetual-total-energy');
+            const audioSourceEl = document.getElementById('perpetual-audio-source');
+            const healedEl = document.getElementById('perpetual-healed-count');
+            const injectionsEl = document.getElementById('perpetual-energy-injections');
+            const tokensEl = document.getElementById('perpetual-token-count');
+
+            if (statusEl) statusEl.textContent = particles.length > 0 ? 'ONLINE' : 'REGENERATING';
+            if (countEl) countEl.textContent = particles.length;
+            if (maxEl) maxEl.textContent = PERPETUAL_CONFIG.maxParticles;
+
+            if (energyEl) {
+                const totalEnergy = particles.reduce((sum, p) => sum + (p.Ec || 0), 0);
+                energyEl.textContent = totalEnergy.toFixed(2);
+            }
+
+            if (audioSourceEl) {
+                audioSourceEl.textContent = isAudioActive ? 'Microphone' : 'Synthetic';
+            }
+
+            if (healedEl) healedEl.textContent = perpetualStats.healedCount;
+            if (injectionsEl) injectionsEl.textContent = perpetualStats.energyInjectionsCount;
+            if (tokensEl) tokensEl.textContent = perpetualStats.generatedTokensCount;
+        }
+
+        console.log('[PERPETUAL] ✅ Perpetual Operation System initialized');
 
         // ============================================================================
         // LEARNED EMBEDDING PROJECTION SYSTEM (NEW)
@@ -2943,6 +3445,10 @@
             }
 
             update(audioModulation = 1.0, gravAcceleration = null) {
+                // === NaN PREVENTION ===
+                sanitizeParticleState(this);
+                audioModulation = isFinite(audioModulation) && audioModulation > 0 ? audioModulation : 1.0;
+
                 // Audio-modulated Lorenz equations
                 const effectiveSigma = sigma * (1 + audioModulation * 0.5);
                 const effectiveRho = rho * (1 + audioModulation * 0.3);
@@ -3028,6 +3534,9 @@
 
                 // Check for replication
                 this.checkReplication();
+
+                // === POST-UPDATE NaN CHECK ===
+                sanitizeParticleState(this);
 
                 return { dx, dy, dz };
             }
@@ -3361,24 +3870,34 @@
                     // Ω_ij = (G·mᵢ·mⱼ)/(r_ij²·a₀·m₀) · exp(-(x₁₂,ᵢ - x₁₂,ⱼ)²/(2σ²))
 
                     // Gravitational coupling (normalized to be dimensionless)
-                    const gravTerm = (physics.G * pi.mass * pj.mass) / (r_eff2 * physics.a0 * physics.m0);
+                    // Use safe division to prevent NaN
+                    const mi = isFinite(pi.mass) && pi.mass > 0 ? pi.mass : 1;
+                    const mj = isFinite(pj.mass) && pj.mass > 0 ? pj.mass : 1;
+                    const gravTerm = safeDivide(
+                        physics.G * mi * mj,
+                        r_eff2 * physics.a0 * physics.m0,
+                        0
+                    );
 
-                    // Gaussian similarity measure (Hebbian-like: "neurons that fire together, wire together")
-                    // Use particle-specific sigma_similarity (fallback to global adapt parameter)
+                    // Gaussian similarity measure
                     const sigma = pi.sigma_similarity || adapt.sigmaSimilarity || 1.0;
-                    const x12Diff = pi.x12 - pj.x12;
-                    const similarity = Math.exp(-(x12Diff * x12Diff) / (2 * sigma * sigma));
+                    const x12_i = isFinite(pi.x12) ? pi.x12 : 0;
+                    const x12_j = isFinite(pj.x12) ? pj.x12 : 0;
+                    const x12Diff = x12_i - x12_j;
+                    const sigmaSq = sigma * sigma;
+                    const expArg = safeDivide(-(x12Diff * x12Diff), 2 * sigmaSq, 0);
+                    const similarity = safeExp(expArg, 1, 1);
 
                     // Combined synaptic strength
                     const omega_ij = gravTerm * similarity;
 
                     // Validate result
-                    if (isFinite(omega_ij)) {
+                    if (isFinite(omega_ij) && omega_ij >= 0) {
                         omegaSum += omega_ij;
                     }
                 });
 
-                pi.omega = omegaSum;
+                pi.omega = isFinite(omegaSum) && omegaSum >= 0 ? omegaSum : 0;
             });
         }
 
@@ -3749,28 +4268,32 @@
          */
         function computeParticlePsi(particle, phi = 1.618033988749895, c = 3.0e8) {
             // Term 1: φ·Ec/c² (mass-energy equivalence term scaled by golden ratio)
-            const term1 = (phi * particle.Ec) / (c * c);
+            const Ec = isFinite(particle.Ec) && particle.Ec > 0 ? particle.Ec : 0.01;
+            const term1 = safeDivide(phi * Ec, c * c, 0);
 
             // Term 2: λ (cosmological constant / chaos term - normalized)
-            const lambda_normalized = (particle.lambda || 0) / 1e-52; // Normalize to reasonable scale
-            const term2 = lambda_normalized;
+            const lambda = isFinite(particle.lambda) ? particle.lambda : 0;
+            const term2 = safeDivide(lambda, 1e-52, 0);
 
             // Term 3: ∫||v||dt (integrated 11D velocity - cumulative path)
-            const term3 = particle.total_velocity_integral || 0;
+            const term3 = isFinite(particle.total_velocity_integral) ? particle.total_velocity_integral : 0;
 
             // Term 4: ∫|Δx₁₂|dt (total variation of internal state - NEW IN 12D)
-            const term4 = particle.total_x12_variation || 0;
+            const term4 = isFinite(particle.total_x12_variation) ? particle.total_x12_variation : 0;
 
             // Term 5: Ω·Ec (synaptic interaction term)
-            const term5 = (particle.omega || 0) * particle.Ec;
+            const omega = isFinite(particle.omega) ? particle.omega : 0;
+            const term5 = omega * Ec;
 
             // Term 6: Ugrav + Udm (gravitational + dark matter potential)
-            const term6 = (particle.Ugrav || 0) + (particle.Udm || 0);
+            const Ugrav = isFinite(particle.Ugrav) ? particle.Ugrav : 0;
+            const Udm = isFinite(particle.Udm) ? particle.Udm : 0;
+            const term6 = Ugrav + Udm;
 
             // Combine all terms
             const psi = term1 + term2 + term3 + term4 + term5 + term6;
 
-            // Validate result
+            // Validate result - NEVER allow NaN
             return isFinite(psi) ? psi : 0;
         }
 
@@ -3786,16 +4309,23 @@
 
             let numerator = 0;
             let denominator = 0;
+            let validCount = 0;
 
             frequencyData.forEach(data => {
-                const freq = data.frequency || 0;
-                const mag = data.magnitude || 0;
-                numerator += freq * mag;
-                denominator += mag;
+                const freq = isFinite(data.frequency) && data.frequency > 0 ? data.frequency : 0;
+                const mag = isFinite(data.magnitude) && data.magnitude >= 0 ? data.magnitude : 0;
+
+                if (freq > 0 && mag > 0) {
+                    numerator += freq * mag;
+                    denominator += mag;
+                    validCount++;
+                }
             });
 
-            if (denominator === 0) return 1000;
-            return numerator / denominator;
+            if (validCount === 0 || denominator === 0) return 1000;
+
+            const centroid = safeDivide(numerator, denominator, 1000);
+            return safeClamp(centroid, 20, 20000, 1000); // Human hearing range
         }
 
         /**
@@ -5501,7 +6031,18 @@
         
         // 2) Lorenz attractor particle animation update
         function updateLorenzParticles() {
-            if (particles.length === 0 || isPaused) return;
+            if (isPaused) return;
+
+            // === PERPETUAL OPERATION SYSTEMS ===
+            autoRegenerateParticles();      // Maintain minimum particle count
+            injectSystemEnergy();            // Prevent heat death
+            selfHealingCheck();              // Fix broken states
+            generateFallbackAudio();         // Synthetic audio if no input
+
+            // Validate all particles before processing
+            particles.forEach(p => sanitizeParticleState(p));
+
+            if (particles.length === 0) return;
 
             // Adaptive dt is updated in animate() before this call
             const spatialIndex = buildSpatialIndex(particles, physics.rCutoff);
@@ -5591,6 +6132,23 @@
             // UI updates throttled
             if (frameCount % Math.floor(60 / Math.max(timestep.dt, 0.01)) === 0) {
                 updateAdvancedUI(consStats, virial, psiResult, syncMetric);
+            }
+
+            // === POST-UPDATE VALIDATION ===
+            // Ensure no NaN leaked through
+            particles.forEach(p => {
+                sanitizeParticleState(p);
+
+                // Extra check for psi
+                if (!isFinite(p.psi)) {
+                    p.psi = 0;
+                    console.warn('[NaN-GUARD] Reset invalid psi for particle', p.id.substring(0, 8));
+                }
+            });
+
+            // Update perpetual system status display (every 60 frames)
+            if (frameCount % 60 === 0) {
+                updatePerpetualStatus();
             }
         }
         
@@ -6604,6 +7162,72 @@
                 updateStatus(`Token display limit set to ${audioConfig.tokenDisplayLimit}`);
             });
         }
+
+        // ============================================================================
+        // PERPETUAL OPERATION SYSTEM EVENT LISTENERS
+        // ============================================================================
+
+        // Perpetual operation controls
+        const perpetualAutoRegenEl = document.getElementById('perpetual-auto-regen');
+        if (perpetualAutoRegenEl) {
+            perpetualAutoRegenEl.addEventListener('change', (e) => {
+                PERPETUAL_CONFIG.autoRegenerate = e.target.checked;
+                console.log('[PERPETUAL] Auto-regenerate:', PERPETUAL_CONFIG.autoRegenerate);
+            });
+        }
+
+        const perpetualEnergyInjectEl = document.getElementById('perpetual-energy-inject');
+        if (perpetualEnergyInjectEl) {
+            perpetualEnergyInjectEl.addEventListener('change', (e) => {
+                PERPETUAL_CONFIG.preventHeatDeath = e.target.checked;
+                console.log('[PERPETUAL] Energy injection:', PERPETUAL_CONFIG.preventHeatDeath);
+            });
+        }
+
+        const perpetualSelfHealEl = document.getElementById('perpetual-self-heal');
+        if (perpetualSelfHealEl) {
+            perpetualSelfHealEl.addEventListener('change', (e) => {
+                PERPETUAL_CONFIG.selfHealingEnabled = e.target.checked;
+                console.log('[PERPETUAL] Self-healing:', PERPETUAL_CONFIG.selfHealingEnabled);
+            });
+        }
+
+        const perpetualFallbackAudioEl = document.getElementById('perpetual-fallback-audio');
+        if (perpetualFallbackAudioEl) {
+            perpetualFallbackAudioEl.addEventListener('change', (e) => {
+                PERPETUAL_CONFIG.fallbackAudioEnabled = e.target.checked;
+                console.log('[PERPETUAL] Fallback audio:', PERPETUAL_CONFIG.fallbackAudioEnabled);
+            });
+        }
+
+        const perpetualMinEl = document.getElementById('perpetual-min');
+        if (perpetualMinEl) {
+            perpetualMinEl.addEventListener('input', (e) => {
+                PERPETUAL_CONFIG.minParticles = parseInt(e.target.value);
+                const displayEl = document.getElementById('perpetual-min-display');
+                if (displayEl) displayEl.textContent = PERPETUAL_CONFIG.minParticles;
+            });
+        }
+
+        const perpetualMaxEl = document.getElementById('perpetual-max');
+        if (perpetualMaxEl) {
+            perpetualMaxEl.addEventListener('input', (e) => {
+                PERPETUAL_CONFIG.maxParticles = parseInt(e.target.value);
+                const displayEl = document.getElementById('perpetual-max-display');
+                if (displayEl) displayEl.textContent = PERPETUAL_CONFIG.maxParticles;
+            });
+        }
+
+        const perpetualInjectRateEl = document.getElementById('perpetual-inject-rate');
+        if (perpetualInjectRateEl) {
+            perpetualInjectRateEl.addEventListener('input', (e) => {
+                PERPETUAL_CONFIG.energyInjectionRate = parseFloat(e.target.value);
+                const displayEl = document.getElementById('perpetual-inject-rate-display');
+                if (displayEl) displayEl.textContent = PERPETUAL_CONFIG.energyInjectionRate.toFixed(4);
+            });
+        }
+
+        console.log('[PERPETUAL] ✅ Event listeners initialized');
 
         // Recording and replay functions
         function toggleRecording() {
@@ -9024,6 +9648,14 @@
             initializeUIDisplays(); // CST v2.0: Set all initial display values
             drawNfwProfile(dmParams.rho0, dmParams.rs); // NEW: Draw initial NFW profile
             updatePsi(0);
+
+            // === PERPETUAL OPERATION SYSTEM INITIALIZATION ===
+            console.log('[PERPETUAL] Initializing infinite operation systems...');
+            startPerpetualTokenGeneration();
+            autoRegenerateParticles(); // Ensure we always have particles
+            console.log('[PERPETUAL] Systems online - infinite operation enabled');
+            console.log('[PERPETUAL] Configuration:', PERPETUAL_CONFIG);
+
             updateStatus('🎤 System ready - Click START MICROPHONE for continuous audio→token generation pipeline');
 
             // ============================================================================
