@@ -631,7 +631,19 @@
                         <span id="sync-std-theta" style="display:none;">0.0°</span>
                     </div>
                 </div>
-                <p class="info-text">r=1: fully synchronized, r=0: no synchronization</p>
+                <div class="value-display" style="margin-top: 10px;">
+                    <strong>12D Frequency Sync (R_freq):</strong> <span id="sync-r-freq">0.000</span>
+                </div>
+                <div class="value-display">
+                    <strong>Omega Coherence (R_ω):</strong> <span id="sync-r-omega">0.000</span>
+                </div>
+                <div class="value-display">
+                    <strong>Psi Phase Lock (R_ψ):</strong> <span id="sync-r-psi">0.000</span>
+                </div>
+                <div class="value-display">
+                    <strong>x₁₂ Clustering:</strong> <span id="sync-x12-cluster">0.000</span>
+                </div>
+                <p class="info-text">r=1: fully synchronized, r=0: no synchronization | 12D metrics show quantum correlations</p>
             </div>
 
             <div class="card">
@@ -2493,27 +2505,71 @@
             }
 
             recordEnergyState() {
-                let kineticEnergy = 0;
-                let potentialEnergy = 0;
-                let chaosEnergy = 0;
-                let darkMatterEnergy = 0;
+                // ============================================================================
+                // 12D QUANTUM ENERGY BUDGET - CST ULTIMATE ENHANCEMENT
+                // Tracks: 3D kinetic, 12D kinetic, gravitational, dark matter,
+                //         quantum potential, synaptic coupling, frequency, chaos
+                // ============================================================================
+
+                let kinetic3D = 0;          // Traditional 3D kinetic energy
+                let kinetic12D = 0;         // 12D kinetic energy (from dx12_dt)
+                let potentialEnergy = 0;    // Gravitational potential
+                let darkMatterEnergy = 0;   // Dark matter potential
+                let quantumEnergy = 0;      // Quantum potential (psi-related)
+                let synapticEnergy = 0;     // Synaptic coupling (omega)
+                let frequencyEnergy = 0;    // Planck energy (h * nu)
+                let chaosEnergy = 0;        // Chaos/entropy energy
+
+                const h = 6.62607015e-34;   // Planck constant
 
                 particles.forEach(p => {
+                    // 1) 3D Kinetic Energy: (1/2) m v²
                     const v2 = p.velocity.x**2 + p.velocity.y**2 + p.velocity.z**2;
-                    kineticEnergy += 0.5 * p.mass * v2;
+                    kinetic3D += 0.5 * p.mass * v2;
+
+                    // 2) 12D Kinetic Energy: (1/2) m12 (dx12/dt)²
+                    const m12 = isFinite(p.m12) ? Math.abs(p.m12) : 0.1;
+                    const dx12_dt = isFinite(p.dx12_dt) ? p.dx12_dt : 0;
+                    kinetic12D += 0.5 * m12 * dx12_dt * dx12_dt;
+
+                    // 3) Gravitational Potential
                     potentialEnergy += (p.Ugrav || 0);
-                    chaosEnergy += (p.chaos || 0) * p.mass;
+
+                    // 4) Dark Matter Potential
                     darkMatterEnergy += (p.Udm || 0);
+
+                    // 5) Quantum Potential: ∫|Δx12| * psi (accumulated over particle history)
+                    const x12 = isFinite(p.x12) ? p.x12 : 0;
+                    const psi = isFinite(p.psi) ? Math.abs(p.psi) : 0;
+                    const x12Integral = isFinite(p.x12Integral) ? p.x12Integral : Math.abs(x12);
+                    quantumEnergy += x12Integral * psi * 0.01; // Scale factor
+
+                    // 6) Synaptic Coupling Energy: Σ omega_ij
+                    const omega = isFinite(p.omega) ? Math.abs(p.omega) : 0;
+                    synapticEnergy += omega * 0.1; // Scale factor
+
+                    // 7) Frequency Energy: h * nu (Planck relation)
+                    const nu = isFinite(p.nu) ? Math.abs(p.nu) : 0;
+                    frequencyEnergy += h * nu;
+
+                    // 8) Chaos/Entropy Energy
+                    chaosEnergy += (p.chaos || 0) * p.mass;
                 });
 
-                const totalEnergy = kineticEnergy + potentialEnergy + chaosEnergy + darkMatterEnergy;
+                const totalEnergy = kinetic3D + kinetic12D + potentialEnergy +
+                                    darkMatterEnergy + quantumEnergy + synapticEnergy +
+                                    frequencyEnergy + chaosEnergy;
 
                 const record = {
                     timestamp: Date.now(),
-                    kinetic: kineticEnergy,
+                    kinetic3D,
+                    kinetic12D,
                     potential: potentialEnergy,
-                    chaos: chaosEnergy,
                     darkMatter: darkMatterEnergy,
+                    quantum: quantumEnergy,
+                    synaptic: synapticEnergy,
+                    frequency: frequencyEnergy,
+                    chaos: chaosEnergy,
                     total: totalEnergy,
                     particleCount: particles.length
                 };
@@ -2533,14 +2589,22 @@
                 const total = Math.abs(latest.total) || 1;
 
                 return {
-                    kineticPercent: (Math.abs(latest.kinetic) / total * 100).toFixed(1),
+                    kinetic3DPercent: (Math.abs(latest.kinetic3D) / total * 100).toFixed(1),
+                    kinetic12DPercent: (Math.abs(latest.kinetic12D) / total * 100).toFixed(1),
                     potentialPercent: (Math.abs(latest.potential) / total * 100).toFixed(1),
-                    chaosPercent: (Math.abs(latest.chaos) / total * 100).toFixed(1),
                     darkMatterPercent: (Math.abs(latest.darkMatter) / total * 100).toFixed(1),
-                    absoluteKinetic: latest.kinetic.toExponential(2),
+                    quantumPercent: (Math.abs(latest.quantum) / total * 100).toFixed(1),
+                    synapticPercent: (Math.abs(latest.synaptic) / total * 100).toFixed(1),
+                    frequencyPercent: (Math.abs(latest.frequency) / total * 100).toFixed(1),
+                    chaosPercent: (Math.abs(latest.chaos) / total * 100).toFixed(1),
+                    absoluteKinetic3D: latest.kinetic3D.toExponential(2),
+                    absoluteKinetic12D: latest.kinetic12D.toExponential(2),
                     absolutePotential: latest.potential.toExponential(2),
-                    absoluteChaos: latest.chaos.toExponential(2),
-                    absoluteDarkMatter: latest.darkMatter.toExponential(2)
+                    absoluteDarkMatter: latest.darkMatter.toExponential(2),
+                    absoluteQuantum: latest.quantum.toExponential(2),
+                    absoluteSynaptic: latest.synaptic.toExponential(2),
+                    absoluteFrequency: latest.frequency.toExponential(2),
+                    absoluteChaos: latest.chaos.toExponential(2)
                 };
             }
 
@@ -2548,13 +2612,17 @@
                 const budget = this.getEnergyBudget();
                 if (!budget) return;
 
-                let html = '<h4>Energy Budget Breakdown</h4>';
-                html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">';
+                let html = '<h4>12D Quantum Energy Budget</h4>';
+                html += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9em;">';
 
-                html += `<div>Kinetic: <strong>${budget.kineticPercent}%</strong><br><small>${budget.absoluteKinetic} J</small></div>`;
-                html += `<div>Potential: <strong>${budget.potentialPercent}%</strong><br><small>${budget.absolutePotential} J</small></div>`;
-                html += `<div>Chaos: <strong>${budget.chaosPercent}%</strong><br><small>${budget.absoluteChaos} J</small></div>`;
+                html += `<div>3D Kinetic: <strong>${budget.kinetic3DPercent}%</strong><br><small>${budget.absoluteKinetic3D} J</small></div>`;
+                html += `<div>12D Kinetic: <strong>${budget.kinetic12DPercent}%</strong><br><small>${budget.absoluteKinetic12D} J</small></div>`;
+                html += `<div>Gravitational: <strong>${budget.potentialPercent}%</strong><br><small>${budget.absolutePotential} J</small></div>`;
                 html += `<div>Dark Matter: <strong>${budget.darkMatterPercent}%</strong><br><small>${budget.absoluteDarkMatter} J</small></div>`;
+                html += `<div>Quantum (ψ): <strong>${budget.quantumPercent}%</strong><br><small>${budget.absoluteQuantum} J</small></div>`;
+                html += `<div>Synaptic (Ω): <strong>${budget.synapticPercent}%</strong><br><small>${budget.absoluteSynaptic} J</small></div>`;
+                html += `<div>Frequency (hν): <strong>${budget.frequencyPercent}%</strong><br><small>${budget.absoluteFrequency} J</small></div>`;
+                html += `<div>Chaos/Entropy: <strong>${budget.chaosPercent}%</strong><br><small>${budget.absoluteChaos} J</small></div>`;
 
                 html += '</div>';
 
@@ -2578,68 +2646,167 @@
             computeKuramotoOrderParameter(particleArray, timescale = 1) {
                 if (particleArray.length < 2) return 0;
 
+                // ============================================================================
+                // 12D-ENHANCED KURAMOTO ORDER PARAMETER - CST ULTIMATE
+                // Combined phase: theta + (x12 * 2π) + (nu * t)
+                // ============================================================================
+
                 let sumSin = 0, sumCos = 0;
 
                 particleArray.forEach(p => {
-                    // Phase derived from frequency and position
-                    const phase = (2 * Math.PI * (p.nu || 0) * timescale) +
-                                Math.atan2(p.y, p.x);
+                    // 12D Quantum Phase Combination
+                    const theta = isFinite(p.theta) ? p.theta : 0;
+                    const x12 = isFinite(p.x12) ? p.x12 : 0;
+                    const nu = isFinite(p.nu) ? p.nu : 0;
+
+                    // Combined phase from:
+                    // 1) Kuramoto phase (theta)
+                    // 2) 12D position contribution (x12 * 2π)
+                    // 3) Frequency evolution (nu * timescale * 1e-18 for scaling)
+                    const phase = theta +
+                                  (x12 * 2 * Math.PI) +
+                                  (nu * timescale * 1e-18); // Scale frequency to reasonable range
+
                     sumSin += Math.sin(phase);
                     sumCos += Math.cos(phase);
                 });
 
-                const orderParam = Math.sqrt(sumSin**2 + sumCos**2) / particleArray.length;
-                return Math.min(1, orderParam); // Clamp to [0, 1]
+                const orderParam = safeSqrt(sumSin**2 + sumCos**2, 0) / particleArray.length;
+                return safeClamp(orderParam, 0, 1, 0);
             }
 
             detectChimeras(particleArray) {
-                // Partition particles by frequency
-                const frequencyGroups = {};
+                // ============================================================================
+                // 12D CHIMERA DETECTION - CST ULTIMATE ENHANCEMENT
+                // Partition by x12 ranges: [-1, -0.5], [-0.5, 0], [0, 0.5], [0.5, 1]
+                // ============================================================================
+
+                if (particleArray.length < 4) {
+                    return { hasChimeraStates: false, chimeraMeasure: 0 };
+                }
+
+                // Partition particles by 12D position (x12 subspaces)
+                const x12Groups = {
+                    'x12_neg_high': [],   // [-1, -0.5]
+                    'x12_neg_low': [],    // [-0.5, 0]
+                    'x12_pos_low': [],    // [0, 0.5]
+                    'x12_pos_high': []    // [0.5, 1]
+                };
 
                 particleArray.forEach(p => {
-                    const freqBucket = Math.round((p.nu || 0) / 1e18).toString();
-                    if (!frequencyGroups[freqBucket]) {
-                        frequencyGroups[freqBucket] = [];
+                    const x12 = isFinite(p.x12) ? p.x12 : 0;
+
+                    if (x12 < -0.5) {
+                        x12Groups.x12_neg_high.push(p);
+                    } else if (x12 < 0) {
+                        x12Groups.x12_neg_low.push(p);
+                    } else if (x12 < 0.5) {
+                        x12Groups.x12_pos_low.push(p);
+                    } else {
+                        x12Groups.x12_pos_high.push(p);
                     }
-                    frequencyGroups[freqBucket].push(p);
                 });
 
-                // Check for partial synchronization (chimera state indicator)
+                // Calculate order parameter for each 12D subspace
                 const chimeraIndicators = [];
-                Object.values(frequencyGroups).forEach(group => {
-                    if (group.length > 2) {
+                const groupOrders = [];
+
+                Object.values(x12Groups).forEach(group => {
+                    if (group.length > 1) {
                         const orderParam = this.computeKuramotoOrderParameter(group);
                         chimeraIndicators.push(orderParam);
+                        groupOrders.push(orderParam);
                     }
                 });
 
+                // Chimera state: vastly different order parameters across groups
+                // Calculate variance of group order parameters
+                let hasChimera = false;
+                if (groupOrders.length >= 2) {
+                    const meanOrder = safeAverage(groupOrders);
+                    let variance = 0;
+                    groupOrders.forEach(o => {
+                        variance += (o - meanOrder) ** 2;
+                    });
+                    variance /= groupOrders.length;
+
+                    // Chimera detected if variance is significant (groups have very different sync)
+                    hasChimera = variance > 0.05 && groupOrders.some(o => o > 0.3 && o < 0.7);
+                }
+
+                const chimeraMeasure = chimeraIndicators.length > 0 ?
+                    safeAverage(chimeraIndicators) : 0;
+
                 return {
-                    hasChimeraStates: chimeraIndicators.some(o => o > 0.3 && o < 0.7),
-                    chimeraMeasure: chimeraIndicators.length > 0 ?
-                        chimeraIndicators.reduce((a,b) => a+b, 0) / chimeraIndicators.length : 0
+                    hasChimeraStates: hasChimera,
+                    chimeraMeasure: chimeraMeasure
                 };
             }
 
             computeFrequencyDetuning(particleArray) {
                 if (particleArray.length < 2) return 0;
 
-                const frequencies = particleArray.map(p => p.nu || 0);
-                const meanFreq = frequencies.reduce((a,b) => a+b, 0) / frequencies.length;
-                const detuning = frequencies.reduce((sum, f) => sum + (f - meanFreq)**2, 0) / frequencies.length;
+                // ============================================================================
+                // 12D-ENHANCED FREQUENCY DETUNING - CST ULTIMATE
+                // Δω_12D = sqrt(<(nu * (1 + x12) - <nu * (1 + x12)>)²>)
+                // ============================================================================
 
-                return Math.sqrt(detuning);
+                const modFrequencies = particleArray.map(p => {
+                    const nu = isFinite(p.nu) ? Math.abs(p.nu) : 0;
+                    const x12 = isFinite(p.x12) ? p.x12 : 0;
+                    return nu * (1 + x12); // 12D modulated frequency
+                });
+
+                const meanModFreq = safeAverage(modFrequencies);
+
+                let detuningSum = 0;
+                modFrequencies.forEach(f => {
+                    const diff = f - meanModFreq;
+                    detuningSum += diff * diff;
+                });
+
+                const detuning = safeDivide(detuningSum, particleArray.length, 0);
+                return safeSqrt(detuning, 0);
+            }
+
+            computePsiCoherence(particleArray) {
+                // ============================================================================
+                // PSI COHERENCE MEASURE - CST ULTIMATE
+                // Coherence = 1 - std(psi) / mean(|psi|)
+                // ============================================================================
+
+                if (particleArray.length < 2) return 0;
+
+                const psiValues = particleArray.map(p => {
+                    return isFinite(p.psi) ? Math.abs(p.psi) : 0;
+                });
+
+                const meanPsi = safeAverage(psiValues);
+
+                let variance = 0;
+                psiValues.forEach(psi => {
+                    const diff = psi - meanPsi;
+                    variance += diff * diff;
+                });
+
+                const stdPsi = safeSqrt(safeDivide(variance, particleArray.length, 0), 0);
+                const coherence = 1 - safeDivide(stdPsi, meanPsi, 0);
+
+                return safeClamp(coherence, 0, 1, 0);
             }
 
             recordSynchronizationState() {
                 const orderParam = this.computeKuramotoOrderParameter(particles);
                 const chimera = this.detectChimeras(particles);
                 const detuning = this.computeFrequencyDetuning(particles);
+                const psiCoherence = this.computePsiCoherence(particles);
 
                 const record = {
                     timestamp: Date.now(),
                     kuramotoOrder: orderParam,
                     chimeraIndicator: chimera.chimeraMeasure,
                     frequencyDetuning: detuning,
+                    psiCoherence: psiCoherence,
                     hasChimeras: chimera.hasChimeras
                 };
 
@@ -2656,13 +2823,14 @@
 
                 const latest = this.orderParameters[this.orderParameters.length - 1];
 
-                let html = '<h4>Synchronization Analysis</h4>';
-                html += `<p>Kuramoto Order Parameter: <strong>${latest.kuramotoOrder.toFixed(3)}</strong></p>`;
-                html += `<p>Frequency Detuning: ${latest.frequencyDetuning.toExponential(2)}</p>`;
+                let html = '<h4>12D Synchronization Analysis</h4>';
+                html += `<p>Kuramoto Order (12D): <strong>${latest.kuramotoOrder.toFixed(3)}</strong></p>`;
+                html += `<p>Frequency Detuning (12D): ${latest.frequencyDetuning.toExponential(2)} Hz</p>`;
                 html += `<p>Chimera Measure: ${latest.chimeraIndicator.toFixed(3)}</p>`;
+                html += `<p>Psi Coherence (ψ): ${latest.psiCoherence.toFixed(3)}</p>`;
 
                 if (latest.hasChimeras) {
-                    html += '<p style="color: #ffaa00;">⚠️ Chimera state detected (partial synchronization)</p>';
+                    html += '<p style="color: #ffaa00;">⚠️ Chimera state detected (12D partial sync)</p>';
                 }
 
                 const display = document.getElementById('synchronizationDisplay');
@@ -4012,20 +4180,92 @@
         }
 
         function computeSynchronizationMetric(particles) {
-            if (particles.length === 0) return { r: 0, meanTheta: 0 };
-            
+            if (particles.length === 0) return { r: 0, meanTheta: 0, R_freq: 0, R_omega: 0, R_psi: 0, x12_clustering: 0 };
+
+            // ============================================================================
+            // 12D QUANTUM SYNCHRONIZATION METRICS - CST ULTIMATE ENHANCEMENT
+            // Includes: theta sync, frequency sync, omega coherence, psi locking, x12 clustering
+            // ============================================================================
+
+            const N = particles.length;
+
+            // 1) TRADITIONAL KURAMOTO ORDER PARAMETER (Theta phase sync)
             let sumReal = 0;
             let sumImag = 0;
-            
+
             particles.forEach(p => {
                 sumReal += Math.cos(p.theta);
                 sumImag += Math.sin(p.theta);
             });
-            
-            const r = Math.sqrt(sumReal*sumReal + sumImag*sumImag) / particles.length;
+
+            const r = safeDivide(safeSqrt(sumReal*sumReal + sumImag*sumImag, 0), N, 0);
             const meanTheta = Math.atan2(sumImag, sumReal);
-            
-            return { r, meanTheta };
+
+            // 2) FREQUENCY SYNCHRONIZATION (12D - nu alignment)
+            // R_freq = |Σ exp(i * 2π * nu_j / <nu>)| / N
+            const frequencies = particles.map(p => isFinite(p.nu) ? Math.abs(p.nu) : 0);
+            const meanFreq = safeAverage(frequencies);
+
+            let sumFreqReal = 0;
+            let sumFreqImag = 0;
+
+            if (meanFreq > 0) {
+                particles.forEach(p => {
+                    const nu = isFinite(p.nu) ? Math.abs(p.nu) : 0;
+                    const phase = safeDivide(nu, meanFreq, 0) * 2 * Math.PI;
+                    sumFreqReal += Math.cos(phase);
+                    sumFreqImag += Math.sin(phase);
+                });
+            }
+
+            const R_freq = safeDivide(safeSqrt(sumFreqReal*sumFreqReal + sumFreqImag*sumFreqImag, 0), N, 0);
+
+            // 3) OMEGA COHERENCE (Synaptic strength synchronization)
+            // R_omega = std(omega) / mean(omega) [lower = more synchronized]
+            const omegaValues = particles.map(p => isFinite(p.omega) ? Math.abs(p.omega) : 0);
+            const meanOmega = safeAverage(omegaValues);
+
+            let varianceOmega = 0;
+            omegaValues.forEach(omega => {
+                const diff = omega - meanOmega;
+                varianceOmega += diff * diff;
+            });
+            const stdOmega = safeSqrt(safeDivide(varianceOmega, N, 0), 0);
+            const R_omega = safeDivide(stdOmega, meanOmega, 0); // Lower = more coherent
+
+            // 4) PSI PHASE LOCKING (Normalized state function alignment)
+            // R_psi = |Σ exp(i * angle(psi_j))| / N
+            let sumPsiReal = 0;
+            let sumPsiImag = 0;
+
+            particles.forEach(p => {
+                const psi = isFinite(p.psi) ? p.psi : 0;
+                const psiAngle = Math.atan2(psi, 1); // Use psi as imaginary component
+                sumPsiReal += Math.cos(psiAngle);
+                sumPsiImag += Math.sin(psiAngle);
+            });
+
+            const R_psi = safeDivide(safeSqrt(sumPsiReal*sumPsiReal + sumPsiImag*sumPsiImag, 0), N, 0);
+
+            // 5) X12 CLUSTERING (12D position variance - lower = more clustered)
+            const x12Values = particles.map(p => isFinite(p.x12) ? p.x12 : 0);
+            const meanX12 = safeAverage(x12Values);
+
+            let varianceX12 = 0;
+            x12Values.forEach(x12 => {
+                const diff = x12 - meanX12;
+                varianceX12 += diff * diff;
+            });
+            const x12_clustering = 1.0 - safeClamp(safeDivide(varianceX12, N, 0), 0, 1, 0); // Higher = more clustered
+
+            return {
+                r,                  // Traditional Kuramoto order (theta)
+                meanTheta,          // Mean phase angle
+                R_freq,             // 12D Frequency synchronization
+                R_omega,            // Synaptic coherence (lower = better)
+                R_psi,              // Psi phase locking
+                x12_clustering      // 12D position clustering (higher = better)
+            };
         }
 
         // 7) Entropy via coarse-graining
@@ -4907,43 +5147,138 @@
             const bins = 32;
             const histogram = new Array(bins).fill(0);
             let totalSpeed = 0;
-            
+
             if (particles.length === 0) {
                 return { entropy: 0, histogram, tempProxy: 0 };
             }
-            
-            // Compute speeds first
+
+            // ============================================================================
+            // 12D QUANTUM ENTROPY CALCULATION - CST ULTIMATE ENHANCEMENT
+            // S_total = S_velocity + S_x12 + S_m12 + S_psi
+            // ============================================================================
+
+            // 1) VELOCITY ENTROPY (3D - Traditional)
             const speeds = particles.map(p => {
                 const speed = Math.sqrt(p.velocity.x*p.velocity.x + p.velocity.y*p.velocity.y + p.velocity.z*p.velocity.z);
                 totalSpeed += speed;
                 return speed;
             });
-            
-            // Find max speed for normalization - CST v2.0+ fix: Handle empty speeds array
+
             const maxSpeed = speeds.length > 0 ? Math.max(...speeds, 1) : 1;
-            
-            // Bin particle speeds into histogram
+
             speeds.forEach(speed => {
                 const bin = Math.min(bins - 1, Math.floor((speed / maxSpeed) * bins));
                 histogram[bin]++;
             });
-            
-            // Normalize to probabilities
+
             const total = particles.length || 1;
-            const probs = histogram.map(c => c / total);
-            
-            // Compute Shannon entropy: S = -Σ p_b ln p_b
-            let S = 0;
-            probs.forEach(p => {
+            const probsVel = histogram.map(c => safeDivide(c, total, 0));
+
+            let S_velocity = 0;
+            probsVel.forEach(p => {
                 if (p > 0) {
-                    S -= p * Math.log(p);
+                    S_velocity -= p * safeLog(p, 0);
                 }
             });
-            
-            // Temperature proxy from mean particle speed
-            const tempProxy = totalSpeed / total;
-            
-            return { entropy: S, histogram, tempProxy };
+
+            // 2) X12 ENTROPY (12D Position)
+            const x12Values = particles.map(p => isFinite(p.x12) ? p.x12 : 0);
+            const minX12 = Math.min(...x12Values, -1);
+            const maxX12 = Math.max(...x12Values, 1);
+            const rangeX12 = Math.max(maxX12 - minX12, 0.01);
+
+            const histX12 = new Array(bins).fill(0);
+            x12Values.forEach(x12 => {
+                const normalized = safeDivide(x12 - minX12, rangeX12, 0);
+                const bin = Math.min(bins - 1, Math.floor(safeClamp(normalized, 0, 0.9999, 0) * bins));
+                histX12[bin]++;
+            });
+
+            const probsX12 = histX12.map(c => safeDivide(c, total, 0));
+            let S_x12 = 0;
+            probsX12.forEach(p => {
+                if (p > 0) {
+                    S_x12 -= p * safeLog(p, 0);
+                }
+            });
+
+            // 3) M12 ENTROPY (12D Memory/Internal State)
+            const m12Values = particles.map(p => isFinite(p.m12) ? p.m12 : 0);
+            const minM12 = Math.min(...m12Values, -1);
+            const maxM12 = Math.max(...m12Values, 1);
+            const rangeM12 = Math.max(maxM12 - minM12, 0.01);
+
+            const histM12 = new Array(bins).fill(0);
+            m12Values.forEach(m12 => {
+                const normalized = safeDivide(m12 - minM12, rangeM12, 0);
+                const bin = Math.min(bins - 1, Math.floor(safeClamp(normalized, 0, 0.9999, 0) * bins));
+                histM12[bin]++;
+            });
+
+            const probsM12 = histM12.map(c => safeDivide(c, total, 0));
+            let S_m12 = 0;
+            probsM12.forEach(p => {
+                if (p > 0) {
+                    S_m12 -= p * safeLog(p, 0);
+                }
+            });
+
+            // 4) PSI ENTROPY (Normalized State Function)
+            const psiValues = particles.map(p => isFinite(p.psi) ? Math.abs(p.psi) : 0);
+            const maxPsi = Math.max(...psiValues, 1);
+
+            const histPsi = new Array(bins).fill(0);
+            psiValues.forEach(psi => {
+                const normalized = safeDivide(psi, maxPsi, 0);
+                const bin = Math.min(bins - 1, Math.floor(safeClamp(normalized, 0, 0.9999, 0) * bins));
+                histPsi[bin]++;
+            });
+
+            const probsPsi = histPsi.map(c => safeDivide(c, total, 0));
+            let S_psi = 0;
+            probsPsi.forEach(p => {
+                if (p > 0) {
+                    S_psi -= p * safeLog(p, 0);
+                }
+            });
+
+            // 5) DX12_DT ENTROPY (12D Momentum)
+            const dx12Values = particles.map(p => Math.abs(isFinite(p.dx12_dt) ? p.dx12_dt : 0));
+            const maxDx12 = Math.max(...dx12Values, 0.01);
+
+            const histDx12 = new Array(bins).fill(0);
+            dx12Values.forEach(dx12 => {
+                const normalized = safeDivide(dx12, maxDx12, 0);
+                const bin = Math.min(bins - 1, Math.floor(safeClamp(normalized, 0, 0.9999, 0) * bins));
+                histDx12[bin]++;
+            });
+
+            const probsDx12 = histDx12.map(c => safeDivide(c, total, 0));
+            let S_dx12 = 0;
+            probsDx12.forEach(p => {
+                if (p > 0) {
+                    S_dx12 -= p * safeLog(p, 0);
+                }
+            });
+
+            // TOTAL 12D ENTROPY
+            const S_total = S_velocity + S_x12 + S_m12 + S_psi + S_dx12;
+
+            // Enhanced Temperature Proxy: T ∝ <v²> + <(dx12_dt)²>
+            let totalV2 = 0;
+            let totalDx12_2 = 0;
+            particles.forEach(p => {
+                const v2 = p.velocity.x**2 + p.velocity.y**2 + p.velocity.z**2;
+                const dx12_2 = (isFinite(p.dx12_dt) ? p.dx12_dt : 0) ** 2;
+                totalV2 += v2;
+                totalDx12_2 += dx12_2;
+            });
+
+            const avgV2 = safeDivide(totalV2, total, 0);
+            const avgDx12_2 = safeDivide(totalDx12_2, total, 0);
+            const tempProxy = safeSqrt(avgV2 + avgDx12_2 * 10, 0); // Scale dx12 contribution
+
+            return { entropy: S_total, histogram, tempProxy };
         }
         
         // CST v2.0+ additive: Update entropy metrics and UI
@@ -6276,18 +6611,32 @@
         }
         
         // Standalone synchronization metrics update function
+        // CST ULTIMATE: Enhanced with 12D quantum synchronization metrics
         function updateSynchronizationMetrics() {
             if (particles.length === 0) return;
-            
+
             const syncMetric = computeSynchronizationMetric(particles);
+
+            // Traditional metrics
             const syncREl = document.getElementById('sync-r');
             const syncMeanEl = document.getElementById('sync-mean');
             const syncStdEl = document.getElementById('sync-std');
-            
+
             if (syncREl) syncREl.textContent = syncMetric.r.toFixed(3);
             if (syncMeanEl) syncMeanEl.textContent = (syncMetric.meanTheta * 180 / Math.PI).toFixed(1) + '°';
             const thetaStd = computeThetaStd(particles);
             if (syncStdEl) syncStdEl.textContent = (thetaStd * 180 / Math.PI).toFixed(1) + '°';
+
+            // 12D Quantum Synchronization Metrics
+            const rFreqEl = document.getElementById('sync-r-freq');
+            const rOmegaEl = document.getElementById('sync-r-omega');
+            const rPsiEl = document.getElementById('sync-r-psi');
+            const x12ClusterEl = document.getElementById('sync-x12-cluster');
+
+            if (rFreqEl) rFreqEl.textContent = syncMetric.R_freq.toFixed(3);
+            if (rOmegaEl) rOmegaEl.textContent = syncMetric.R_omega.toFixed(3);
+            if (rPsiEl) rPsiEl.textContent = syncMetric.R_psi.toFixed(3);
+            if (x12ClusterEl) x12ClusterEl.textContent = syncMetric.x12_clustering.toFixed(3);
         }
 
         /**
