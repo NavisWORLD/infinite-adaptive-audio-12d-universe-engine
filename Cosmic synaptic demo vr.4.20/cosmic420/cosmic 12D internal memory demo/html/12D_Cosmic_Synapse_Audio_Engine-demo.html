@@ -5460,17 +5460,18 @@
         
         // CST v2.0+ additive: Update entropy metrics and UI
         function updateEntropy() {
-            if (particles.length === 0) {
+            // === EARLY RETURN: Reset metrics when audio is not active ===
+            if (!analyser || !dataArray || !isAudioActive || particles.length === 0) {
                 // Reset entropy state and update UI to zeros
                 entropyState.histogram = new Array(entropyState.bins).fill(0);
                 entropyState.lastEntropy = 0;
                 entropyState.tempProxy = 0;
                 entropyTrace.length = 0; // CST v2.0+ additive: Clear entropy trace
-                
+
                 const entropyEl = document.getElementById('entropy-global');
                 const binsEl = document.getElementById('entropy-bins');
                 const tempEl = document.getElementById('entropy-temperature');
-                
+
                 if (entropyEl) entropyEl.textContent = '0.000';
                 if (binsEl) binsEl.textContent = '[]';
                 if (tempEl) tempEl.textContent = '0.000';
@@ -5513,7 +5514,7 @@
             if (tempEl) tempEl.textContent = entropyState.tempProxy.toFixed(3);
 
             // DEBUG LOGGING - Monitor entropy metrics
-            if (frameCount % 60 === 0) { // Log every 60 frames (~1 second)
+            if (frameCount % 10 === 0) { // Log every 10 frames for better debugging
                 console.log('[DEBUG Entropy]', {
                     entropy12D: entropyState.lastEntropy.toFixed(3),
                     entropyDisplay: (entropyState.lastEntropy * 1.5).toFixed(3),
@@ -6678,7 +6679,24 @@
                 // Compute complete 12D state function (Section 2.8)
                 p.psi = computeParticlePsi(p);
             });
-            
+
+            // DEBUG LOGGING - Monitor particle 12D properties
+            if (frameCount % 10 === 0 && particles.length > 0) {
+                const sampleParticle = particles[0];
+                console.log('[DEBUG Particle 12D Properties]', {
+                    x12: (sampleParticle.x12 || 0).toFixed(3),
+                    m12: (sampleParticle.m12 || 0).toFixed(3),
+                    dx12_dt: (sampleParticle.dx12_dt || 0).toFixed(3),
+                    dm12_dt: (sampleParticle.dm12_dt || 0).toFixed(3),
+                    theta: (sampleParticle.theta || 0).toFixed(3),
+                    psi: (sampleParticle.psi || 0).toFixed(3),
+                    omega: (sampleParticle.omega || 0).toFixed(3),
+                    nu: (sampleParticle.nu || 0).toFixed(3),
+                    isAudioActive: isAudioActive,
+                    audioEnergy: audioEnergy.toFixed(3)
+                });
+            }
+
             // Entropy every N frames (performance)
                 if (frameCount % 10 === 0) {
                     computeEntropy(particles, kB, 32);
@@ -6808,6 +6826,31 @@
 
         // 4) Chaos, Lyapunov, and synchronization displays
         function updateChaosMetrics() {
+            // === EARLY RETURN: Reset metrics when audio is not active ===
+            if (!analyser || !dataArray || !isAudioActive) {
+                const lyEl = document.getElementById('lyapunov-value');
+                const chaosEl = document.getElementById('audio-chaos');
+                const regimeEl = document.getElementById('chaos-regime');
+                const dimEl = document.getElementById('attractor-dimension');
+
+                if (lyEl) {
+                    lyEl.textContent = '0.000';
+                    lyEl.style.color = '#ffffff';
+                    lyEl.style.fontWeight = 'normal';
+                }
+                if (chaosEl) chaosEl.textContent = '0.000';
+                if (regimeEl) {
+                    regimeEl.textContent = 'UNKNOWN';
+                    regimeEl.style.color = '#ffffff';
+                }
+                if (dimEl) {
+                    dimEl.textContent = '0.00';
+                    dimEl.style.color = '#ffffff';
+                    dimEl.style.fontWeight = 'normal';
+                }
+                return;
+            }
+
             // === STEP 1: Extract LIVE audio RMS ===
             let audioRMS = 0;
             if (analyser && dataArray) {
@@ -6880,7 +6923,7 @@
             }
 
             // DEBUG LOGGING - Monitor metrics in real-time
-            if (frameCount % 60 === 0) { // Log every 60 frames (~1 second)
+            if (frameCount % 10 === 0) { // Log every 10 frames for better debugging
                 console.log('[DEBUG Chaos Metrics]', {
                     audioRMS: audioRMS.toFixed(4),
                     lyapunov: lyapunov.toFixed(3),
@@ -7052,6 +7095,34 @@
         
         // Standalone synchronization metrics update function
         function updateSynchronizationMetrics() {
+            // === EARLY RETURN: Reset metrics when audio is not active ===
+            if (!analyser || !dataArray || !isAudioActive) {
+                const syncREl = document.getElementById('sync-r');
+                const syncMeanEl = document.getElementById('sync-mean');
+                const syncStdEl = document.getElementById('sync-std');
+                const rFreqEl = document.getElementById('sync-r-freq');
+                const rOmegaEl = document.getElementById('sync-r-omega');
+                const rPsiEl = document.getElementById('sync-r-psi');
+                const freqDetuneEl = document.getElementById('frequency-detuning-live');
+
+                if (syncREl) {
+                    syncREl.textContent = '0.000';
+                    syncREl.style.color = '#ffffff';
+                    syncREl.style.fontWeight = 'normal';
+                }
+                if (syncMeanEl) syncMeanEl.textContent = '0.0°';
+                if (syncStdEl) syncStdEl.textContent = '0.0°';
+                if (rFreqEl) rFreqEl.textContent = '0.000';
+                if (rOmegaEl) rOmegaEl.textContent = '0.000';
+                if (rPsiEl) rPsiEl.textContent = '0.000';
+                if (freqDetuneEl) {
+                    freqDetuneEl.textContent = '0.00e+0';
+                    freqDetuneEl.style.color = '#ffffff';
+                    freqDetuneEl.style.fontWeight = 'normal';
+                }
+                return;
+            }
+
             if (particles.length === 0) return;
 
             // === GET LIVE AUDIO DATA ===
@@ -7163,7 +7234,7 @@
             }
 
             // DEBUG LOGGING - Monitor synchronization metrics
-            if (frameCount % 60 === 0) { // Log every 60 frames (~1 second)
+            if (frameCount % 10 === 0) { // Log every 10 frames for better debugging
                 console.log('[DEBUG Sync Metrics]', {
                     audioRMS: audioRMS.toFixed(4),
                     syncR: syncMetric.r.toFixed(3),
@@ -7251,8 +7322,9 @@
         // Standalone ψ breakdown update function
         // CST v2.0+ fix: Ensures all ψ normalized breakdown terms update in real-time
         function updatePsiBreakdown() {
-            if (particles.length === 0) {
-                // Reset displays to zero when no particles
+            // === EARLY RETURN: Reset metrics when audio is not active OR no particles ===
+            if (!analyser || !dataArray || !isAudioActive || particles.length === 0) {
+                // Reset displays to zero when no particles or audio not active
                 const psiEnergyEl = document.getElementById('psi-energy-term');
                 const psiLambdaEl = document.getElementById('psi-lambda-term');
                 const psiVelIntEl = document.getElementById('psi-velint-term');
@@ -7300,7 +7372,7 @@
             if (psiTotalEl) psiTotalEl.textContent = psiResult.psiTotal.toFixed(3);
 
             // DEBUG LOGGING - Monitor Psi breakdown
-            if (frameCount % 60 === 0) { // Log every 60 frames (~1 second)
+            if (frameCount % 10 === 0) { // Log every 10 frames for better debugging
                 console.log('[DEBUG Psi Breakdown]', {
                     psiTotal: psiResult.psiTotal.toFixed(3),
                     energyTerm: psiResult.terms.energyTerm.toFixed(3),
@@ -7317,6 +7389,22 @@
          * Computes causal density based on audio-influenced particle states
          */
         function updateEmergenceMetrics() {
+            // === EARLY RETURN: Reset metrics when audio is not active ===
+            if (!analyser || !dataArray || !isAudioActive) {
+                const phiEl = document.getElementById('emergence-phi');
+                const causalDensityEl = document.getElementById('causal-density-live');
+                const hierarchyEl = document.getElementById('emergence-hierarchy');
+
+                if (phiEl) phiEl.textContent = '0.000';
+                if (causalDensityEl) {
+                    causalDensityEl.textContent = '0.000';
+                    causalDensityEl.style.color = '#ffffff';
+                    causalDensityEl.style.fontWeight = 'normal';
+                }
+                if (hierarchyEl) hierarchyEl.textContent = '0';
+                return;
+            }
+
             if (particles.length === 0) return;
 
             // === GET LIVE AUDIO DATA ===
@@ -7390,7 +7478,7 @@
             if (hierarchyEl) hierarchyEl.textContent = hierarchyLevels.length;
 
             // DEBUG LOGGING - Monitor emergence metrics
-            if (frameCount % 60 === 0) { // Log every 60 frames (~1 second)
+            if (frameCount % 10 === 0) { // Log every 10 frames for better debugging
                 console.log('[DEBUG Emergence Metrics]', {
                     audioRMS: audioRMS.toFixed(4),
                     causalDensity: causalDensity_LIVE.toFixed(3),
