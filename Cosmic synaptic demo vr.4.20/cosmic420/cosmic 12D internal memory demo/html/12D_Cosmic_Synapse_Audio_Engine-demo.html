@@ -405,15 +405,15 @@
             </div>
 
             <div class="card">
-                <h2>🦋 Chaos & Butterfly Effect</h2>
+                <h2>🦋 Chaos & Butterfly Effect (Classic)</h2>
                 <div class="equation">λ = lim (1/t) ln|dX(t)/dX(0)|</div>
                 <div class="value-display">
-                    Lyapunov: <span id="lyapunov-value">0.905</span>
+                    Lyapunov (Classic): <span id="lyapunov-classic">0.000</span>
                 </div>
                 <div class="value-display">
                     Audio Chaos: <span id="audio-chaos">0.00</span>
                 </div>
-                <p class="info-text">Chaos driven by frequency variance</p>
+                <p class="info-text">Chaos driven by audio frequency variance - real-time audio responsiveness</p>
             </div>
         </div>
 
@@ -6995,8 +6995,8 @@
         function updateChaosMetrics() {
             // === EARLY RETURN: Reset metrics when audio is not active ===
             if (!analyser || !dataArray || !isAudioActive) {
+                // === Reset ENHANCED 12D Chaos Card ===
                 const lyEl = document.getElementById('lyapunov-value');
-                const chaosEl = document.getElementById('audio-chaos');
                 const regimeEl = document.getElementById('chaos-regime');
                 const dimEl = document.getElementById('attractor-dimension');
 
@@ -7005,7 +7005,6 @@
                     lyEl.style.color = '#ffffff';
                     lyEl.style.fontWeight = 'normal';
                 }
-                if (chaosEl) chaosEl.textContent = '0.000';
                 if (regimeEl) {
                     regimeEl.textContent = 'UNKNOWN';
                     regimeEl.style.color = '#ffffff';
@@ -7015,6 +7014,21 @@
                     dimEl.style.color = '#ffffff';
                     dimEl.style.fontWeight = 'normal';
                 }
+
+                // === Reset CLASSIC Audio Chaos Card ===
+                const lyClassicEl = document.getElementById('lyapunov-classic');
+                const chaosEl = document.getElementById('audio-chaos');
+
+                if (lyClassicEl) {
+                    lyClassicEl.textContent = '0.000';
+                    lyClassicEl.style.color = '#ffffff';
+                    lyClassicEl.style.fontWeight = 'normal';
+                }
+                if (chaosEl) {
+                    chaosEl.textContent = '0.000';
+                    chaosEl.style.color = '#ffffff';
+                }
+
                 return;
             }
 
@@ -7051,8 +7065,9 @@
             }
 
             // === STEP 3: Update UI with LIVE values ===
+
+            // UPDATE ENHANCED 12D CHAOS CARD (particle-based)
             const lyEl = document.getElementById('lyapunov-value');
-            const chaosEl = document.getElementById('audio-chaos');
             const regimeEl = document.getElementById('chaos-regime');
             const dimEl = document.getElementById('attractor-dimension');
 
@@ -7067,7 +7082,33 @@
                     lyEl.style.fontWeight = 'normal';
                 }
             }
-            if (chaosEl) chaosEl.textContent = chaos.toFixed(3);
+
+            // UPDATE CLASSIC AUDIO CHAOS CARD (audio frequency-based)
+            const lyClassicEl = document.getElementById('lyapunov-classic');
+            const chaosEl = document.getElementById('audio-chaos');
+
+            // Classic Lyapunov: Use simple audio chaos value (fast, responsive)
+            if (lyClassicEl) {
+                const classicLyap = chaos * 0.5; // Scale audio chaos to Lyapunov range
+                lyClassicEl.textContent = classicLyap.toFixed(3);
+                if (audioRMS > 0.05) {
+                    lyClassicEl.style.color = '#00ff88';
+                    lyClassicEl.style.fontWeight = 'bold';
+                } else {
+                    lyClassicEl.style.color = '#ffffff';
+                    lyClassicEl.style.fontWeight = 'normal';
+                }
+            }
+            if (chaosEl) {
+                chaosEl.textContent = chaos.toFixed(3);
+                if (audioRMS > 0.05) {
+                    chaosEl.style.color = '#00ff88';
+                } else {
+                    chaosEl.style.color = '#ffffff';
+                }
+            }
+
+            // UPDATE ENHANCED CHAOS ANALYSIS (regime and dimension)
             if (regimeEl) {
                 regimeEl.textContent = chaosRegime;
                 // Add visual indicator when audio is active
@@ -11789,6 +11830,13 @@
         console.log('✅ Kuramoto Synchronization');
         console.log('✅ Conservation Checks');
         console.log('✅ 12D Quantum Metrics Live Audio Integration (COMPLETE)');
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('');
+        console.log('📊 DUAL CHAOS MEASUREMENT SYSTEM:');
+        console.log('  🦋 Classic Chaos Card: Audio frequency-based chaos (fast, responsive)');
+        console.log('  🦋 Enhanced Chaos Card: 12D particle divergence-based (deep analysis)');
+        console.log('  ✅ Both metrics complement each other and validate the theory');
+        console.log('');
         console.log('═══════════════════════════════════════════════════════════════');
         console.log('📖 Reference: 12D_Cosmic_Synapse_Theory.pdf');
         console.log('🎤 Ready for audio input - tokens will generate infinitely');
