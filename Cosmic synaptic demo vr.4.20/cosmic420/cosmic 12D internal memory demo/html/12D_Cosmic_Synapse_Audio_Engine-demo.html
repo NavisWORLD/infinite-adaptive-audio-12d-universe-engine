@@ -5553,8 +5553,9 @@
         
         // CST v2.0+ additive: Update entropy metrics and UI
         function updateEntropy() {
-            // === EARLY RETURN: Reset metrics when audio is not active ===
-            if (!analyser || !dataArray || !isAudioActive || particles.length === 0) {
+            // === EARLY RETURN: Reset metrics ONLY when there are no particles ===
+            // FIX: Entropy should be calculated even without audio active
+            if (particles.length === 0) {
                 // Reset entropy state and update UI to zeros
                 entropyState.histogram = new Array(entropyState.bins).fill(0);
                 entropyState.lastEntropy = 0;
@@ -5634,25 +5635,54 @@
             const binsEl = document.getElementById('entropy-bins');
             const tempEl = document.getElementById('entropy-temperature');
 
+            // === ENTROPY COLOR-CODED VISUAL FEEDBACK ===
             // Display 12D-enhanced entropy (scaled to meaningful range)
-            if (entropyEl) entropyEl.textContent = (entropyState.lastEntropy * 1.5).toFixed(3);
-            if (binsEl) binsEl.textContent = JSON.stringify(histogram.slice(0, 5)); // Show first 5 bins as preview
-            if (tempEl) tempEl.textContent = entropyState.tempProxy.toFixed(3);
+            const displayedEntropy = entropyState.lastEntropy * 1.5;
+            if (entropyEl) {
+                entropyEl.textContent = displayedEntropy.toFixed(3);
+
+                // Color feedback based on entropy magnitude (higher = more disorder)
+                if (displayedEntropy > 1.5) {
+                    entropyEl.style.color = '#00ff88'; // GREEN - high entropy (disordered)
+                    entropyEl.style.fontWeight = 'bold';
+                } else if (displayedEntropy > 0.5) {
+                    entropyEl.style.color = '#ffaa00'; // ORANGE - moderate entropy
+                    entropyEl.style.fontWeight = 'normal';
+                } else {
+                    entropyEl.style.color = '#ffffff'; // WHITE - low entropy (ordered)
+                    entropyEl.style.fontWeight = 'normal';
+                }
+            }
+
+            // Display distribution histogram (first 5 bins)
+            if (binsEl) binsEl.textContent = JSON.stringify(histogram.slice(0, 5));
+
+            // === TEMPERATURE PROXY COLOR-CODED VISUAL FEEDBACK ===
+            if (tempEl) {
+                tempEl.textContent = entropyState.tempProxy.toFixed(3);
+
+                // Color feedback based on temperature (kinetic energy)
+                if (entropyState.tempProxy > 10) {
+                    tempEl.style.color = '#ff4444'; // RED - hot
+                } else if (entropyState.tempProxy > 1) {
+                    tempEl.style.color = '#ffaa00'; // ORANGE - warm
+                } else {
+                    tempEl.style.color = '#00aaff'; // BLUE - cold
+                }
+            }
 
             // DEBUG LOGGING - Monitor entropy metrics
-            if (frameCount % 10 === 0) { // Log every 10 frames for better debugging
-                console.log('[DEBUG Entropy]', {
-                    entropy12D: entropyState.lastEntropy.toFixed(3),
-                    entropyDisplay: (entropyState.lastEntropy * 1.5).toFixed(3),
-                    tempProxy: entropyState.tempProxy.toFixed(3),
+            if (frameCount % 30 === 0) { // Log every 30 frames (as requested in prompt)
+                console.log('[Entropy Metrics]', {
+                    entropy: displayedEntropy.toFixed(3),
+                    temperature: entropyState.tempProxy.toFixed(3),
+                    histogram: histogram.slice(0, 10),
+                    particles: particles.length,
                     S_velocity: S_velocity.toFixed(3),
                     S_x12: S_x12.toFixed(3),
-                    particleCount: particles.length,
-                    elementsFound: {
-                        entropyEl: !!entropyEl,
-                        binsEl: !!binsEl,
-                        tempEl: !!tempEl
-                    }
+                    S_m12: S_m12.toFixed(3),
+                    S_psi: S_psi.toFixed(3),
+                    S_dx12: S_dx12.toFixed(3)
                 });
             }
 
@@ -7410,8 +7440,9 @@
         
         // Standalone synchronization metrics update function
         function updateSynchronizationMetrics() {
-            // === EARLY RETURN: Reset metrics when audio is not active ===
-            if (!analyser || !dataArray || !isAudioActive) {
+            // === EARLY RETURN: Reset metrics ONLY when there are no particles ===
+            // FIX: Synchronization metrics should be calculated even without audio active
+            if (particles.length === 0) {
                 const syncREl = document.getElementById('sync-r');
                 const syncMeanEl = document.getElementById('sync-mean');
                 const syncStdEl = document.getElementById('sync-std');
@@ -7437,8 +7468,6 @@
                 }
                 return;
             }
-
-            if (particles.length === 0) return;
 
             // === GET LIVE AUDIO DATA ===
             let audioRMS = 0;
@@ -7530,7 +7559,25 @@
             const freqDetuneEl = document.getElementById('frequency-detuning-live');
 
             if (rFreqEl && syncMetric.R_freq !== undefined) rFreqEl.textContent = syncMetric.R_freq.toFixed(3);
-            if (rOmegaEl && syncMetric.R_omega !== undefined) rOmegaEl.textContent = syncMetric.R_omega.toFixed(3);
+
+            // === R_OMEGA COLOR-CODED VISUAL FEEDBACK ===
+            // R_omega = 1 - std(omega)/mean(omega): higher = more synchronized synaptic strengths
+            if (rOmegaEl && syncMetric.R_omega !== undefined) {
+                rOmegaEl.textContent = syncMetric.R_omega.toFixed(3);
+
+                // Color feedback based on synchronization level
+                if (syncMetric.R_omega > 0.8) {
+                    rOmegaEl.style.color = '#00ff88'; // GREEN - high synchronization
+                    rOmegaEl.style.fontWeight = 'bold';
+                } else if (syncMetric.R_omega > 0.5) {
+                    rOmegaEl.style.color = '#ffaa00'; // ORANGE - moderate synchronization
+                    rOmegaEl.style.fontWeight = 'normal';
+                } else {
+                    rOmegaEl.style.color = '#ff4444'; // RED - low synchronization
+                    rOmegaEl.style.fontWeight = 'normal';
+                }
+            }
+
             if (rPsiEl && syncMetric.R_psi !== undefined) rPsiEl.textContent = syncMetric.R_psi.toFixed(3);
 
             // *** CRITICAL: Display LIVE frequency detuning ***
@@ -7549,17 +7596,17 @@
             }
 
             // DEBUG LOGGING - Monitor synchronization metrics
-            if (frameCount % 10 === 0) { // Log every 10 frames for better debugging
-                console.log('[DEBUG Sync Metrics]', {
+            if (frameCount % 30 === 0) { // Log every 30 frames (as requested in prompt)
+                console.log('[Synchronization Metrics]', {
+                    R: syncMetric.r.toFixed(3),
+                    R_omega: syncMetric.R_omega.toFixed(3),
+                    R_freq: syncMetric.R_freq.toFixed(3),
+                    R_psi: syncMetric.R_psi.toFixed(3),
+                    avgTheta: (syncMetric.meanTheta * 180 / Math.PI).toFixed(1) + '°',
+                    particles: particles.length,
+                    synchronized: syncMetric.R_omega > 0.8 ? 'YES' : 'NO',
                     audioRMS: audioRMS.toFixed(4),
-                    syncR: syncMetric.r.toFixed(3),
-                    frequencyDetuning: frequencyDetuning_LIVE.toExponential(2),
-                    audioSpectralCentroid: audioSpectralCentroid.toFixed(1),
-                    particleCount: particles.length,
-                    elementsFound: {
-                        syncREl: !!syncREl,
-                        freqDetuneEl: !!freqDetuneEl
-                    }
+                    frequencyDetuning: frequencyDetuning_LIVE.toExponential(2)
                 });
             }
         }
