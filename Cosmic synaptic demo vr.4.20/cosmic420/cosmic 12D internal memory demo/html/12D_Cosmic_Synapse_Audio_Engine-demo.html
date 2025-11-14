@@ -1502,7 +1502,7 @@
         // 12D CST GLOBAL SIMULATION STATE
         // ============================================================================
         const physics = {
-            G: 0.1, // Gravitational constant (scaled for visualization, was 6.67430e-11)
+            G: 6.67430e-11, // Gravitational constant (m³/kg/s²)
             a0: 1.0, // Reference acceleration scale
             m0: 1.0, // Reference mass scale
             Eref: 1.0, // Reference energy scale
@@ -1511,8 +1511,8 @@
             epsilon: 0.1, // Softening parameter for gravity
             rCutoff: 10.0, // Cutoff radius for neighbor search
             blendLorenz: 0.7, // Blend factor: 0=gravity only, 1=Lorenz only
-            gravEnabled: true, // Enable gravitational forces (FIXED: was false)
-            dmEnabled: true // Enable dark matter (FIXED: was false)
+            gravEnabled: false, // Enable gravitational forces
+            dmEnabled: false // Enable dark matter
         };
 
         const adapt = {
@@ -6748,46 +6748,6 @@
                 }
             });
 
-            // === COMPREHENSIVE 12D DEBUG LOGGING ===
-            if (frameCount % 30 === 0 && particles.length > 0) {
-                const p = particles[0];
-                console.group('🔍 12D PARTICLE STATE CHECK (Frame ' + frameCount + ')');
-                console.log('Particle 0:', {
-                    position: `(${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)})`,
-                    velocity: `(${p.velocity.x.toFixed(2)}, ${p.velocity.y.toFixed(2)}, ${p.velocity.z.toFixed(2)})`,
-                    x12: (p.x12 || 0).toFixed(3),
-                    m12: (p.m12 || 0).toFixed(3),
-                    dx12_dt: (p.dx12_dt || 0).toFixed(3),
-                    dm12_dt: (p.dm12_dt || 0).toFixed(3),
-                    theta: (p.theta || 0).toFixed(3),
-                    psi: (p.psi || 0).toFixed(3),
-                    omega: (p.omega || 0).toFixed(3),
-                    nu: (p.nu || 0).toFixed(3),
-                    Ugrav: (p.Ugrav || 0).toFixed(3),
-                    Udm: (p.Udm || 0).toFixed(3)
-                });
-
-                // Check if values are changing
-                if (!window._lastParticleCheck) window._lastParticleCheck = {};
-                const changed = {
-                    x12: Math.abs((p.x12 || 0) - (window._lastParticleCheck.x12 || 0)) > 0.001,
-                    theta: Math.abs((p.theta || 0) - (window._lastParticleCheck.theta || 0)) > 0.001,
-                    psi: Math.abs((p.psi || 0) - (window._lastParticleCheck.psi || 0)) > 0.001,
-                    omega: Math.abs((p.omega || 0) - (window._lastParticleCheck.omega || 0)) > 0.001
-                };
-
-                console.log('Properties changing:', changed);
-
-                window._lastParticleCheck = {
-                    x12: p.x12 || 0,
-                    theta: p.theta || 0,
-                    psi: p.psi || 0,
-                    omega: p.omega || 0
-                };
-
-                console.groupEnd();
-            }
-
             // Update perpetual system status display (every 60 frames)
             if (frameCount % 60 === 0) {
                 updatePerpetualStatus();
@@ -6990,10 +6950,7 @@
 
         // CST v2.5+ NEW: Compute 12D Lyapunov Exponent
         function compute12DLyapunovExponent() {
-            if (particles.length < 2) {
-                console.warn('[Lyapunov] Not enough particles:', particles.length);
-                return 0;
-            }
+            if (particles.length < 2) return 0;
 
             // Sample a reference particle
             const refIndex = Math.floor(particles.length / 2);
@@ -7001,17 +6958,6 @@
 
             // Get current 12D state
             const p = particles[refIndex];
-
-            // DEBUG: Check if particle has valid 12D properties
-            const hasValid12D = isFinite(p.x12) && isFinite(p.theta) && isFinite(p.psi);
-            if (!hasValid12D && frameCount % 30 === 0) {
-                console.warn('[Lyapunov] Particle missing 12D properties:', {
-                    x12: p.x12,
-                    theta: p.theta,
-                    psi: p.psi
-                });
-            }
-
             const state = [
                 p.x, p.y, p.z,
                 p.velocity.x, p.velocity.y, p.velocity.z,
@@ -7025,8 +6971,6 @@
 
             // Calculate state divergence across all particles
             let totalDivergence = 0;
-            let comparisonCount = 0;
-
             particles.forEach(other => {
                 if (other === p) return;
 
@@ -7041,68 +6985,41 @@
                     isFinite(other.psi) ? other.psi : 0
                 ];
 
-                // Calculate 12D Euclidean distance
-                let distSq = 0;
-                for (let i = 0; i < 12; i++) {
+                // Euclidean distance in 12D phase space
+                let distance = 0;
+                for (let i = 0; i < state.length; i++) {
                     const diff = state[i] - otherState[i];
-                    distSq += diff * diff;
+                    distance += diff * diff;
                 }
+                distance = Math.sqrt(distance);
 
-                const dist = Math.sqrt(distSq);
-
-                // Accumulate divergence (log of distance ratio)
-                if (dist > epsilon) {
-                    totalDivergence += Math.log(dist / epsilon);
-                    comparisonCount++;
-                }
+                totalDivergence += distance;
             });
 
-            // Average divergence
-            const avgDivergence = comparisonCount > 0 ? totalDivergence / comparisonCount : 0;
+            const avgDivergence = totalDivergence / Math.max(particles.length - 1, 1);
 
-            // Scale to reasonable Lyapunov range [0, 3]
-            const lambda = Math.max(0, Math.min(avgDivergence * 0.01, 3.0));
+            // Lyapunov exponent: λ = ln(d / epsilon) / t
+            // Using normalized time and small perturbations
+            const lambda = avgDivergence > epsilon ? Math.log(avgDivergence / (epsilon * 100)) * 0.1 : 0;
 
-            // DEBUG: Log calculation
-            if (frameCount % 30 === 0) {
-                console.log('[Lyapunov DEBUG]', {
-                    particles: particles.length,
-                    avgDivergence: avgDivergence.toFixed(3),
-                    lambda: lambda.toFixed(3),
-                    comparisonCount
-                });
-            }
-
-            return lambda;
+            return Math.max(0, Math.min(lambda, 3)); // Clamp to reasonable range
         }
 
         // CST v2.5+ NEW: Compute Attractor Dimension (Correlation Dimension)
         function computeAttractorDimension() {
-            if (particles.length < 3) {
-                console.warn('[Attractor] Not enough particles:', particles.length);
-                return 0;
-            }
+            if (particles.length < 3) return 0;
 
             // Sample particle states in 12D space
             const now = Date.now();
-            if (now - (chaosTracker.lastUpdate || 0) > 50) { // Sample every 50ms (faster)
+            if (now - (chaosTracker.lastUpdate || 0) > 100) { // Sample every 100ms
                 chaosTracker.lastUpdate = now;
 
-                // Sample more particles for better statistics
-                const sampleSize = Math.min(20, particles.length);
-                const sample = [];
-
-                for (let i = 0; i < sampleSize; i++) {
-                    const p = particles[i];
-                    sample.push({
-                        x: p.x,
-                        y: p.y,
-                        z: p.z,
-                        x12: isFinite(p.x12) ? p.x12 : 0,
-                        dx12_dt: isFinite(p.dx12_dt) ? p.dx12_dt : 0,
-                        psi: isFinite(p.psi) ? p.psi : 0
-                    });
-                }
+                // Sample first few particles
+                const sample = particles.slice(0, Math.min(10, particles.length)).map(p => ({
+                    x12: isFinite(p.x12) ? p.x12 : 0,
+                    dx12_dt: isFinite(p.dx12_dt) ? p.dx12_dt : 0,
+                    psi: isFinite(p.psi) ? p.psi : 0
+                }));
 
                 chaosTracker.attractorSamples.push(sample);
                 if (chaosTracker.attractorSamples.length > chaosTracker.maxAttractorSamples) {
@@ -7110,88 +7027,37 @@
                 }
             }
 
-            // DEBUG: Check sample collection
-            if (frameCount % 30 === 0) {
-                console.log('[Attractor DEBUG]', {
-                    samples: chaosTracker.attractorSamples.length,
-                    maxSamples: chaosTracker.maxAttractorSamples,
-                    particleCount: particles.length
-                });
-            }
+            if (chaosTracker.attractorSamples.length < 10) return 0;
 
-            // Need at least 20 samples for correlation dimension
-            if (chaosTracker.attractorSamples.length < 20) {
-                return 0;
-            }
+            // Simplified correlation dimension calculation
+            // Count pairs within distance r
+            const r = 0.5; // Distance threshold
+            let pairsWithinR = 0;
+            let totalPairs = 0;
 
-            // Calculate correlation dimension using multiple distance scales
-            const scales = [0.1, 0.5, 1.0, 2.0, 5.0];
-            const correlations = [];
+            for (let i = 0; i < Math.min(chaosTracker.attractorSamples.length, 50); i++) {
+                for (let j = i + 1; j < Math.min(chaosTracker.attractorSamples.length, 50); j++) {
+                    const s1 = chaosTracker.attractorSamples[i][0];
+                    const s2 = chaosTracker.attractorSamples[j][0];
 
-            scales.forEach(r => {
-                let pairsWithinR = 0;
-                let totalPairs = 0;
+                    if (s1 && s2) {
+                        const dist = Math.sqrt(
+                            (s1.x12 - s2.x12)**2 +
+                            (s1.dx12_dt - s2.dx12_dt)**2 +
+                            (s1.psi - s2.psi)**2
+                        );
 
-                // Compare pairs of samples
-                const numSamples = Math.min(chaosTracker.attractorSamples.length, 50);
-                for (let i = 0; i < numSamples; i++) {
-                    for (let j = i + 1; j < numSamples; j++) {
-                        const s1 = chaosTracker.attractorSamples[i];
-                        const s2 = chaosTracker.attractorSamples[j];
-
-                        // Compare first particle in each sample
-                        if (s1[0] && s2[0]) {
-                            // 6D distance (x, y, z, x12, dx12_dt, psi)
-                            const dist = Math.sqrt(
-                                (s1[0].x - s2[0].x)**2 +
-                                (s1[0].y - s2[0].y)**2 +
-                                (s1[0].z - s2[0].z)**2 +
-                                (s1[0].x12 - s2[0].x12)**2 +
-                                (s1[0].dx12_dt - s2[0].dx12_dt)**2 +
-                                (s1[0].psi - s2[0].psi)**2 * 0.001 // Scale psi down
-                            );
-
-                            if (dist < r) pairsWithinR++;
-                            totalPairs++;
-                        }
+                        if (dist < r) pairsWithinR++;
+                        totalPairs++;
                     }
                 }
-
-                if (totalPairs > 0) {
-                    correlations.push(pairsWithinR / totalPairs);
-                } else {
-                    correlations.push(0);
-                }
-            });
-
-            // Estimate dimension from slope of log(C) vs log(r)
-            // Use linear regression on log-log plot
-            let dimension = 0;
-
-            if (correlations.length >= 2 && correlations[0] > 0 && correlations[correlations.length - 1] > 0) {
-                const logR1 = Math.log(scales[0]);
-                const logR2 = Math.log(scales[scales.length - 1]);
-                const logC1 = Math.log(correlations[0]);
-                const logC2 = Math.log(correlations[correlations.length - 1]);
-
-                // Slope of log(C) vs log(r)
-                const slope = (logC2 - logC1) / (logR2 - logR1);
-                dimension = Math.abs(slope);
             }
 
-            // Clamp to [0, 12] and ensure reasonable values
-            const clampedDim = Math.max(0, Math.min(dimension, 12));
+            // Estimate correlation dimension
+            const correlation = totalPairs > 0 ? pairsWithinR / totalPairs : 0;
+            const dim = correlation > 0 ? -Math.log(correlation) / Math.log(r) : 0;
 
-            // DEBUG: Log calculation
-            if (frameCount % 30 === 0) {
-                console.log('[Attractor DEBUG]', {
-                    samples: chaosTracker.attractorSamples.length,
-                    correlations: correlations.map(c => c.toFixed(3)),
-                    dimension: clampedDim.toFixed(2)
-                });
-            }
-
-            return clampedDim;
+            return Math.max(0, Math.min(dim, 12)); // Clamp to [0, 12]
         }
 
         // CST v2.5+ NEW: Classify Chaos Regime
