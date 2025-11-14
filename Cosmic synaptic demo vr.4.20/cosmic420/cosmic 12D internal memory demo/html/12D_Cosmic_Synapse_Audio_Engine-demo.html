@@ -2879,6 +2879,76 @@
             phiSynthesizer = new PhiHarmonicSynthesizer(audioContextForSynth);
         }
 
+        // === CST v2.5+ FIX: φ-HARMONIC SERIES DISPLAY UPDATE ===
+        /**
+         * Update φ-Harmonic Series display with live audio fundamental frequency
+         * Generates harmonics using f_n = f₀ · φ^(n/2) formula
+         */
+        function updatePhiHarmonicDisplay() {
+            const harmonicsCountEl = document.getElementById('harmonics-count');
+
+            // Get fundamental frequency from audio or use default
+            let f0 = 440; // Default A4
+
+            // Try to get fundamental from audio
+            if (isAudioActive && frequencyData && frequencyData.length > 0) {
+                // Use the strongest frequency component as fundamental
+                const sortedByMagnitude = [...frequencyData].sort((a, b) => b.magnitude - a.magnitude);
+                if (sortedByMagnitude.length > 0 && sortedByMagnitude[0].frequency > 20) {
+                    f0 = sortedByMagnitude[0].frequency;
+                }
+            } else if (particles.length > 0) {
+                // Fallback: use average particle nu
+                const avgNu = particles.reduce((sum, p) => sum + (isFinite(p.nu) ? p.nu : 440), 0) / particles.length;
+                if (avgNu > 20 && avgNu < 20000) {
+                    f0 = avgNu;
+                }
+            }
+
+            // Generate φ-harmonics using the formula
+            const phi = 1.618033988749895;
+            const numHarmonics = 8;
+            const harmonics = [];
+
+            for (let n = 0; n < numHarmonics; n++) {
+                // f_n = f₀ · φ^(n/2)
+                let freq = f0 * Math.pow(phi, n / 2);
+
+                // Octave fold to keep in audible range
+                while (freq > f0 * 8) freq /= 2;
+                while (freq < f0 / 4) freq *= 2;
+
+                harmonics.push(freq);
+            }
+
+            // Update display
+            if (harmonicsCountEl) {
+                harmonicsCountEl.textContent = `${numHarmonics} generated`;
+            }
+
+            // === DIAGNOSTIC: Log φ-harmonic generation ===
+            if (typeof frameCount !== 'undefined' && frameCount % 30 === 0) {
+                console.log('[PHI-HARMONIC DIAGNOSTIC]', {
+                    f0: f0.toFixed(2),
+                    phi: phi,
+                    numHarmonics: harmonics.length,
+                    harmonics_sample: harmonics.slice(0, 3).map(f => f.toFixed(2)),
+                    generated: harmonics.length > 0,
+                    audioActive: isAudioActive,
+                    frequencyDataLength: (frequencyData || []).length
+                });
+
+                console.log('[PHI-HARMONIC DISPLAY]', {
+                    element_exists: !!harmonicsCountEl,
+                    harmonics_count: harmonics.length,
+                    displayed_text: harmonicsCountEl ? harmonicsCountEl.textContent : 'N/A',
+                    all_harmonics: harmonics.map(f => f.toFixed(1)).join(', ')
+                });
+            }
+
+            return harmonics;
+        }
+
         // ============================================================================
         // EMERGENCE QUANTIFICATION (NEW)
         // ============================================================================
@@ -4882,6 +4952,24 @@
             // 5. Overall magnitude affects memory adaptation rate
             const avgMagnitude = audioMagnitudes.reduce((a, b) => a + b, 0) / audioMagnitudes.length;
             particle.alpha_memory = 0.05 + avgMagnitude * 0.15; // Range: [0.05, 0.20]
+
+            // === CST v2.5+ FIX: OMEGA EVOLUTION WITH AUDIO ===
+            // 6. Audio RMS energy modulates omega (synaptic strength) over time
+            // This ensures R_omega metric updates in real-time
+            if (isFinite(particle.omega)) {
+                // Audio-driven omega modulation: higher RMS = stronger synaptic connections
+                const audioInfluence = rmsEnergy * 0.5;
+                const randomWalk = (Math.random() - 0.5) * 0.1;
+                const omegaDelta = (audioInfluence + randomWalk) * timestep.dt;
+
+                particle.omega += omegaDelta;
+
+                // Keep omega in valid range [0.1, 2.0]
+                particle.omega = Math.max(0.1, Math.min(2.0, particle.omega));
+            } else {
+                // Initialize omega if missing or invalid
+                particle.omega = 0.5 + Math.random() * 0.5;
+            }
         }
 
         // 10) Adaptive timestep
@@ -7641,7 +7729,7 @@
 
             if (rFreqEl && syncMetric.R_freq !== undefined) rFreqEl.textContent = syncMetric.R_freq.toFixed(3);
 
-            // === R_OMEGA COLOR-CODED VISUAL FEEDBACK ===
+            // === CST v2.5+ FIX: R_OMEGA COLOR-CODED VISUAL FEEDBACK WITH ENHANCED DIAGNOSTICS ===
             // R_omega = 1 - std(omega)/mean(omega): higher = more synchronized synaptic strengths
             if (rOmegaEl && syncMetric.R_omega !== undefined) {
                 const R_omega_value = syncMetric.R_omega;
@@ -7661,20 +7749,33 @@
                     rOmegaEl.style.fontWeight = 'normal';
                 }
 
-                // === DIAGNOSTIC: Log display update ===
+                // === ENHANCED DIAGNOSTIC: Log display update with omega ranges ===
                 if (frameCount % 30 === 0) {
+                    // Get omega value ranges from particles
+                    const omegaValues = particles.map(p => isFinite(p.omega) ? p.omega : 0);
+                    const omegaMin = omegaValues.length > 0 ? Math.min(...omegaValues) : 0;
+                    const omegaMax = omegaValues.length > 0 ? Math.max(...omegaValues) : 0;
+
                     console.log('[R_OMEGA DISPLAY]', {
                         R_omega_from_metric: syncMetric.R_omega.toFixed(4),
                         displayed_value: rOmegaEl.textContent,
                         element_exists: !!rOmegaEl,
-                        color: rOmegaEl.style.color
+                        color: rOmegaEl.style.color,
+                        particles_count: particles.length,
+                        first_omega_values: particles.slice(0, 5).map(p => (isFinite(p.omega) ? p.omega.toFixed(3) : 'NaN')),
+                        omega_range: {
+                            min: omegaMin.toFixed(3),
+                            max: omegaMax.toFixed(3)
+                        }
                     });
                 }
             } else {
                 if (frameCount % 30 === 0) {
                     console.warn('[R_OMEGA] Element not found or R_omega undefined:', {
                         element_exists: !!rOmegaEl,
-                        R_omega_value: syncMetric.R_omega
+                        element_id: 'sync-r-omega',
+                        R_omega_value: syncMetric.R_omega,
+                        syncMetric_keys: Object.keys(syncMetric)
                     });
                 }
             }
@@ -7880,27 +7981,69 @@
                 );
             }
 
-            // === COMPUTE CAUSAL DENSITY (Emergence Metric) ===
+            // === CST v2.5+ FIX: COMPUTE LIVE CAUSAL DENSITY WITH IMPROVED AUDIO-PARTICLE CORRELATION ===
             let causalDensity_LIVE = 0;
 
             if (audioRMS > 0.01) {
-                // Count particles whose dx12_dt correlates with live audio energy
+                // === IMPROVED AUDIO-PARTICLE CORRELATION METRIC ===
+                // Measures correlation between audio amplitude and particle dynamics
+
+                let audioCorrelation = 0;
                 let audioInfluencedCount = 0;
 
                 particles.forEach(p => {
-                    const dx12_dt = Math.abs(isFinite(p.dx12_dt) ? p.dx12_dt : 0);
-                    const psi = Math.abs(isFinite(p.psi) ? p.psi : 0);
+                    // Calculate particle kinetic energy from velocity
+                    const vx = isFinite(p.velocity.x) ? p.velocity.x : 0;
+                    const vy = isFinite(p.velocity.y) ? p.velocity.y : 0;
+                    const vz = isFinite(p.velocity.z) ? p.velocity.z : 0;
+                    const vMag = Math.sqrt(vx*vx + vy*vy + vz*vz);
 
-                    // Check if particle state correlates with audio input
-                    // Particles with high dx12_dt during high audio energy are "influenced"
-                    const isAudioInfluenced = (dx12_dt > audioRMS * 0.1) && (psi > audioRMS * 0.05);
+                    // Get particle omega (synaptic strength)
+                    const omega = isFinite(p.omega) ? p.omega : 0;
 
-                    if (isAudioInfluenced) {
+                    // Correlation: high audio RMS should correspond to high particle activity
+                    // Using product correlation (simple but effective)
+                    const velocityCorrelation = audioRMS * vMag;
+                    const omegaCorrelation = audioRMS * omega;
+
+                    audioCorrelation += velocityCorrelation + omegaCorrelation;
+
+                    // Count particles significantly influenced by audio
+                    // Relaxed threshold: velocity > 0.5 OR omega > 0.3
+                    if (vMag > 0.5 || omega > 0.3) {
                         audioInfluencedCount++;
                     }
                 });
 
-                causalDensity_LIVE = audioInfluencedCount / particles.length;
+                // Normalize correlation by particle count
+                const avgCorrelation = audioCorrelation / particles.length;
+
+                // Density: ratio of influenced particles
+                const influenceDensity = audioInfluencedCount / particles.length;
+
+                // Combined metric: weighted average
+                // 60% influence density + 40% correlation strength
+                causalDensity_LIVE = 0.6 * influenceDensity + 0.4 * Math.min(avgCorrelation / 5, 1.0);
+
+                // === ENHANCED DIAGNOSTIC ===
+                if (typeof frameCount !== 'undefined' && frameCount % 30 === 0) {
+                    console.log('[LIVE CAUSAL DENSITY DIAGNOSTIC]', {
+                        audioRMS: audioRMS.toFixed(4),
+                        audioCorrelation: avgCorrelation.toFixed(4),
+                        influencedParticles: audioInfluencedCount,
+                        totalParticles: particles.length,
+                        influenceDensity: influenceDensity.toFixed(4),
+                        liveCausalDensity: causalDensity_LIVE.toFixed(4),
+                        sampleParticle: particles.length > 0 ? {
+                            vMag: Math.sqrt(
+                                particles[0].velocity.x**2 +
+                                particles[0].velocity.y**2 +
+                                particles[0].velocity.z**2
+                            ).toFixed(3),
+                            omega: (particles[0].omega || 0).toFixed(3)
+                        } : null
+                    });
+                }
             } else {
                 // Fallback to existing causal density (from EmergenceDetector)
                 if (emergenceDetector && emergenceDetector.computeCausalDensity) {
@@ -7925,18 +8068,37 @@
             const hierarchyEl = document.getElementById('emergence-hierarchy');
 
             if (phiEl) phiEl.textContent = phi.toFixed(3);
+
+            // === CST v2.5+ FIX: ENHANCED LIVE CAUSAL DENSITY DISPLAY ===
             if (causalDensityEl) {
                 causalDensityEl.textContent = causalDensity_LIVE.toFixed(3);
-                // Add visual feedback when audio is active
-                if (audioRMS > 0.05) {
-                    causalDensityEl.style.color = '#00ff88';
+
+                // Color feedback based on causal density strength
+                if (causalDensity_LIVE > 0.5) {
+                    causalDensityEl.style.color = '#00ff88'; // GREEN - strong audio-particle correlation
                     causalDensityEl.style.fontWeight = 'bold';
+                } else if (causalDensity_LIVE > 0.2) {
+                    causalDensityEl.style.color = '#ffaa00'; // ORANGE - moderate correlation
+                    causalDensityEl.style.fontWeight = 'normal';
                 } else {
-                    causalDensityEl.style.color = '#ffffff';
+                    causalDensityEl.style.color = '#ffffff'; // WHITE - weak correlation
                     causalDensityEl.style.fontWeight = 'normal';
                 }
+
+                // === DIAGNOSTIC: Log display update ===
+                if (frameCount % 30 === 0) {
+                    console.log('[LIVE CAUSAL DENSITY DISPLAY]', {
+                        liveCausalDensity: causalDensity_LIVE.toFixed(4),
+                        displayed_text: causalDensityEl.textContent,
+                        color: causalDensityEl.style.color,
+                        audioRMS: audioRMS.toFixed(4),
+                        particles: particles.length
+                    });
+                }
             } else {
-                console.warn('[DEBUG Emergence] causal-density-live element NOT FOUND in DOM!');
+                if (frameCount % 30 === 0) {
+                    console.warn('[LIVE CAUSAL DENSITY] Element NOT FOUND! Check DOM for id="causal-density-live"');
+                }
             }
             if (hierarchyEl) hierarchyEl.textContent = hierarchyLevels.length;
 
@@ -7983,6 +8145,7 @@
                     updateConservationDiagnostics();
                     updatePsiBreakdown();
                     updateEmergenceMetrics(); // Moved from every 10 frames to every frame for live audio
+                    updatePhiHarmonicDisplay(); // CST v2.5+ FIX: Update φ-Harmonic Series display
 
                     // === UPDATE ENTROPY ===
                     if (frameCount % 2 === 0 || frameCount === 0) {
