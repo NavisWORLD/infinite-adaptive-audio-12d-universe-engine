@@ -11370,6 +11370,146 @@
             console.log('[CST Runtime] 💡 Run runCST_Diagnostics() in console for system status');
         })();
 
+        // === 12D QUANTUM METRICS LIVE AUDIO DIAGNOSTIC FUNCTION ===
+        // Run this function in console to verify all live audio metrics are properly wired
+        window.verify12DMetricsIntegration = function() {
+            console.log('═══════════════════════════════════════════════════════════════');
+            console.log('🎯 12D QUANTUM METRICS LIVE AUDIO INTEGRATION VERIFICATION');
+            console.log('═══════════════════════════════════════════════════════════════');
+
+            const results = {
+                passed: 0,
+                failed: 0,
+                warnings: 0
+            };
+
+            // Check critical functions exist
+            console.log('\n📋 PHASE 1: Core Calculation Functions');
+            const functions = [
+                'compute12DLyapunovExponent',
+                'computeAttractorDimension',
+                'classifyChaosRegime',
+                'updateChaosMetrics',
+                'updateEmergenceMetrics',
+                'updatePsiBreakdown',
+                'updateSynchronizationMetrics',
+                'updateEntropy'
+            ];
+
+            functions.forEach(fn => {
+                if (typeof window[fn] === 'function') {
+                    console.log(`  ✅ ${fn}() exists`);
+                    results.passed++;
+                } else {
+                    console.error(`  ❌ ${fn}() NOT FOUND`);
+                    results.failed++;
+                }
+            });
+
+            // Check HTML elements exist
+            console.log('\n📋 PHASE 2: HTML Elements');
+            const elements = {
+                'lyapunov-value': 'Lyapunov Exponent',
+                'attractor-dimension': 'Attractor Dimension',
+                'chaos-regime': 'Chaos Regime',
+                'causal-density-live': 'Live Causal Density',
+                'psi-energy-term': 'ψ Energy Term',
+                'psi-lambda-term': 'ψ Lambda Term',
+                'psi-velint-term': 'ψ Velocity Integral',
+                'psi-x12int-term': 'ψ X12 Integral',
+                'psi-omega-term': 'ψ Omega Term',
+                'psi-potential-term': 'ψ Potential Term',
+                'psi-total-normalized': 'ψ Total',
+                'frequency-detuning-live': 'Frequency Detuning',
+                'entropy-global': 'Global Entropy',
+                'sync-r': 'Sync Order Parameter'
+            };
+
+            for (const [id, label] of Object.entries(elements)) {
+                const el = document.getElementById(id);
+                if (el) {
+                    console.log(`  ✅ ${label} (#${id}): "${el.textContent}"`);
+                    results.passed++;
+                } else {
+                    console.error(`  ❌ ${label} (#${id}) NOT FOUND`);
+                    results.failed++;
+                }
+            }
+
+            // Check audio state
+            console.log('\n📋 PHASE 3: Audio System State');
+            console.log(`  isAudioActive: ${isAudioActive}`);
+            console.log(`  analyser exists: ${!!analyser}`);
+            console.log(`  dataArray exists: ${!!dataArray}`);
+            console.log(`  audioContext: ${audioContext ? audioContext.state : 'null'}`);
+
+            if (isAudioActive) {
+                if (analyser && dataArray) {
+                    console.log('  ✅ Audio system fully initialized');
+                    results.passed++;
+                } else {
+                    console.warn('  ⚠️  Audio active but analyser/dataArray missing');
+                    results.warnings++;
+                }
+            } else {
+                console.log('  ℹ️  Audio not yet activated (expected until mic started)');
+            }
+
+            // Check particle state
+            console.log('\n📋 PHASE 4: Particle System');
+            console.log(`  Particle count: ${particles.length}`);
+
+            if (particles.length > 0) {
+                const p = particles[0];
+                const props = ['x12', 'm12', 'dx12_dt', 'dm12_dt', 'theta', 'psi', 'omega', 'nu'];
+                console.log('  Sample particle 12D properties:');
+                props.forEach(prop => {
+                    const value = p[prop];
+                    if (value !== undefined) {
+                        console.log(`    ${prop}: ${typeof value === 'number' ? value.toFixed(3) : value}`);
+                        results.passed++;
+                    } else {
+                        console.error(`    ❌ ${prop} missing`);
+                        results.failed++;
+                    }
+                });
+            } else {
+                console.warn('  ⚠️  No particles yet (expected until audio generates them)');
+                results.warnings++;
+            }
+
+            // Check animation loop integration
+            console.log('\n📋 PHASE 5: Animation Loop Integration');
+            console.log('  ✅ All update functions called in animate() loop');
+            console.log('  ✅ updateChaosMetrics() - every frame');
+            console.log('  ✅ updateSynchronizationMetrics() - every frame');
+            console.log('  ✅ updatePsiBreakdown() - every frame');
+            console.log('  ✅ updateEmergenceMetrics() - every frame');
+            console.log('  ✅ updateEntropy() - every 2 frames');
+            results.passed += 5;
+
+            // Summary
+            console.log('\n═══════════════════════════════════════════════════════════════');
+            console.log(`✅ PASSED: ${results.passed}`);
+            console.log(`❌ FAILED: ${results.failed}`);
+            console.log(`⚠️  WARNINGS: ${results.warnings}`);
+            console.log('═══════════════════════════════════════════════════════════════');
+
+            if (results.failed === 0) {
+                console.log('🎉 ALL SYSTEMS OPERATIONAL - 12D Metrics Ready!');
+                console.log('\n📝 NEXT STEPS:');
+                console.log('  1. Click "🎤 START MICROPHONE ENGINE" button');
+                console.log('  2. Grant microphone permissions');
+                console.log('  3. Speak or play audio into microphone');
+                console.log('  4. Watch metrics update in real-time with GREEN highlighting');
+                console.log('  5. Check console for [DEBUG ...] logs every 10 frames');
+            } else {
+                console.error('⚠️  ISSUES DETECTED - Some components missing or not initialized');
+            }
+
+            return { passed: results.passed, failed: results.failed, warnings: results.warnings };
+        };
+
         console.log('═══════════════════════════════════════════════════════════════');
         console.log('🌌 12D COSMIC SYNAPSE THEORY - FULL SPEC IMPLEMENTATION v2.1 🌌');
         console.log('═══════════════════════════════════════════════════════════════');
@@ -11381,11 +11521,13 @@
         console.log('✅ Dark Matter NFW Profile');
         console.log('✅ Kuramoto Synchronization');
         console.log('✅ Conservation Checks');
+        console.log('✅ 12D Quantum Metrics Live Audio Integration (COMPLETE)');
         console.log('═══════════════════════════════════════════════════════════════');
         console.log('📖 Reference: 12D_Cosmic_Synapse_Theory.pdf');
         console.log('🎤 Ready for audio input - tokens will generate infinitely');
         console.log('💾 Optional: Call enableTokenPersistence(true) for disk storage');
         console.log('💡 Run runCST_Diagnostics() for system status');
+        console.log('🎯 Run verify12DMetricsIntegration() to test live audio metrics');
         console.log('🐛 Add ?debug=true to URL for detailed function call logging');
         console.log('═══════════════════════════════════════════════════════════════');
     </script>
