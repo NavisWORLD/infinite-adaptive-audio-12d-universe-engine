@@ -3717,6 +3717,7 @@
                 this.Ugrav = 0; // Gravitational potential energy
                 this.Udm = 0; // Dark matter potential contribution
                 this.vi = 0; // Characteristic frequency = Ec/h
+                this.nu = this.frequency || 0; // Frequency (Hz) - initialized from audio frequency or 0
                 this.theta = getRandom() * 2 * Math.PI; // Phase (initialized randomly)
 
                 // Network properties
@@ -6675,6 +6676,14 @@
                 const K = 0.5 * p.mass * v2;
                 p.Ec = K + p.Ugrav + p.Udm;
                 p.vi = p.Ec / h;
+
+                // Update nu (frequency) - use audio frequency if available, otherwise use vi
+                if (isAudioActive && p.frequency > 0) {
+                    p.nu = p.frequency;
+                } else {
+                    // Fallback: use characteristic frequency from energy
+                    p.nu = p.vi;
+                }
 
                 // Compute complete 12D state function (Section 2.8)
                 p.psi = computeParticlePsi(p);
