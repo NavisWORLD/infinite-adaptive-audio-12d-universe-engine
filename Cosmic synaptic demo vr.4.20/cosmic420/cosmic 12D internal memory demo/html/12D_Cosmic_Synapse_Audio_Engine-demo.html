@@ -631,6 +631,15 @@
                         <span id="sync-std-theta" style="display:none;">0.0°</span>
                     </div>
                 </div>
+                <div class="value-display" style="margin-top: 10px;">
+                    <strong>R_freq (12D):</strong> <span id="sync-r-freq">0.000</span>
+                </div>
+                <div class="value-display">
+                    <strong>R_omega:</strong> <span id="sync-r-omega">0.000</span>
+                </div>
+                <div class="value-display">
+                    <strong>R_psi:</strong> <span id="sync-r-psi">0.000</span>
+                </div>
                 <p class="info-text">r=1: fully synchronized, r=0: no synchronization</p>
             </div>
 
@@ -914,6 +923,12 @@
                 </div>
                 <div class="value-display">
                     Attractor Dimension: <span id="attractor-dimension">0.0</span>
+                </div>
+                <div class="value-display" style="margin-top: 10px;">
+                    🎵 Live Freq Detuning: <span id="frequency-detuning-live">0.00e+0</span> Hz
+                </div>
+                <div class="value-display">
+                    🎤 Live Causal Density: <span id="causal-density-live">0.000</span>
                 </div>
                 <p class="info-text" style="margin-top: 10px; font-size: 0.85em;">
                     λ > 1.0: chaotic, 0.1 < λ ≤ 1.0: mixed, λ ≤ 0.1: ordered
@@ -1380,6 +1395,7 @@
         let bufferLength = 0;
         let isAudioActive = false;
         let audioProcessingInterval = null; // CST v2.0+: Interval ID for configurable cadence
+        let voiceMonitorInterval = null; // CST v2.5+: Continuous voice bio-frequency monitoring
         let frequencyData = [];
         let audioEnergy = 0;
         let spectralCentroid = 0;
@@ -3501,6 +3517,44 @@
 
         const voiceBioExtractor = new VoiceBioFrequencyExtractor();
         console.log('[CST Voice Bio] ✅ Voice bio-frequency extractor initialized');
+
+        // CST v2.5+ ULTIMATE: Continuous Voice Bio-Frequency Monitoring
+        function startContinuousVoiceMonitoring() {
+            if (voiceMonitorInterval) clearInterval(voiceMonitorInterval);
+
+            voiceMonitorInterval = setInterval(() => {
+                if (analyser && dataArray && isAudioActive) {
+                    const voiceFreq = voiceBioExtractor.extractFundamentalFrequency(analyser, dataArray);
+
+                    // Only update if frequency is in valid voice range (80-300 Hz)
+                    if (voiceFreq >= 80 && voiceFreq <= 300) {
+                        voiceBioExtractor.generatePersonalizedParams(voiceFreq);
+
+                        // Update display
+                        const freqEl = document.getElementById('voice-freq');
+                        const stateEl = document.getElementById('emotional-state');
+                        const kEl = document.getElementById('personalized-k');
+
+                        if (freqEl) freqEl.textContent = voiceFreq.toFixed(1);
+                        if (stateEl) stateEl.textContent = voiceBioExtractor.emotionalState;
+                        if (kEl) kEl.textContent = voiceBioExtractor.personalizedParams.k.toFixed(3);
+
+                        // OPTIONAL: Auto-apply personalization (commented out by default)
+                        // voiceBioExtractor.applyPersonalization();
+                    }
+                }
+            }, 100); // Check every 100ms
+
+            console.log('[CST Voice Bio] ✅ Continuous monitoring started');
+        }
+
+        function stopContinuousVoiceMonitoring() {
+            if (voiceMonitorInterval) {
+                clearInterval(voiceMonitorInterval);
+                voiceMonitorInterval = null;
+                console.log('[CST Voice Bio] ⏹️ Continuous monitoring stopped');
+            }
+        }
 
         // ============================================================================
         // OBSERVATIONAL COMPARISON & POWER SPECTRUM (NEW)
@@ -5859,6 +5913,10 @@
                 audioProcessingInterval = null;
             }
             stopTokenBufferFlush();
+
+            // CST v2.5+ ULTIMATE: Stop continuous voice monitoring
+            stopContinuousVoiceMonitoring();
+
                 if (microphone) {
                     microphone.disconnect();
                     microphone = null;
@@ -5934,10 +5992,13 @@
                     }
                     if (indicator) indicator.classList.add('active');
                     updateStatus('🎵 Audio engine active - CONTINUOUSLY generating tokens from audio stream');
-                    
+
                     // CST v2.0+ fix: Use configurable cadence
                     restartAudioProcessingLoop();
                     startTokenBufferFlush();
+
+                    // CST v2.5+ ULTIMATE: Start continuous voice monitoring
+                    startContinuousVoiceMonitoring();
                 } catch (err) {
                     console.error('Microphone access error:', err);
                     updateStatus('❌ Microphone access denied. Please grant permission and try again.');
@@ -6718,20 +6779,123 @@
 
         // 4) Chaos, Lyapunov, and synchronization displays
         function updateChaosMetrics() {
+            // === STEP 1: Get LIVE audio data ===
+            let audioFreqData = null;
+            let audioRMS = 0;
+            let audioSpectralCentroid = 0;
+
+            if (analyser && dataArray) {
+                analyser.getByteFrequencyData(dataArray);
+
+                // Extract live frequency data
+                audioFreqData = [];
+                const sampleRate = audioContext ? audioContext.sampleRate : 44100;
+                for (let i = 0; i < dataArray.length; i++) {
+                    if (dataArray[i] > 0) {
+                        const freq = i * (sampleRate / 2) / dataArray.length;
+                        const magnitude = dataArray[i] / 255.0;
+                        audioFreqData.push({ frequency: freq, magnitude: magnitude });
+                    }
+                }
+
+                // Compute RMS energy from audio
+                audioRMS = Math.sqrt(
+                    Array.from(dataArray).reduce((sum, val) => sum + (val/255)**2, 0) / dataArray.length
+                );
+
+                // Compute spectral centroid from audio
+                let numerator = 0, denominator = 0;
+                audioFreqData.forEach(({ frequency, magnitude }) => {
+                    numerator += frequency * magnitude;
+                    denominator += magnitude;
+                });
+                audioSpectralCentroid = denominator > 0 ? numerator / denominator : 0;
+            }
+
             const chaos = calculateAudioChaos();
             let lyapunov = 0;
             let attractorDim = 0;
             let chaosRegime = 'UNKNOWN';
+            let frequencyDetuning_LIVE = 0;  // NEW: Live audio-based detuning
+            let causalDensity_LIVE = 0;      // NEW: Live audio-based causal density
 
             if (particles.length > 0) {
-                // === 12D LYAPUNOV EXPONENT ===
-                // Track divergence in full 12D phase space: (x, y, z, vx, vy, vz, x12, m12, dx12_dt, dm12_dt, theta, psi)
+                // === STEP 2: Compute 12D Lyapunov (KEEP EXISTING) ===
                 lyapunov = compute12DLyapunovExponent();
 
-                // === ATTRACTOR DIMENSION (Correlation Dimension) ===
+                // === STEP 3: Compute Attractor Dimension (KEEP EXISTING) ===
                 attractorDim = computeAttractorDimension();
 
-                // === CHAOS REGIME CLASSIFICATION ===
+                // === STEP 4: ENHANCED Frequency Detuning with LIVE audio ===
+                if (audioFreqData && audioFreqData.length > 0) {
+                    // Measure how particle frequencies deviate from live audio spectrum
+                    const dominantAudioFreq = audioSpectralCentroid;
+
+                    // Calculate detuning between particle nu values and dominant audio frequency
+                    const particleFreqs = particles.map(p => {
+                        const nu = isFinite(p.nu) ? p.nu : 0;
+                        const x12 = isFinite(p.x12) ? p.x12 : 0;
+                        return nu * (1 + x12 * 0.1); // 12D modulated frequency
+                    });
+
+                    // Measure deviation from audio input
+                    const avgParticleFreq = particleFreqs.reduce((a,b) => a+b, 0) / particleFreqs.length;
+                    const audioInfluence = audioRMS * dominantAudioFreq; // Scale by audio energy
+
+                    frequencyDetuning_LIVE = Math.sqrt(
+                        particleFreqs.reduce((sum, f) => {
+                            const deviation = f - (avgParticleFreq + audioInfluence * 1e-3);
+                            return sum + deviation**2;
+                        }, 0) / particleFreqs.length
+                    );
+                } else {
+                    // Fallback: Basic frequency variance when no audio
+                    const particleFreqs = particles.map(p => isFinite(p.nu) ? p.nu : 0);
+                    const avgFreq = particleFreqs.reduce((a,b) => a+b, 0) / particleFreqs.length;
+                    frequencyDetuning_LIVE = Math.sqrt(
+                        particleFreqs.reduce((sum, f) => sum + (f - avgFreq)**2, 0) / particleFreqs.length
+                    );
+                }
+
+                // === STEP 5: ENHANCED Causal Density with LIVE audio correlation ===
+                if (audioRMS > 0.01) {
+                    // Count particles whose dx12_dt correlates with live audio energy
+                    let audioInfluencedCount = 0;
+
+                    particles.forEach(p => {
+                        const dx12_dt = Math.abs(isFinite(p.dx12_dt) ? p.dx12_dt : 0);
+                        const psi = Math.abs(isFinite(p.psi) ? p.psi : 0);
+
+                        // Check if particle state correlates with audio input
+                        // Particles with high dx12_dt during high audio energy are "influenced"
+                        const isAudioInfluenced = (dx12_dt > audioRMS * 0.1) && (psi > audioRMS * 0.05);
+
+                        if (isAudioInfluenced) {
+                            audioInfluencedCount++;
+                        }
+                    });
+
+                    causalDensity_LIVE = audioInfluencedCount / particles.length;
+                } else {
+                    // Fallback: Measure 12D coupling when no audio
+                    let coupledCount = 0;
+                    const avgDx12 = particles.reduce((sum, p) =>
+                        sum + Math.abs(isFinite(p.dx12_dt) ? p.dx12_dt : 0), 0) / particles.length;
+
+                    particles.forEach(p => {
+                        const dx12_dt = Math.abs(isFinite(p.dx12_dt) ? p.dx12_dt : 0);
+                        const psi = Math.abs(isFinite(p.psi) ? p.psi : 0);
+
+                        // Particles are "coupled" if both dx12_dt and psi are above average
+                        if (dx12_dt > avgDx12 && psi > 0.1) {
+                            coupledCount++;
+                        }
+                    });
+
+                    causalDensity_LIVE = coupledCount / particles.length;
+                }
+
+                // === STEP 6: Chaos Regime Classification (KEEP EXISTING) ===
                 chaosRegime = classifyChaosRegime(lyapunov);
 
                 // Store in history
@@ -6741,15 +6905,31 @@
                 }
             }
 
+            // === STEP 7: Update UI with LIVE values ===
             const lyEl = document.getElementById('lyapunov-value');
             const chaosEl = document.getElementById('audio-chaos');
             const regimeEl = document.getElementById('chaos-regime');
             const dimEl = document.getElementById('attractor-dimension');
 
+            // NEW: Display live frequency detuning and causal density
+            const freqDetuneEl = document.getElementById('frequency-detuning-live');
+            const causalDensityEl = document.getElementById('causal-density-live');
+
             if (lyEl) lyEl.textContent = lyapunov.toFixed(3);
             if (chaosEl) chaosEl.textContent = chaos.toFixed(3);
             if (regimeEl) regimeEl.textContent = chaosRegime;
             if (dimEl) dimEl.textContent = attractorDim.toFixed(2);
+
+            // Display LIVE audio-connected metrics
+            if (freqDetuneEl) freqDetuneEl.textContent = frequencyDetuning_LIVE.toExponential(2);
+            if (causalDensityEl) causalDensityEl.textContent = causalDensity_LIVE.toFixed(3);
+
+            // Add visual indicator when audio is active
+            if (regimeEl && audioRMS > 0.05) {
+                regimeEl.style.color = '#00ff88'; // Green when audio is driving the system
+            } else if (regimeEl) {
+                regimeEl.style.color = '#ffffff';
+            }
         }
 
         // CST v2.5+ NEW: Compute 12D Lyapunov Exponent
@@ -6909,16 +7089,62 @@
         // Standalone synchronization metrics update function
         function updateSynchronizationMetrics() {
             if (particles.length === 0) return;
-            
+
+            // === GET LIVE AUDIO DATA ===
+            let audioRMS = 0;
+            let audioSpectralCentroid = 0;
+
+            if (analyser && dataArray) {
+                analyser.getByteFrequencyData(dataArray);
+                audioRMS = Math.sqrt(
+                    Array.from(dataArray).reduce((sum, val) => sum + (val/255)**2, 0) / dataArray.length
+                );
+
+                // Compute spectral centroid
+                let numerator = 0, denominator = 0;
+                const sampleRate = audioContext ? audioContext.sampleRate : 44100;
+                for (let i = 0; i < dataArray.length; i++) {
+                    const freq = i * (sampleRate / 2) / dataArray.length;
+                    const mag = dataArray[i] / 255.0;
+                    numerator += freq * mag;
+                    denominator += mag;
+                }
+                audioSpectralCentroid = denominator > 0 ? numerator / denominator : 0;
+            }
+
+            // Compute sync metrics (enhanced with audio)
             const syncMetric = computeSynchronizationMetric(particles);
+
             const syncREl = document.getElementById('sync-r');
             const syncMeanEl = document.getElementById('sync-mean');
             const syncStdEl = document.getElementById('sync-std');
-            
-            if (syncREl) syncREl.textContent = syncMetric.r.toFixed(3);
+
+            // Display combined order parameter (already includes 12D components)
+            if (syncREl) {
+                syncREl.textContent = syncMetric.r.toFixed(3);
+                // Add visual feedback when audio is active
+                if (audioRMS > 0.05) {
+                    syncREl.style.color = '#00ffcc';
+                    syncREl.style.fontWeight = 'bold';
+                } else {
+                    syncREl.style.color = '#ffffff';
+                    syncREl.style.fontWeight = 'normal';
+                }
+            }
+
             if (syncMeanEl) syncMeanEl.textContent = (syncMetric.meanTheta * 180 / Math.PI).toFixed(1) + '°';
+
             const thetaStd = computeThetaStd(particles);
             if (syncStdEl) syncStdEl.textContent = (thetaStd * 180 / Math.PI).toFixed(1) + '°';
+
+            // NEW: Display additional 12D sync metrics
+            const rFreqEl = document.getElementById('sync-r-freq');
+            const rOmegaEl = document.getElementById('sync-r-omega');
+            const rPsiEl = document.getElementById('sync-r-psi');
+
+            if (rFreqEl) rFreqEl.textContent = syncMetric.R_freq.toFixed(3);
+            if (rOmegaEl) rOmegaEl.textContent = syncMetric.R_omega.toFixed(3);
+            if (rPsiEl) rPsiEl.textContent = syncMetric.R_psi.toFixed(3);
         }
 
         /**
