@@ -404,6 +404,17 @@
                 <p class="info-text">Golden ratio frequency spacing</p>
             </div>
 
+            <div class="card">
+                <h2>🦋 Chaos & Butterfly Effect</h2>
+                <div class="equation">λ = lim (1/t) ln|dX(t)/dX(0)|</div>
+                <div class="value-display">
+                    Lyapunov: <span id="lyapunov-value">0.905</span>
+                </div>
+                <div class="value-display">
+                    Audio Chaos: <span id="audio-chaos">0.00</span>
+                </div>
+                <p class="info-text">Chaos driven by frequency variance</p>
+            </div>
         </div>
 
         <div class="card">
@@ -8669,98 +8680,23 @@
             if (typeof computeOmegaTerm !== 'function') {
                 window.computeOmegaTerm = function computeOmegaTerm(particles, Eref) {
                     let sum = 0;
-                    let totalOmega = 0;
-                    let count = 0;
-
                     for (const p of particles) {
-                        const omega = (typeof p.omega === 'number' && isFinite(p.omega)) ? Math.abs(p.omega) : 0;
-                        totalOmega += omega;
-                        count++;
-
                         const normE = safeNormalize(p.Ec, Eref);
+                        const omega = (typeof p.omega === 'number' && isFinite(p.omega)) ? p.omega : 0;
                         sum += omega * normE;
                     }
-
-                    // CST v2.5+ ENHANCED: Adaptive scaling to target range [0.1, 10]
-                    const avgOmega = count > 0 ? totalOmega / count : 0;
-                    let scaledSum = sum;
-                    let scaleFactor = 1;
-
-                    // Adaptive scaling based on raw magnitude
-                    if (sum > 0 && sum < 0.001) {
-                        scaleFactor = 1000;
-                        scaledSum = sum * scaleFactor;
-                    } else if (sum > 0 && sum < 0.01) {
-                        scaleFactor = 100;
-                        scaledSum = sum * scaleFactor;
-                    } else if (sum > 0 && sum < 0.1) {
-                        scaleFactor = 10;
-                        scaledSum = sum * scaleFactor;
-                    }
-
-                    // Debug logging every 30 frames (NOTE: "FALLBACK" tag alerts us if this is being used)
-                    if (typeof frameCount !== 'undefined' && frameCount % 30 === 0 && sum > 0) {
-                        console.log('[Omega Term FALLBACK]', {
-                            raw: sum.toFixed(6),
-                            scaled: scaledSum.toFixed(3),
-                            scaleFactor: scaleFactor,
-                            avgOmega: avgOmega.toFixed(6),
-                            particles: count,
-                            WARNING: '⚠️ FALLBACK FUNCTION IS BEING USED - Check if main function failed to load'
-                        });
-                    }
-
-                    return scaledSum;
+                    return sum;
                 };
             }
 
             if (typeof computePotentialTerm !== 'function') {
                 window.computePotentialTerm = function computePotentialTerm(particles, Eref) {
                     let sum = 0;
-                    let totalPotential = 0;
-
                     for (const p of particles) {
-                        // CST v2.5+ FIX: Use absolute values since potentials are negative
-                        const Ugrav = isFinite(p.Ugrav) ? Math.abs(p.Ugrav) : 0;
-                        const Udm = isFinite(p.Udm) ? Math.abs(p.Udm) : 0;
-                        const U = Ugrav + Udm;
-                        totalPotential += U;
-
+                        const U = ((p.Ugrav || 0) + (p.Udm || 0));
                         sum += safeNormalize(U, Eref);
                     }
-
-                    // CST v2.5+ ENHANCED: Adaptive scaling to target range [0.1, 10]
-                    const avgPotential = particles.length > 0 ? totalPotential / particles.length : 0;
-                    let scaledSum = sum;
-                    let scaleFactor = 1;
-
-                    // Adaptive scaling based on raw magnitude
-                    if (sum > 0 && sum < 0.001) {
-                        scaleFactor = 1000;
-                        scaledSum = sum * scaleFactor;
-                    } else if (sum > 0 && sum < 0.01) {
-                        scaleFactor = 100;
-                        scaledSum = sum * scaleFactor;
-                    } else if (sum > 0 && sum < 0.1) {
-                        scaleFactor = 10;
-                        scaledSum = sum * scaleFactor;
-                    }
-
-                    // Debug logging every 30 frames (NOTE: "FALLBACK" tag alerts us if this is being used)
-                    if (typeof frameCount !== 'undefined' && frameCount % 30 === 0 && sum > 0) {
-                        console.log('[Potential Term FALLBACK]', {
-                            raw: sum.toFixed(6),
-                            scaled: scaledSum.toFixed(3),
-                            scaleFactor: scaleFactor,
-                            avgPotential: avgPotential.toFixed(6),
-                            avgUgrav: particles.length > 0 ? (particles.reduce((s, p) => s + Math.abs(p.Ugrav || 0), 0) / particles.length).toFixed(6) : '0.000000',
-                            avgUdm: particles.length > 0 ? (particles.reduce((s, p) => s + Math.abs(p.Udm || 0), 0) / particles.length).toFixed(6) : '0.000000',
-                            particles: particles.length,
-                            WARNING: '⚠️ FALLBACK FUNCTION IS BEING USED - Check if main function failed to load'
-                        });
-                    }
-
-                    return scaledSum;
+                    return sum;
                 };
             }
 
@@ -11861,170 +11797,6 @@
         console.log('🎯 Run verify12DMetricsIntegration() to test live audio metrics');
         console.log('🐛 Add ?debug=true to URL for detailed function call logging');
         console.log('═══════════════════════════════════════════════════════════════');
-
-        // ============================================================================
-        // CST v2.5+ VERIFICATION DIAGNOSTICS
-        // Confirms all fixes are properly loaded and working
-        // ============================================================================
-
-        setTimeout(() => {
-            console.log('\n' + '='.repeat(80));
-            console.log('🔍 12D QUANTUM METRICS - SYSTEM VERIFICATION DIAGNOSTIC');
-            console.log('='.repeat(80) + '\n');
-
-            // ========================================
-            // SECTION 1: Function Load Verification
-            // ========================================
-            console.group('📦 Section 1: Function Load Verification');
-
-            // Check if main functions have enhancements
-            const omegaSource = computeOmegaTerm.toString();
-            const potentialSource = computePotentialTerm.toString();
-
-            const omegaHasScaling = omegaSource.includes('scaleFactor');
-            const omegaHasDebug = omegaSource.includes('console.log');
-            const potentialHasScaling = potentialSource.includes('scaleFactor');
-            const potentialHasDebug = potentialSource.includes('console.log');
-
-            console.log('computeOmegaTerm:');
-            console.log('  ├─ Has adaptive scaling:', omegaHasScaling ? '✅ YES' : '❌ NO');
-            console.log('  ├─ Has debug logging:', omegaHasDebug ? '✅ YES' : '❌ NO');
-            console.log('  └─ Status:', (omegaHasScaling && omegaHasDebug) ? '✅ ENHANCED VERSION LOADED' : '❌ BASIC/FALLBACK VERSION');
-
-            console.log('\ncomputePotentialTerm:');
-            console.log('  ├─ Has adaptive scaling:', potentialHasScaling ? '✅ YES' : '❌ NO');
-            console.log('  ├─ Has debug logging:', potentialHasDebug ? '✅ YES' : '❌ NO');
-            console.log('  └─ Status:', (potentialHasScaling && potentialHasDebug) ? '✅ ENHANCED VERSION LOADED' : '❌ BASIC/FALLBACK VERSION');
-
-            console.groupEnd();
-
-            // ========================================
-            // SECTION 2: HTML Element Verification
-            // ========================================
-            console.group('\n🎯 Section 2: HTML Element Verification');
-
-            const elements = {
-                'lyapunov-value': { name: 'Lyapunov Exponent', expectedCount: 1 },
-                'psi-omega-term': { name: 'Omega Term', expectedCount: 1 },
-                'psi-potential-term': { name: 'Potential Term', expectedCount: 1 },
-                'entropy-global': { name: 'Global Entropy', expectedCount: 1 },
-                'attractor-dimension': { name: 'Attractor Dimension', expectedCount: 1 },
-                'chaos-regime': { name: 'Chaos Regime', expectedCount: 1 }
-            };
-
-            let elementCheckPassed = true;
-
-            Object.keys(elements).forEach(id => {
-                const allElements = document.querySelectorAll(`#${id}`);
-                const count = allElements.length;
-                const expected = elements[id].expectedCount;
-                const status = count === expected;
-
-                if (!status) elementCheckPassed = false;
-
-                console.log(`${elements[id].name} (id="${id}"):`);
-                console.log(`  ├─ Found: ${count} element(s)`);
-                console.log(`  ├─ Expected: ${expected}`);
-
-                if (count > 1) {
-                    console.log(`  ├─ ⚠️ DUPLICATE IDs DETECTED - Only first will be updated!`);
-                    allElements.forEach((el, idx) => {
-                        const card = el.closest('.card');
-                        const cardTitle = card ? card.querySelector('h2')?.textContent : 'Unknown';
-                        console.log(`  │  └─ [${idx}] In card: "${cardTitle}"`);
-                    });
-                }
-
-                console.log(`  └─ Status: ${status ? '✅ UNIQUE' : '❌ DUPLICATE/MISSING'}`);
-            });
-
-            console.groupEnd();
-
-            // ========================================
-            // SECTION 3: Physics Configuration
-            // ========================================
-            console.group('\n⚙️ Section 3: Physics Configuration');
-
-            console.log('Gravity:');
-            console.log('  ├─ gravEnabled:', physics.gravEnabled ? '✅ true' : '❌ false');
-            console.log('  └─ Status:', physics.gravEnabled ? '✅ Ugrav will be calculated' : '❌ Ugrav will be zero');
-
-            console.log('\nDark Matter:');
-            console.log('  ├─ dmEnabled:', physics.dmEnabled ? '✅ true' : '❌ false');
-            console.log('  └─ Status:', physics.dmEnabled ? '✅ Udm will be calculated' : '❌ Udm will be zero');
-
-            const potentialWillWork = physics.gravEnabled || physics.dmEnabled;
-            console.log('\nPotential Term Prediction:');
-            console.log('  └─', potentialWillWork ? '✅ Will show non-zero values (gravity or DM enabled)' : '❌ Will always be zero (both disabled)');
-
-            console.groupEnd();
-
-            // ========================================
-            // SECTION 4: Particle System Status
-            // ========================================
-            console.group('\n🔬 Section 4: Particle System Status');
-
-            console.log('Particles:', particles.length);
-
-            if (particles.length > 0) {
-                const p0 = particles[0];
-                console.log('\nParticle 0 Properties:');
-                console.log('  ├─ omega:', typeof p0.omega === 'number' ? `${p0.omega.toFixed(6)} ✅` : '❌ undefined');
-                console.log('  ├─ Ugrav:', typeof p0.Ugrav === 'number' ? `${p0.Ugrav.toFixed(6)} ✅` : '❌ undefined');
-                console.log('  ├─ Udm:', typeof p0.Udm === 'number' ? `${p0.Udm.toFixed(6)} ✅` : '❌ undefined');
-                console.log('  ├─ x12:', typeof p0.x12 === 'number' ? `${p0.x12.toFixed(6)} ✅` : '❌ undefined');
-                console.log('  ├─ theta:', typeof p0.theta === 'number' ? `${p0.theta.toFixed(6)} ✅` : '❌ undefined');
-                console.log('  └─ psi:', typeof p0.psi === 'number' ? `${p0.psi.toFixed(6)} ✅` : '❌ undefined');
-            } else {
-                console.log('  └─ ⚠️ No particles initialized yet');
-            }
-
-            console.groupEnd();
-
-            // ========================================
-            // SECTION 5: Overall System Status
-            // ========================================
-            console.group('\n📊 Section 5: Overall System Status');
-
-            const functionsOK = omegaHasScaling && omegaHasDebug && potentialHasScaling && potentialHasDebug;
-            const elementsOK = elementCheckPassed;
-            const physicsOK = physics.gravEnabled && physics.dmEnabled;
-            const particlesOK = particles.length > 0;
-
-            const allChecksPass = functionsOK && elementsOK && physicsOK && particlesOK;
-
-            console.log('Function Load:', functionsOK ? '✅ PASS' : '❌ FAIL');
-            console.log('HTML Elements:', elementsOK ? '✅ PASS' : '❌ FAIL - Check for duplicates');
-            console.log('Physics Config:', physicsOK ? '✅ PASS' : '⚠️ WARNING - Potential term may not work');
-            console.log('Particle System:', particlesOK ? '✅ PASS' : '⚠️ WARNING - No particles yet');
-
-            console.log('\n' + '─'.repeat(80));
-            console.log('OVERALL STATUS:', allChecksPass ? '✅ ALL SYSTEMS GO!' : '⚠️ ISSUES DETECTED - See above');
-            console.log('─'.repeat(80));
-
-            if (!allChecksPass) {
-                console.log('\n⚠️ RECOMMENDATIONS:');
-                if (!functionsOK) console.log('  • Check for JavaScript errors preventing main functions from loading');
-                if (!elementsOK) console.log('  • Fix duplicate HTML IDs - only first element will be updated');
-                if (!physicsOK) console.log('  • Enable gravity and dark matter for full functionality');
-                if (!particlesOK) console.log('  • Wait for particle initialization to complete');
-            } else {
-                console.log('\n🎉 System ready! Enable microphone and play audio to see metrics update.');
-                console.log('📈 Expected behavior:');
-                console.log('   • All metrics should show 0.000 with no audio');
-                console.log('   • All metrics should show non-zero values with audio active');
-                console.log('   • Metrics should turn green when updating');
-                console.log('   • Debug logs should appear in console every 30 frames');
-            }
-
-            console.groupEnd();
-
-            console.log('\n' + '='.repeat(80));
-            console.log('END DIAGNOSTIC');
-            console.log('='.repeat(80) + '\n');
-
-        }, 2000); // Wait 2 seconds for system initialization
-
     </script>
 
     <!-- ============================================================================ -->
