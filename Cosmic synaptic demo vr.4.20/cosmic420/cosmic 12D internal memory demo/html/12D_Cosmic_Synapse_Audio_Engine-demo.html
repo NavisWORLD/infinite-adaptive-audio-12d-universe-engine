@@ -1511,8 +1511,8 @@
             epsilon: 0.1, // Softening parameter for gravity
             rCutoff: 10.0, // Cutoff radius for neighbor search
             blendLorenz: 0.7, // Blend factor: 0=gravity only, 1=Lorenz only
-            gravEnabled: false, // Enable gravitational forces
-            dmEnabled: false // Enable dark matter
+            gravEnabled: true, // Enable gravitational forces - CST v2.5+ enabled for full 12D metrics
+            dmEnabled: true // Enable dark matter - CST v2.5+ enabled for potential term calculation
         };
 
         const adapt = {
@@ -4130,11 +4130,11 @@
                 particles.forEach(p => p.Ugrav = 0);
                 return;
             }
-            
+
             particles.forEach((pi, i) => {
                 let U = 0;
                 const neighbors = queryNeighbors(i, particles, index, physics.rCutoff);
-                
+
                 neighbors.forEach(j => {
                     const pj = particles[j];
                     const dx = pj.x - pi.x;
@@ -4142,11 +4142,20 @@
                     const dz = pj.z - pi.z;
                     const r2 = dx*dx + dy*dy + dz*dz;
                     const r_eff = Math.sqrt(r2 + physics.epsilon * physics.epsilon);
-                    
+
                     U -= physics.G * pi.mass * pj.mass / r_eff;
                 });
-                
+
                 pi.Ugrav = U;
+
+                // CST v2.5+ DEBUG: Log Ugrav for first particle every 30 frames
+                if (typeof frameCount !== 'undefined' && frameCount % 30 === 0 && i === 0) {
+                    console.log('[Ugrav Particle 0]', {
+                        Ugrav: pi.Ugrav.toFixed(6),
+                        neighbors: neighbors.length,
+                        gravEnabled: physics.gravEnabled
+                    });
+                }
             });
         }
 
@@ -4157,7 +4166,7 @@
                 return;
             }
 
-            particles.forEach(p => {
+            particles.forEach((p, i) => {
                 // CST v2.0+ fix: Add epsilon to avoid division by zero at r=0
                 const r = Math.sqrt(p.x*p.x + p.y*p.y + p.z*p.z) + physics.epsilon;
                 const r_rs = r / dmParams.rs;
@@ -4170,6 +4179,16 @@
                 // ΔE_dark,i = -∫₀^ri G·mᵢ·ρ_DM(r')·4πr'²/r' dr'
                 // Simplified: Udm ≈ -G · m · ρ · 4π · r² / 3
                 p.Udm = -physics.G * p.mass * rho * 4 * Math.PI * r * r / 3;
+
+                // CST v2.5+ DEBUG: Log Udm for first particle every 30 frames
+                if (typeof frameCount !== 'undefined' && frameCount % 30 === 0 && i === 0) {
+                    console.log('[Udm Particle 0]', {
+                        Udm: p.Udm.toFixed(6),
+                        r: r.toFixed(2),
+                        rho: rho.toFixed(6),
+                        dmEnabled: physics.dmEnabled
+                    });
+                }
             });
         }
 
@@ -4570,10 +4589,33 @@
                 sum += omega * normE;
             }
 
-            // CST v2.5+ ENHANCED: Scale omega term to be more visible
-            // Average omega across particles and scale by particle count for better visibility
+            // CST v2.5+ ENHANCED: Adaptive scaling to target range [0.1, 10]
             const avgOmega = count > 0 ? totalOmega / count : 0;
-            const scaledSum = sum * 1000; // Scale up for visibility
+            let scaledSum = sum;
+            let scaleFactor = 1;
+
+            // Adaptive scaling based on raw magnitude
+            if (sum > 0 && sum < 0.001) {
+                scaleFactor = 1000;
+                scaledSum = sum * scaleFactor;
+            } else if (sum > 0 && sum < 0.01) {
+                scaleFactor = 100;
+                scaledSum = sum * scaleFactor;
+            } else if (sum > 0 && sum < 0.1) {
+                scaleFactor = 10;
+                scaledSum = sum * scaleFactor;
+            }
+
+            // Debug logging every 30 frames
+            if (typeof frameCount !== 'undefined' && frameCount % 30 === 0 && sum > 0) {
+                console.log('[Omega Term]', {
+                    raw: sum.toFixed(6),
+                    scaled: scaledSum.toFixed(3),
+                    scaleFactor: scaleFactor,
+                    avgOmega: avgOmega.toFixed(6),
+                    particles: count
+                });
+            }
 
             return scaledSum;
         }
@@ -4596,8 +4638,35 @@
                 sum += safeNormalize(U, Eref);
             }
 
-            // CST v2.5+ ENHANCED: Scale potential term for visibility
-            const scaledSum = sum * 10; // Scale up for visibility
+            // CST v2.5+ ENHANCED: Adaptive scaling to target range [0.1, 10]
+            const avgPotential = particles.length > 0 ? totalPotential / particles.length : 0;
+            let scaledSum = sum;
+            let scaleFactor = 1;
+
+            // Adaptive scaling based on raw magnitude
+            if (sum > 0 && sum < 0.001) {
+                scaleFactor = 1000;
+                scaledSum = sum * scaleFactor;
+            } else if (sum > 0 && sum < 0.01) {
+                scaleFactor = 100;
+                scaledSum = sum * scaleFactor;
+            } else if (sum > 0 && sum < 0.1) {
+                scaleFactor = 10;
+                scaledSum = sum * scaleFactor;
+            }
+
+            // Debug logging every 30 frames
+            if (typeof frameCount !== 'undefined' && frameCount % 30 === 0 && sum > 0) {
+                console.log('[Potential Term]', {
+                    raw: sum.toFixed(6),
+                    scaled: scaledSum.toFixed(3),
+                    scaleFactor: scaleFactor,
+                    avgPotential: avgPotential.toFixed(6),
+                    avgUgrav: (particles.reduce((s, p) => s + Math.abs(p.Ugrav || 0), 0) / particles.length).toFixed(6),
+                    avgUdm: (particles.reduce((s, p) => s + Math.abs(p.Udm || 0), 0) / particles.length).toFixed(6),
+                    particles: particles.length
+                });
+            }
 
             return scaledSum;
         }
@@ -7950,12 +8019,14 @@
             const audioGain = 1 + (isAudioActive ? audioEnergy * audioSensitivity : 0);
             const energyComponent = mass * audioGain;
             
-            // Calculate Lyapunov approximation
+            // Calculate Lyapunov approximation (LEGACY - for reference only)
             const audioChaos = isAudioActive ? calculateAudioChaos() : 0;
             const lyapunov = Math.abs(Math.log(Math.abs(chaosSum) + 1) / 10) + audioChaos;
-            
+
             document.getElementById('energy-value').textContent = (energy * audioGain).toExponential(2);
-            document.getElementById('lyapunov-value').textContent = lyapunov.toFixed(3);
+            // CST v2.5+ FIX: Legacy Lyapunov update removed - now handled by updateChaosMetrics()
+            // using proper 12D calculation via compute12DLyapunovExponent()
+            // document.getElementById('lyapunov-value').textContent = lyapunov.toFixed(3);
             
             // Calculate ψ components (legacy display)
                 const psiEnergy = energyComponent;
