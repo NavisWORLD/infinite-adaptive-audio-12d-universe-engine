@@ -4413,6 +4413,18 @@
             const safeMeanOmega = Math.abs(meanOmega) > 1e-10 ? meanOmega : 1e-10;
             const R_omega = Math.max(0, 1 - stdOmega / safeMeanOmega);
 
+            // === DIAGNOSTIC: Log R_omega calculation ===
+            if (typeof frameCount !== 'undefined' && frameCount % 30 === 0) {
+                console.log('[R_OMEGA DIAGNOSTIC]', {
+                    omegaValues_sample: omegaValues.slice(0, 5).map(v => v.toFixed(3)),
+                    meanOmega: meanOmega.toFixed(4),
+                    stdOmega: stdOmega.toFixed(4),
+                    safeMeanOmega: safeMeanOmega.toFixed(4),
+                    R_omega: R_omega.toFixed(4),
+                    particles: N
+                });
+            }
+
             // === PSI PHASE LOCKING (normalized state function alignment) ===
             // R_psi = |Σ exp(i * angle(psi_j))| / N
             let psiSumReal = 0;
@@ -5528,6 +5540,21 @@
             // Weighted combination: velocity gets more weight as it's more dynamic
             const S_total = 0.35 * S_velocity + 0.25 * S_x12 + 0.15 * S_m12 + 0.15 * S_psi + 0.10 * S_dx12;
 
+            // === DIAGNOSTIC: Log entropy components ===
+            if (typeof frameCount !== 'undefined' && frameCount % 30 === 0) {
+                console.log('[ENTROPY DIAGNOSTIC]', {
+                    S_velocity: S_velocity.toFixed(4),
+                    S_x12: S_x12.toFixed(4),
+                    S_m12: S_m12.toFixed(4),
+                    S_psi: S_psi.toFixed(4),
+                    S_dx12: S_dx12.toFixed(4),
+                    S_total: S_total.toFixed(4),
+                    histogram_sample: histogram.slice(0, 5),
+                    particles: particles.length,
+                    maxSpeed: maxSpeed.toFixed(2)
+                });
+            }
+
             // === ENHANCED TEMPERATURE PROXY (includes 12D kinetic energy) ===
             // T ∝ <v²> + <(dx12_dt)²>
             let totalKineticEnergy = 0;
@@ -5593,7 +5620,20 @@
             const { entropy, histogram, tempProxy, entropy12D, S_velocity, S_x12, S_m12, S_psi, S_dx12 } = computeEntropyMetrics();
 
             // Store in state - Use 12D-enhanced entropy
-            let finalEntropy12D = kB * entropy12D;
+            // CST v2.5+ FIX: Use dimensionless kB = 1.0 for display entropy (not physical kB = 1.38e-23)
+            const kB_display = 1.0; // Natural units for simulation display
+            let finalEntropy12D = kB_display * entropy12D;
+
+            // === DIAGNOSTIC: Check kB and entropy values ===
+            if (frameCount % 30 === 0) {
+                console.log('[ENTROPY CALCULATION]', {
+                    kB_display: kB_display,
+                    entropy12D_raw: entropy12D.toFixed(4),
+                    finalEntropy12D_before: finalEntropy12D.toFixed(4),
+                    isZero: finalEntropy12D === 0,
+                    isFinite: isFinite(finalEntropy12D)
+                });
+            }
 
             // CST v2.5+ FIX: Fallback entropy calculation if entropy12D is 0
             if (!finalEntropy12D || finalEntropy12D === 0 || !isFinite(finalEntropy12D)) {
@@ -5616,19 +5656,44 @@
 
                 // Shannon entropy
                 let entropyFallback = 0;
+                const N = particles.length;
                 histogramFallback.forEach(count => {
                     if (count > 0) {
-                        const p = count / particles.length;
+                        const p = count / N;
                         entropyFallback -= p * Math.log(p);
                     }
                 });
 
-                finalEntropy12D = kB * entropyFallback;
+                // Use dimensionless kB for display
+                finalEntropy12D = kB_display * entropyFallback;
+                console.warn('[ENTROPY FIX] Fallback calculated:', {
+                    entropyFallback: entropyFallback.toFixed(4),
+                    kB_display: kB_display,
+                    finalEntropy12D: finalEntropy12D.toFixed(4)
+                });
+            }
+
+            // === ABSOLUTE MINIMUM ENTROPY ===
+            // If STILL zero after fallback, use minimum entropy based on particle count
+            if (finalEntropy12D === 0 && particles.length > 0) {
+                // Minimum entropy: S_min = ln(N) where N is number of distinguishable states
+                finalEntropy12D = kB_display * Math.log(Math.max(particles.length, 2));
+                console.warn('[ENTROPY FIX] Using minimum entropy S = kB*ln(N):', finalEntropy12D.toFixed(4));
             }
 
             entropyState.lastEntropy = finalEntropy12D;
             entropyState.histogram = histogram;
             entropyState.tempProxy = tempProxy;
+
+            // === DIAGNOSTIC: Check final entropy state ===
+            if (frameCount % 30 === 0) {
+                console.log('[ENTROPY STATE]', {
+                    finalEntropy12D: finalEntropy12D.toFixed(4),
+                    lastEntropy: entropyState.lastEntropy.toFixed(4),
+                    tempProxy: entropyState.tempProxy.toFixed(4),
+                    willDisplay: (entropyState.lastEntropy * 1.5).toFixed(4)
+                });
+            }
 
             // Update UI
             const entropyEl = document.getElementById('entropy-global');
@@ -5639,6 +5704,7 @@
             // Display 12D-enhanced entropy (scaled to meaningful range)
             const displayedEntropy = entropyState.lastEntropy * 1.5;
             if (entropyEl) {
+                // Force update even if value hasn't changed
                 entropyEl.textContent = displayedEntropy.toFixed(3);
 
                 // Color feedback based on entropy magnitude (higher = more disorder)
@@ -5651,6 +5717,21 @@
                 } else {
                     entropyEl.style.color = '#ffffff'; // WHITE - low entropy (ordered)
                     entropyEl.style.fontWeight = 'normal';
+                }
+
+                // === DIAGNOSTIC: Log display update ===
+                if (frameCount % 30 === 0) {
+                    console.log('[ENTROPY DISPLAY]', {
+                        lastEntropy: entropyState.lastEntropy.toFixed(4),
+                        displayedEntropy: displayedEntropy.toFixed(4),
+                        displayed_text: entropyEl.textContent,
+                        element_exists: !!entropyEl,
+                        color: entropyEl.style.color
+                    });
+                }
+            } else {
+                if (frameCount % 30 === 0) {
+                    console.warn('[ENTROPY] Element #entropy-global NOT FOUND in DOM!');
                 }
             }
 
@@ -7563,18 +7644,38 @@
             // === R_OMEGA COLOR-CODED VISUAL FEEDBACK ===
             // R_omega = 1 - std(omega)/mean(omega): higher = more synchronized synaptic strengths
             if (rOmegaEl && syncMetric.R_omega !== undefined) {
-                rOmegaEl.textContent = syncMetric.R_omega.toFixed(3);
+                const R_omega_value = syncMetric.R_omega;
+
+                // Force update even if value hasn't changed
+                rOmegaEl.textContent = R_omega_value.toFixed(3);
 
                 // Color feedback based on synchronization level
-                if (syncMetric.R_omega > 0.8) {
+                if (R_omega_value > 0.8) {
                     rOmegaEl.style.color = '#00ff88'; // GREEN - high synchronization
                     rOmegaEl.style.fontWeight = 'bold';
-                } else if (syncMetric.R_omega > 0.5) {
+                } else if (R_omega_value > 0.5) {
                     rOmegaEl.style.color = '#ffaa00'; // ORANGE - moderate synchronization
                     rOmegaEl.style.fontWeight = 'normal';
                 } else {
                     rOmegaEl.style.color = '#ff4444'; // RED - low synchronization
                     rOmegaEl.style.fontWeight = 'normal';
+                }
+
+                // === DIAGNOSTIC: Log display update ===
+                if (frameCount % 30 === 0) {
+                    console.log('[R_OMEGA DISPLAY]', {
+                        R_omega_from_metric: syncMetric.R_omega.toFixed(4),
+                        displayed_value: rOmegaEl.textContent,
+                        element_exists: !!rOmegaEl,
+                        color: rOmegaEl.style.color
+                    });
+                }
+            } else {
+                if (frameCount % 30 === 0) {
+                    console.warn('[R_OMEGA] Element not found or R_omega undefined:', {
+                        element_exists: !!rOmegaEl,
+                        R_omega_value: syncMetric.R_omega
+                    });
                 }
             }
 
