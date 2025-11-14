@@ -646,9 +646,6 @@
                 <div class="value-display" style="border-left: 3px solid #00ff88; padding-left: 10px; background: rgba(0, 255, 136, 0.05);">
                     <strong>🎵 Live Freq Detuning:</strong> <span id="frequency-detuning-live">0.00e+0</span> Hz
                 </div>
-                <div class="value-display" style="border-left: 3px solid #00ccff; padding-left: 10px; background: rgba(0, 204, 255, 0.05);">
-                    <strong>🎼 12D Sync Freq Detuning:</strong> <span id="sync-freq-detuning">0.00e+0</span> Hz
-                </div>
             </div>
 
             <div class="card">
@@ -6795,44 +6792,21 @@
         // 4) Chaos, Lyapunov, and synchronization displays
         function updateChaosMetrics() {
             // === STEP 1: Get LIVE audio data ===
-            let audioFreqData = null;
             let audioRMS = 0;
-            let audioSpectralCentroid = 0;
 
             if (analyser && dataArray) {
                 analyser.getByteFrequencyData(dataArray);
-                audioFreqData = [];
-                const sampleRate = audioContext ? audioContext.sampleRate : 44100;
-
-                // Build frequency data array with spectral analysis
-                for (let i = 0; i < dataArray.length; i++) {
-                    if (dataArray[i] > 0) {
-                        const freq = i * (sampleRate / 2) / dataArray.length;
-                        const magnitude = dataArray[i] / 255.0;
-                        audioFreqData.push({ frequency: freq, magnitude: magnitude });
-                    }
-                }
 
                 // Compute RMS energy from audio
                 audioRMS = Math.sqrt(
                     Array.from(dataArray).reduce((sum, val) => sum + (val/255)**2, 0) / dataArray.length
                 );
-
-                // Compute spectral centroid
-                let numerator = 0, denominator = 0;
-                audioFreqData.forEach(({ frequency, magnitude }) => {
-                    numerator += frequency * magnitude;
-                    denominator += magnitude;
-                });
-                audioSpectralCentroid = denominator > 0 ? numerator / denominator : 0;
             }
 
             const chaos = calculateAudioChaos();
             let lyapunov = 0;
             let attractorDim = 0;
             let chaosRegime = 'UNKNOWN';
-            let frequencyDetuning_LIVE = 0;
-            let causalDensity_LIVE = 0;
 
             if (particles.length > 0) {
                 // === STEP 2: Compute 12D Lyapunov (EXISTING) ===
@@ -6841,42 +6815,7 @@
                 // === STEP 3: Compute Attractor Dimension (EXISTING) ===
                 attractorDim = computeAttractorDimension();
 
-                // === STEP 4: Enhanced Frequency Detuning with Audio Integration ===
-                if (audioFreqData && audioFreqData.length > 0) {
-                    const dominantAudioFreq = audioSpectralCentroid;
-                    const particleFreqs = particles.map(p => {
-                        const nu = isFinite(p.nu) ? p.nu : 0;
-                        const x12 = isFinite(p.x12) ? p.x12 : 0;
-                        return nu * (1 + x12 * 0.1);
-                    });
-                    const avgParticleFreq = particleFreqs.reduce((a,b) => a+b, 0) / particleFreqs.length;
-                    const audioInfluence = audioRMS * dominantAudioFreq;
-                    frequencyDetuning_LIVE = Math.sqrt(
-                        particleFreqs.reduce((sum, f) => {
-                            const deviation = f - (avgParticleFreq + audioInfluence * 1e-3);
-                            return sum + deviation**2;
-                        }, 0) / particleFreqs.length
-                    );
-                } else if (emergenceDetector && emergenceDetector.computeFrequencyDetuning) {
-                    frequencyDetuning_LIVE = emergenceDetector.computeFrequencyDetuning(particles);
-                }
-
-                // === STEP 5: Enhanced Causal Density with LIVE audio correlation ===
-                if (audioRMS > 0.01) {
-                    let audioInfluencedCount = 0;
-                    particles.forEach(p => {
-                        const dx12_dt = Math.abs(isFinite(p.dx12_dt) ? p.dx12_dt : 0);
-                        const psi = Math.abs(isFinite(p.psi) ? p.psi : 0);
-                        const isAudioInfluenced = (dx12_dt > audioRMS * 0.1) && (psi > audioRMS * 0.05);
-                        if (isAudioInfluenced) audioInfluencedCount++;
-                    });
-                    causalDensity_LIVE = audioInfluencedCount / particles.length;
-                } else {
-                    causalDensity_LIVE = emergenceDetector ?
-                        (emergenceDetector.computeCausalDensity ? emergenceDetector.computeCausalDensity(particles) : 0) : 0;
-                }
-
-                // === STEP 6: Chaos Regime Classification ===
+                // === STEP 4: Chaos Regime Classification (EXISTING) ===
                 chaosRegime = classifyChaosRegime(lyapunov);
 
                 // Store in history
@@ -6886,7 +6825,7 @@
                 }
             }
 
-            // === STEP 7: Update UI with LIVE values ===
+            // === STEP 5: Update UI with LIVE values ===
             const lyEl = document.getElementById('lyapunov-value');
             const chaosEl = document.getElementById('audio-chaos');
             const regimeEl = document.getElementById('chaos-regime');
@@ -6903,12 +6842,6 @@
             } else if (regimeEl) {
                 regimeEl.style.color = '#ffffff';
             }
-
-            // === STEP 8: Display live frequency detuning and causal density values ===
-            // Note: These are displayed in their respective sections (sync metrics & emergence)
-            // Store them globally for cross-reference
-            window.chaosFreqDetuning = frequencyDetuning_LIVE;
-            window.chaosCausalDensity = causalDensity_LIVE;
         }
 
         // CST v2.5+ NEW: Compute 12D Lyapunov Exponent
@@ -7157,7 +7090,6 @@
             const rOmegaEl = document.getElementById('sync-r-omega');
             const rPsiEl = document.getElementById('sync-r-psi');
             const freqDetuneEl = document.getElementById('frequency-detuning-live');
-            const syncFreqDetuneEl = document.getElementById('sync-freq-detuning');
 
             if (rFreqEl && syncMetric.R_freq !== undefined) rFreqEl.textContent = syncMetric.R_freq.toFixed(3);
             if (rOmegaEl && syncMetric.R_omega !== undefined) rOmegaEl.textContent = syncMetric.R_omega.toFixed(3);
@@ -7165,19 +7097,6 @@
 
             // Display LIVE frequency detuning
             if (freqDetuneEl) freqDetuneEl.textContent = frequencyDetuning_LIVE.toExponential(2);
-
-            // Display 12D Sync Frequency Detuning (enhanced metric)
-            if (syncFreqDetuneEl) {
-                syncFreqDetuneEl.textContent = frequencyDetuning_LIVE.toExponential(2);
-                // Add visual feedback when audio is active
-                if (audioRMS > 0.05) {
-                    syncFreqDetuneEl.style.color = '#00ccff';
-                    syncFreqDetuneEl.style.fontWeight = 'bold';
-                } else {
-                    syncFreqDetuneEl.style.color = '#ffffff';
-                    syncFreqDetuneEl.style.fontWeight = 'normal';
-                }
-            }
         }
 
         /**
