@@ -2921,9 +2921,18 @@
                 harmonics.push(freq);
             }
 
-            // Update display
+            // Update display with actual harmonic frequencies (not just count)
             if (harmonicsCountEl) {
-                harmonicsCountEl.textContent = `${numHarmonics} generated`;
+                // Display the actual harmonic frequencies for better visual feedback
+                if (harmonics.length > 4) {
+                    // Show first 4 frequencies + "..." if there are many
+                    const freqStrings = harmonics.slice(0, 4).map(f => f.toFixed(1));
+                    harmonicsCountEl.textContent = freqStrings.join(', ') + ', ... Hz';
+                } else {
+                    // Show all frequencies if 4 or fewer
+                    const freqStrings = harmonics.map(f => f.toFixed(1));
+                    harmonicsCountEl.textContent = freqStrings.join(', ') + ' Hz';
+                }
             }
 
             // === DIAGNOSTIC: Log φ-harmonic generation ===
@@ -4953,22 +4962,26 @@
             const avgMagnitude = audioMagnitudes.reduce((a, b) => a + b, 0) / audioMagnitudes.length;
             particle.alpha_memory = 0.05 + avgMagnitude * 0.15; // Range: [0.05, 0.20]
 
-            // === CST v2.5+ FIX: OMEGA EVOLUTION WITH AUDIO ===
+            // === CST v2.5+ FIX: STRONGER OMEGA EVOLUTION WITH AUDIO FOR DYNAMIC VARIANCE ===
             // 6. Audio RMS energy modulates omega (synaptic strength) over time
-            // This ensures R_omega metric updates in real-time
+            // This ensures R_omega metric updates in real-time with significant variance
             if (isFinite(particle.omega)) {
-                // Audio-driven omega modulation: higher RMS = stronger synaptic connections
-                const audioInfluence = rmsEnergy * 0.5;
-                const randomWalk = (Math.random() - 0.5) * 0.1;
-                const omegaDelta = (audioInfluence + randomWalk) * timestep.dt;
+                // MUCH STRONGER audio-driven modulation to create variance
+                const audioInfluence = rmsEnergy * 2.0; // Increased from 0.5 to 2.0
+                const randomWalk = (Math.random() - 0.5) * 0.3; // Increased from 0.1 to 0.3
+
+                // Per-particle unique response based on particle properties
+                const particleResonance = Math.sin(particle.frequency * 0.001) * 0.2;
+
+                const omegaDelta = (audioInfluence + randomWalk + particleResonance) * timestep.dt;
 
                 particle.omega += omegaDelta;
 
                 // Keep omega in valid range [0.1, 2.0]
                 particle.omega = Math.max(0.1, Math.min(2.0, particle.omega));
             } else {
-                // Initialize omega if missing or invalid
-                particle.omega = 0.5 + Math.random() * 0.5;
+                // Initialize omega with MORE diversity
+                particle.omega = 0.3 + Math.random() * 1.4; // Range: [0.3, 1.7]
             }
         }
 
@@ -6972,6 +6985,17 @@
                 });
             }
 
+            // === FORCE OMEGA DIVERSITY TO PREVENT CONVERGENCE ===
+            // Periodically add small perturbations to prevent all omegas becoming identical
+            if (frameCount % 100 === 0) {
+                particles.forEach((p, i) => {
+                    // Add small random perturbation based on particle index for uniqueness
+                    const perturbation = (Math.random() - 0.5) * 0.1;
+                    p.omega = (p.omega || 0.5) + perturbation;
+                    p.omega = Math.max(0.1, Math.min(2.0, p.omega));
+                });
+            }
+
             // === UPDATE MEMORY FROM NEIGHBORS ===
             if (frequencyData && frequencyData.length > 0) {
                 particles.forEach(particle => {
@@ -7011,6 +7035,17 @@
 
                 // Compute complete 12D state function (Section 2.8)
                 p.psi = computeParticlePsi(p);
+
+                // === ADD PSI PHASE VARIANCE TO PREVENT PERFECT SYNCHRONIZATION ===
+                // Add small audio-dependent and random perturbation to psi
+                if (isAudioActive && audioEnergy > 0.01) {
+                    // Audio-driven phase shift unique to each particle
+                    const audioPhaseShift = audioEnergy * Math.sin(p.nu * 0.01) * 0.5;
+                    p.psi += audioPhaseShift;
+                }
+                // Add small random phase noise to prevent perfect psi synchronization
+                const phaseNoise = (Math.random() - 0.5) * 0.05;
+                p.psi += phaseNoise;
             });
 
             // === COMPREHENSIVE 12D DEBUG LOGGING ===
@@ -8008,22 +8043,35 @@
 
                     audioCorrelation += velocityCorrelation + omegaCorrelation;
 
-                    // Count particles significantly influenced by audio
-                    // Relaxed threshold: velocity > 0.5 OR omega > 0.3
-                    if (vMag > 0.5 || omega > 0.3) {
-                        audioInfluencedCount++;
+                    // === STRICTER THRESHOLD: Weighted influence based on activity levels ===
+                    // Require BOTH high velocity AND high omega for full influence
+                    // Use weighted counting instead of binary yes/no
+                    const isHighlyInfluenced = (vMag > 2.0) && (omega > 0.7) && (audioRMS > 0.1);
+                    const isModeratelyInfluenced = (vMag > 1.0 || omega > 0.5) && (audioRMS > 0.05);
+
+                    if (isHighlyInfluenced) {
+                        audioInfluencedCount += 1.0; // Full weight for strong influence
+                    } else if (isModeratelyInfluenced) {
+                        audioInfluencedCount += 0.5; // Half weight for moderate influence
                     }
+                    // Particles with low activity contribute 0
                 });
 
                 // Normalize correlation by particle count
                 const avgCorrelation = audioCorrelation / particles.length;
 
-                // Density: ratio of influenced particles
-                const influenceDensity = audioInfluencedCount / particles.length;
+                // Density: ratio of influenced particles (now weighted)
+                const maxInfluencedCount = particles.length; // Maximum possible if all fully influenced
+                const influenceDensity = audioInfluencedCount / maxInfluencedCount;
 
-                // Combined metric: weighted average
-                // 60% influence density + 40% correlation strength
-                causalDensity_LIVE = 0.6 * influenceDensity + 0.4 * Math.min(avgCorrelation / 5, 1.0);
+                // Combined metric with stricter correlation scaling
+                // Reduce correlation weight and increase requirements
+                const normalizedCorrelation = Math.min(avgCorrelation / 10, 1.0); // Changed from /5 to /10
+                causalDensity_LIVE = 0.7 * influenceDensity + 0.3 * normalizedCorrelation;
+
+                // Apply sigmoid-like scaling to prevent saturation at 1.0
+                // This makes it harder to reach perfect 1.0
+                causalDensity_LIVE = Math.tanh(causalDensity_LIVE * 1.5);
 
                 // === ENHANCED DIAGNOSTIC ===
                 if (typeof frameCount !== 'undefined' && frameCount % 30 === 0) {
