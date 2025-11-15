@@ -821,6 +821,14 @@
             });
         }
 
+        // Sanitize value to ensure it's finite
+        function sanitizeValue(value, fallback = 0) {
+            if (!isFinite(value) || isNaN(value)) {
+                return fallback;
+            }
+            return value;
+        }
+
         // ====================================================================
         // AUDIO ENGINE: LorenzParticle Class with 12D Adaptive State
         // ====================================================================
@@ -870,6 +878,11 @@
                 this.mass = 1.0;
                 this.energy = 0;
                 this.decayRate = 0.01;
+
+                // Ensure all critical values are finite
+                this.Ec = sanitizeValue(this.Ec, 1.0);
+                this.omega = sanitizeValue(this.omega, 0);
+                this.vi = sanitizeValue(this.vi, 0);
             }
 
             // Update internal adaptive state: dx12/dt = k·Ω - γ·x12 (Equation 2.11)
@@ -1309,15 +1322,18 @@
                     }
                 }
                 
-                const currentFundamental = peakIndex * freqStep;
-                
+                const currentFundamental = sanitizeValue(peakIndex * freqStep, 440);
+
                 // Smooth update using exponential moving average
                 if (this.bioSignature.fundamental) {
-                    this.bioSignature.fundamental = 
+                    this.bioSignature.fundamental =
                         this.bioSignature.fundamental * (1 - alpha) + currentFundamental * alpha;
                 } else {
                     this.bioSignature.fundamental = currentFundamental;
                 }
+
+                // SANITIZE after update
+                this.bioSignature.fundamental = sanitizeValue(this.bioSignature.fundamental, 440);
                 
                 // Update spectral centroid
                 let numerator = 0, denominator = 0;
@@ -1485,12 +1501,12 @@
                     }
 
                     if (particle) {
-                        // Update energy
-                        particle.Ec = magnitude * 100;
-                        particle.frequency = frequency;
+                        // Update energy (SANITIZED)
+                        particle.Ec = sanitizeValue(magnitude * 100, 1.0);
+                        particle.frequency = sanitizeValue(frequency, 440);
 
-                        // Calculate characteristic frequency (Section 2.6)
-                        particle.vi = particle.Ec / this.h;
+                        // Calculate characteristic frequency (Section 2.6) - SANITIZED
+                        particle.vi = sanitizeValue(particle.Ec / this.h, 0);
                     }
                 });
             }
@@ -1534,35 +1550,47 @@
             mapParticlesToMusic() {
                 if (!particles || particles.length === 0) return;
 
-                // 1. Average particle energy → Master volume
-                const avgEnergy = particles.reduce((sum, p) => sum + p.Ec, 0) / particles.length;
-                const energyScale = Math.min(1.5, avgEnergy / 50);
-                this.masterGain.gain.setValueAtTime(0.7 * energyScale, this.audioContext.currentTime);
+                // 1. Average particle energy → Master volume (SANITIZED)
+                const avgEnergy = particles.reduce((sum, p) => sum + sanitizeValue(p.Ec, 0), 0) / particles.length;
+                const energyScale = sanitizeValue(Math.min(1.5, avgEnergy / 50), 1.0);
+                const masterVolume = sanitizeValue(0.7 * energyScale, 0.7);
+                this.masterGain.gain.setValueAtTime(masterVolume, this.audioContext.currentTime);
 
-                // 2. Average Ω → Harmonic complexity
-                avgSynapticStrength = particles.reduce((sum, p) => sum + p.omega, 0) / particles.length;
+                // 2. Average Ω → Harmonic complexity (SANITIZED)
+                avgSynapticStrength = particles.reduce((sum, p) => sum + sanitizeValue(p.omega, 0), 0) / particles.length;
+                avgSynapticStrength = sanitizeValue(avgSynapticStrength, 0);
                 const harmonicCount = avgSynapticStrength > 0.7 ? 16 : 8;
-                this.currentHarmonics = this.generatePhiHarmonics(this.bioSignature.fundamental, harmonicCount);
 
-                // 3. Kuramoto order → Tempo stability
-                if (kuramotoOrder > 0.8) {
-                    this.rhythmTracker.tempo = Math.round(this.bioSignature.tempo);
-                } else {
-                    this.rhythmTracker.tempo = this.bioSignature.tempo;
+                // CRITICAL: Only regenerate harmonics if fundamental is valid
+                if (isFinite(this.bioSignature.fundamental) && this.bioSignature.fundamental > 20) {
+                    this.currentHarmonics = this.generatePhiHarmonics(this.bioSignature.fundamental, harmonicCount);
                 }
 
-                // 4. Top 6 particles → 6 instruments (sorted by energy)
-                const sorted = [...particles].sort((a, b) => b.Ec - a.Ec).slice(0, 6);
+                // 3. Kuramoto order → Tempo stability (SANITIZED)
+                const sanitizedKuramoto = sanitizeValue(kuramotoOrder, 0);
+                if (sanitizedKuramoto > 0.8) {
+                    this.rhythmTracker.tempo = Math.round(sanitizeValue(this.bioSignature.tempo, 120));
+                } else {
+                    this.rhythmTracker.tempo = sanitizeValue(this.bioSignature.tempo, 120);
+                }
+
+                // 4. Top 6 particles → 6 instruments (sorted by energy) - SANITIZED
+                const sorted = [...particles]
+                    .filter(p => isFinite(p.Ec) && p.Ec > 0)
+                    .sort((a, b) => b.Ec - a.Ec)
+                    .slice(0, 6);
+
                 const instruments = ['drums', 'bass', 'guitar', 'piano', 'strings', 'pads'];
 
                 sorted.forEach((particle, i) => {
                     if (i < instruments.length) {
                         const instName = instruments[i];
                         if (this.instruments[instName] && this.instruments[instName].gain) {
-                            const energyVolume = Math.min(1, particle.Ec / 100);
-                            const baseVolume = this.instruments[instName].volume;
+                            const energyVolume = sanitizeValue(Math.min(1, particle.Ec / 100), 0.5);
+                            const baseVolume = sanitizeValue(this.instruments[instName].volume, 0.7);
+                            const finalVolume = sanitizeValue(baseVolume * energyVolume, 0.5);
                             this.instruments[instName].gain.gain.setValueAtTime(
-                                baseVolume * energyVolume,
+                                finalVolume,
                                 this.audioContext.currentTime
                             );
                         }
@@ -1570,7 +1598,7 @@
                 });
 
                 // 5. Log adaptation
-                this.log(`[ADAPT] Energy: ${avgEnergy.toFixed(1)} | Ω: ${avgSynapticStrength.toFixed(3)} | Sync: ${kuramotoOrder.toFixed(2)} | Harmonics: ${harmonicCount}`, 'music');
+                this.log(`[ADAPT] Energy: ${avgEnergy.toFixed(1)} | Ω: ${avgSynapticStrength.toFixed(3)} | Sync: ${sanitizedKuramoto.toFixed(2)} | Harmonics: ${harmonicCount}`, 'music');
             }
 
             generateBeatsFromFrequencies(topFreqs) {
@@ -1749,15 +1777,18 @@
             }
             
             updateBioDisplay() {
-                document.getElementById('bioFreq').textContent = this.bioSignature.fundamental.toFixed(2) + ' Hz';
-                document.getElementById('keyDetected').textContent = this.bioSignature.key || '--';
-                document.getElementById('tempoDetected').textContent = this.bioSignature.tempo + ' BPM';
+                const fundamental = sanitizeValue(this.bioSignature.fundamental, 440);
+                const tempo = sanitizeValue(this.bioSignature.tempo, 120);
 
-                // Update particle metrics display
+                document.getElementById('bioFreq').textContent = fundamental.toFixed(2) + ' Hz';
+                document.getElementById('keyDetected').textContent = this.bioSignature.key || '--';
+                document.getElementById('tempoDetected').textContent = Math.round(tempo) + ' BPM';
+
+                // Update particle metrics display (SANITIZED)
                 document.getElementById('particleCount').textContent = particles.length;
-                document.getElementById('kuramotoR').textContent = kuramotoOrder.toFixed(2);
-                document.getElementById('globalEntropy').textContent = globalEntropy.toFixed(2);
-                document.getElementById('avgOmega').textContent = avgSynapticStrength.toFixed(3);
+                document.getElementById('kuramotoR').textContent = sanitizeValue(kuramotoOrder, 0).toFixed(2);
+                document.getElementById('globalEntropy').textContent = sanitizeValue(globalEntropy, 0).toFixed(2);
+                document.getElementById('avgOmega').textContent = sanitizeValue(avgSynapticStrength, 0).toFixed(3);
             }
             
             // ================================================================
@@ -1765,13 +1796,18 @@
             // ================================================================
             
             initialize12DState() {
+                // ENSURE fundamental is valid before initializing
+                if (!isFinite(this.bioSignature.fundamental) || this.bioSignature.fundamental <= 0) {
+                    this.bioSignature.fundamental = 440;
+                }
+
                 // Initialize 12D state from bio-signature
-                this.cosmicState.E = this.bioSignature.energy;
-                this.cosmicState.m = this.bioSignature.fundamental / this.c; // Mass from energy
-                this.cosmicState.lambda = this.bioSignature.spectralEntropy; // Chaos from entropy
+                this.cosmicState.E = sanitizeValue(this.bioSignature.energy, 1.0);
+                this.cosmicState.m = sanitizeValue(this.bioSignature.fundamental / this.c, 1e-6);
+                this.cosmicState.lambda = sanitizeValue(this.bioSignature.spectralEntropy, 0.5);
                 this.cosmicState.omega = 0.5; // Initial connectivity
                 this.cosmicState.x12 = 0.1; // Initial 12th dimension state
-                
+
                 this.log('🌌 12D Cosmic State initialized', 'success');
                 this.log(`E = ${this.cosmicState.E.toFixed(4)}`, 'info');
                 this.log(`λ (chaos) = ${this.cosmicState.lambda.toFixed(4)}`, 'info');
@@ -1857,8 +1893,13 @@
             // ================================================================
             
             generatePhiHarmonics(fundamental, count=12) {
+                // DEFENSIVE: Ensure fundamental is valid
+                if (!isFinite(fundamental) || fundamental <= 0) {
+                    fundamental = 440; // Fallback to A440
+                }
+
                 const harmonics = [];
-                
+
                 for (let i = 0; i < count; i++) {
                     // Exponent relative to center
                     const exponent = i - (count / 2);
