@@ -590,10 +590,6 @@
                     <span class="metric-label">Next Change In:</span>
                     <span class="metric-value" id="nextChangeIn">--</span>
                 </div>
-                <div class="metric-row" style="border: none;">
-                    <span class="metric-label">Groove Lock:</span>
-                    <span class="metric-value" id="grooveLock">Inactive</span>
-                </div>
             </div>
             
             <!-- TOKEN GENERATION -->
@@ -624,8 +620,41 @@
                     📦 Export Tokens (JSON)
                 </button>
             </div>
+
+            <!-- PARTICLE SYSTEM METRICS -->
+            <div class="card" style="border: 3px solid #00d4ff;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="status-dot"></span>
+                        🌌 Particle System (from User Audio)
+                    </div>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Active Particles:</span>
+                    <span class="metric-value" id="particleCount">0</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Kuramoto Sync (r):</span>
+                    <span class="metric-value" id="kuramotoR">0.00</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Global Entropy:</span>
+                    <span class="metric-value" id="globalEntropy">0.00</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Avg Synaptic Strength (Ω):</span>
+                    <span class="metric-value" id="avgOmega">0.00</span>
+                </div>
+                <div class="metric-row" style="border: none;">
+                    <span class="metric-label">Musical Adaptation:</span>
+                    <span class="metric-value" id="adaptStatus" style="color: var(--success);">ACTIVE (ALWAYS)</span>
+                </div>
+                <div style="margin-top: 10px; padding: 8px; background: rgba(0, 212, 255, 0.1); border-radius: 5px;">
+                    <small>Band continuously adapts to your audio. Harmony, rhythm, and beats evolve in real-time based on particle states.</small>
+                </div>
+            </div>
         </div>
-        
+
         <!-- MAIN CONTROLS -->
         <div class="card" style="text-align: center; padding: 40px;">
             <button class="btn" onclick="startBand()" style="font-size: 1.3em; padding: 20px 50px;">
@@ -737,7 +766,195 @@
         // - Token Generation with Blockchain Provenance
         // - Professional Studio Prediction Intelligence
         // ====================================================================
-        
+
+        // ====================================================================
+        // AUDIO ENGINE: Physical Constants & Configuration
+        // ====================================================================
+        const physics = {
+            G: 6.67430e-11,      // Gravitational constant
+            a0: 1.0,             // Baseline scale factor
+            m0: 1.0,             // Reference mass
+            Eref: 100.0,         // Reference energy
+            tref: 1.0,           // Reference time
+            vref: 10.0,          // Reference velocity
+            epsilon: 0.1,        // Softening parameter for gravity
+            rCutoff: 50.0,       // Cutoff distance for interactions
+            blendLorenz: 0.5,    // Lorenz/gravity blend factor (0=full gravity, 1=full Lorenz)
+            gravEnabled: true,   // Enable gravitational forces
+            dmEnabled: true      // Enable dark matter potential
+        };
+
+        const adapt = {
+            k: 0.1,                  // dx12/dt coupling strength (Equation 2.11)
+            gamma: 0.05,             // dx12/dt damping coefficient
+            alpha: 0.01,             // dm12/dt learning rate (memory adaptation)
+            sigmaSimilarity: 5.0     // Gaussian width for similarity in Ω calculation
+        };
+
+        const sync = {
+            Ksync: 0.5               // Kuramoto coupling strength (Section 2.12)
+        };
+
+        const timestep = {
+            dt: 0.1,                 // Fixed timestep (seconds)
+            dtMax: 0.5,              // Maximum timestep for adaptive integration
+            adaptive: true           // Use adaptive timestep
+        };
+
+        // Global particle system
+        let particles = [];
+        let particleIndex = new Map();  // frequency -> particle mapping
+        let maxParticles = 100;
+        let activeParticleLimit = 10;
+
+        // Integration metrics
+        let kuramotoOrder = 0;
+        let globalEntropy = 0;
+        let avgSynapticStrength = 0;
+
+        // Helper function to generate UUID
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // ====================================================================
+        // AUDIO ENGINE: LorenzParticle Class with 12D Adaptive State
+        // ====================================================================
+        class LorenzParticle {
+            constructor(x, y, z, color, frequency = 0) {
+                this.id = generateUUID();
+                this.x = x || 0.1;
+                this.y = y || 0;
+                this.z = z || 0;
+                this.color = color;
+                this.frequency = frequency;
+
+                // 11D position/velocity (for theoretical consistency)
+                this.pos11D = new Float32Array(11);
+                this.vel11D = new Float32Array(11);
+                for (let i = 0; i < 11; i++) {
+                    this.pos11D[i] = (Math.random() - 0.5) * 2;
+                    this.vel11D[i] = (Math.random() - 0.5) * 0.1;
+                }
+
+                // 12D adaptive state (Section 2.9)
+                this.x12 = 0;      // Adaptive internal state
+                this.dx12 = 0;     // Rate of change
+
+                // Memory state (Section 2.10)
+                this.m12 = 0;      // Memory of x12
+                this.dm12 = 0;     // Rate of change of memory
+
+                // Cosmic energy (combines kinetic + potential + dark matter)
+                this.Ec = 1.0;
+
+                // Synaptic strength (Section 2.11)
+                this.omega = 0;
+
+                // Kuramoto phase (Section 2.12)
+                this.theta = Math.random() * Math.PI * 2;
+                this.dtheta = 0;
+
+                // Characteristic frequency (Section 2.6)
+                this.vi = 0;
+
+                // State function ψ (Section 2.8)
+                this.psi = 0;
+
+                // Legacy properties for compatibility
+                this.velocity = { x: 0, y: 0, z: 0 };
+                this.mass = 1.0;
+                this.energy = 0;
+                this.decayRate = 0.01;
+            }
+
+            // Update internal adaptive state: dx12/dt = k·Ω - γ·x12 (Equation 2.11)
+            updateInternalState(dt, k, gamma, alpha, neighbors) {
+                this.dx12 = k * this.omega - gamma * this.x12;
+                this.x12 += this.dx12 * dt;
+
+                // Memory update: dm12/dt = α·(x12 - m12) (Equation 2.12)
+                this.dm12 = alpha * (this.x12 - this.m12);
+                this.m12 += this.dm12 * dt;
+            }
+        }
+
+        // ====================================================================
+        // AUDIO ENGINE: 12D Equation Functions
+        // ====================================================================
+
+        // Calculate synaptic strength Ω (Section 2.11)
+        // Ωi = Σj [(G·mi·mj / r²) · exp(-|x12_i - x12_j|² / 2σ²)]
+        function calculateSynapticStrength(p1, p2, G, epsilon, sigma) {
+            const dx = p1.x - p2.x;
+            const dy = p1.y - p2.y;
+            const dz = p1.z - p2.z;
+            const r = Math.sqrt(dx*dx + dy*dy + dz*dz + epsilon);
+
+            // Gravitational term
+            const gravTerm = (G * p1.mass * p2.mass) / (r * r);
+
+            // Gaussian similarity in x12 space
+            const x12Diff = p1.x12 - p2.x12;
+            const similarity = Math.exp(-(x12Diff * x12Diff) / (2 * sigma * sigma));
+
+            return gravTerm * similarity;
+        }
+
+        // Kuramoto order parameter (Section 2.12)
+        // r = |⟨e^(iθ)⟩| = |Σ e^(iθj) / N|
+        function computeKuramotoOrder(particles) {
+            if (particles.length === 0) return 0;
+
+            let sumCos = 0;
+            let sumSin = 0;
+
+            for (let p of particles) {
+                sumCos += Math.cos(p.theta);
+                sumSin += Math.sin(p.theta);
+            }
+
+            const avgCos = sumCos / particles.length;
+            const avgSin = sumSin / particles.length;
+
+            return Math.sqrt(avgCos * avgCos + avgSin * avgSin);
+        }
+
+        // Global entropy calculation (coarse-grained speed distribution)
+        function computeGlobalEntropy(particles) {
+            if (particles.length < 2) return 0;
+
+            const speeds = particles.map(p => {
+                const vx = p.velocity.x;
+                const vy = p.velocity.y;
+                const vz = p.velocity.z;
+                return Math.sqrt(vx*vx + vy*vy + vz*vz);
+            });
+
+            const maxSpeed = Math.max(...speeds, 0.01);
+            const numBins = 10;
+            const histogram = new Array(numBins).fill(0);
+
+            for (let speed of speeds) {
+                const bin = Math.min(Math.floor((speed / maxSpeed) * numBins), numBins - 1);
+                histogram[bin]++;
+            }
+
+            let entropy = 0;
+            for (let count of histogram) {
+                if (count > 0) {
+                    const p = count / particles.length;
+                    entropy -= p * Math.log(p);
+                }
+            }
+
+            return entropy;
+        }
+
         class Ultimate12DProfessionalAIBandConductor {
             constructor() {
                 // Universal constants
@@ -811,7 +1028,6 @@
                     nextChordChange: 4,
                     nextFillIn: 8,
                     anticipationTime: 0.5, // seconds ahead
-                    grooveLocked: false,
                     userPatternHistory: [],
                     predictedNextChord: null,
                     predictedNextFill: null
@@ -868,7 +1084,11 @@
                     rho: 28,
                     beta: 8/3
                 };
-                
+
+                // Particle system timing (for autonomous beat generation)
+                this.lastKickTime = 0;
+                this.lastSnareTime = 0;
+
                 this.init();
             }
             
@@ -998,27 +1218,71 @@
                 this.log(`✅ Initial calibration complete: ${this.bioSignature.fundamental.toFixed(2)} Hz`, 'success');
                 this.log(`🎹 Key: ${this.bioSignature.key} | 🥁 Tempo: ${this.bioSignature.tempo} BPM`, 'music');
             }
-            
+
+            // ================================================================
+            // AUDIO ENGINE: Enhanced FFT Analysis
+            // ================================================================
+
+            extractTopFrequencies(freqData, sampleRate, count = 10) {
+                const binCount = freqData.length;
+                const peaks = [];
+
+                // Find local maxima in frequency spectrum
+                for (let i = 2; i < binCount - 2; i++) {
+                    if (freqData[i] > freqData[i-1] &&
+                        freqData[i] > freqData[i+1] &&
+                        freqData[i] > -60) { // Threshold in dB
+
+                        const frequency = (i * sampleRate) / (binCount * 2);
+                        const magnitude = Math.pow(10, freqData[i] / 20); // dB to linear
+
+                        peaks.push({ frequency, magnitude, index: i });
+                    }
+                }
+
+                // Sort by magnitude and take top N
+                peaks.sort((a, b) => b.magnitude - a.magnitude);
+                return peaks.slice(0, count);
+            }
+
             continuousAnalysisLoop() {
                 if (!this.continuousLearning.active) return;
-                
+
                 const analyzer = this.continuousLearning.micAnalyzer;
                 const bufferLength = analyzer.frequencyBinCount;
                 const freqData = new Float32Array(bufferLength);
                 const timeData = new Uint8Array(bufferLength);
-                
+
                 analyzer.getFloatFrequencyData(freqData);
                 analyzer.getByteTimeDomainData(timeData);
-                
-                // Continuous learning update
+
+                // Existing bio-signature update
                 this.updateBioSignatureFromLiveAudio(freqData, timeData);
-                
-                // Update 12D state based on new patterns
+
+                // NEW: Extract top 10 frequencies for particle creation
+                const sampleRate = this.continuousLearning.micContext.sampleRate;
+                const topFreqs = this.extractTopFrequencies(freqData, sampleRate, 10);
+
+                // NEW: Update particles from audio frequencies
+                this.updateParticlesFromAudio(topFreqs);
+
+                // NEW: Update 12D particle states (dx12/dt, dm12/dt, Kuramoto)
+                this.updateParticleStates(timestep.dt);
+
+                // NEW: Calculate global metrics
+                kuramotoOrder = computeKuramotoOrder(particles);
+                globalEntropy = computeGlobalEntropy(particles);
+
+                // NEW: Map particles to music parameters
+                if (this.isPlaying) {
+                    this.mapParticlesToMusic();
+                    this.generateBeatsFromFrequencies(topFreqs);
+                }
+
+                // Existing pattern learning
                 this.adaptiveUpdate12DState();
-                
-                // Pattern recognition and learning
                 this.learnFromPatterns(freqData, timeData);
-                
+
                 // Continue loop at 100ms intervals
                 setTimeout(() => this.continuousAnalysisLoop(), 100);
             }
@@ -1177,7 +1441,180 @@
                     this.log(`🎵 AI adapted harmonics proactively based on learned patterns`, 'prediction');
                 }
             }
-            
+
+            // ================================================================
+            // AUDIO ENGINE: Particle-Audio Integration Methods
+            // ================================================================
+
+            updateParticlesFromAudio(topFreqs) {
+                // Decay existing particles
+                particles.forEach(p => {
+                    p.Ec *= (1 - p.decayRate);
+                });
+
+                // Remove dead particles
+                particles = particles.filter(p => p.Ec > 0.01);
+
+                // Update particle index
+                particleIndex.clear();
+                particles.forEach(p => {
+                    if (p.frequency > 0) {
+                        particleIndex.set(Math.round(p.frequency), p);
+                    }
+                });
+
+                // Update or create particles for top frequencies
+                topFreqs.forEach(({frequency, magnitude}, idx) => {
+                    if (idx >= activeParticleLimit) return;
+
+                    let particle = particleIndex.get(Math.round(frequency));
+
+                    if (!particle && particles.length < maxParticles) {
+                        // Create new particle
+                        const hue = (frequency / 20000) * 360;
+                        const color = `hsl(${hue}, 70%, 60%)`;
+                        particle = new LorenzParticle(
+                            (Math.random() - 0.5) * 20,
+                            (Math.random() - 0.5) * 20,
+                            (Math.random() - 0.5) * 20,
+                            color,
+                            frequency
+                        );
+                        particles.push(particle);
+                        particleIndex.set(Math.round(frequency), particle);
+                    }
+
+                    if (particle) {
+                        // Update energy
+                        particle.Ec = magnitude * 100;
+                        particle.frequency = frequency;
+
+                        // Calculate characteristic frequency (Section 2.6)
+                        particle.vi = particle.Ec / this.h;
+                    }
+                });
+            }
+
+            updateParticleStates(dt) {
+                // Calculate synaptic strengths for all pairs (Section 2.11)
+                for (let i = 0; i < particles.length; i++) {
+                    particles[i].omega = 0;
+                    for (let j = 0; j < particles.length; j++) {
+                        if (i !== j) {
+                            particles[i].omega += calculateSynapticStrength(
+                                particles[i],
+                                particles[j],
+                                physics.G,
+                                physics.epsilon,
+                                adapt.sigmaSimilarity
+                            );
+                        }
+                    }
+                    particles[i].omega /= Math.max(1, particles.length - 1);
+                }
+
+                // Update internal states (dx12/dt, dm12/dt) and Kuramoto phases
+                for (let particle of particles) {
+                    // Update 12D adaptive state (Equation 2.11)
+                    particle.updateInternalState(dt, adapt.k, adapt.gamma, adapt.alpha, particles);
+
+                    // Update Kuramoto phase (Section 2.12)
+                    // dθ/dt = ωi + (K/N) Σ sin(θj - θi)
+                    let coupling = 0;
+                    for (let other of particles) {
+                        if (particle.id !== other.id) {
+                            coupling += Math.sin(other.theta - particle.theta);
+                        }
+                    }
+                    particle.dtheta = particle.vi + (sync.Ksync / particles.length) * coupling;
+                    particle.theta += particle.dtheta * dt;
+                }
+            }
+
+            mapParticlesToMusic() {
+                if (!particles || particles.length === 0) return;
+
+                // 1. Average particle energy → Master volume
+                const avgEnergy = particles.reduce((sum, p) => sum + p.Ec, 0) / particles.length;
+                const energyScale = Math.min(1.5, avgEnergy / 50);
+                this.masterGain.gain.setValueAtTime(0.7 * energyScale, this.audioContext.currentTime);
+
+                // 2. Average Ω → Harmonic complexity
+                avgSynapticStrength = particles.reduce((sum, p) => sum + p.omega, 0) / particles.length;
+                const harmonicCount = avgSynapticStrength > 0.7 ? 16 : 8;
+                this.currentHarmonics = this.generatePhiHarmonics(this.bioSignature.fundamental, harmonicCount);
+
+                // 3. Kuramoto order → Tempo stability
+                if (kuramotoOrder > 0.8) {
+                    this.rhythmTracker.tempo = Math.round(this.bioSignature.tempo);
+                } else {
+                    this.rhythmTracker.tempo = this.bioSignature.tempo;
+                }
+
+                // 4. Top 6 particles → 6 instruments (sorted by energy)
+                const sorted = [...particles].sort((a, b) => b.Ec - a.Ec).slice(0, 6);
+                const instruments = ['drums', 'bass', 'guitar', 'piano', 'strings', 'pads'];
+
+                sorted.forEach((particle, i) => {
+                    if (i < instruments.length) {
+                        const instName = instruments[i];
+                        if (this.instruments[instName] && this.instruments[instName].gain) {
+                            const energyVolume = Math.min(1, particle.Ec / 100);
+                            const baseVolume = this.instruments[instName].volume;
+                            this.instruments[instName].gain.gain.setValueAtTime(
+                                baseVolume * energyVolume,
+                                this.audioContext.currentTime
+                            );
+                        }
+                    }
+                });
+
+                // 5. Log adaptation
+                this.log(`[ADAPT] Energy: ${avgEnergy.toFixed(1)} | Ω: ${avgSynapticStrength.toFixed(3)} | Sync: ${kuramotoOrder.toFixed(2)} | Harmonics: ${harmonicCount}`, 'music');
+            }
+
+            generateBeatsFromFrequencies(topFreqs) {
+                if (!this.isPlaying || !topFreqs || topFreqs.length === 0) return;
+
+                // Analyze frequency energy distribution
+                const lowFreqEnergy = topFreqs
+                    .filter(f => f.frequency >= 80 && f.frequency <= 200)
+                    .reduce((sum, f) => sum + f.magnitude, 0);
+
+                const midFreqEnergy = topFreqs
+                    .filter(f => f.frequency > 200 && f.frequency <= 800)
+                    .reduce((sum, f) => sum + f.magnitude, 0);
+
+                const highFreqEnergy = topFreqs
+                    .filter(f => f.frequency > 8000)
+                    .reduce((sum, f) => sum + f.magnitude, 0);
+
+                const now = this.audioContext.currentTime;
+
+                // Trigger kicks on low frequency energy
+                if (lowFreqEnergy > 0.3 && (now - this.lastKickTime > 0.25)) {
+                    this.playKick(now);
+                    this.lastKickTime = now;
+                    this.log(`[BEAT] Auto-kick from low freq energy: ${lowFreqEnergy.toFixed(2)}`, 'music');
+                }
+
+                // Trigger snares on mid frequency energy
+                if (midFreqEnergy > 0.25 && (now - this.lastSnareTime > 0.5)) {
+                    this.playSnare(now);
+                    this.lastSnareTime = now;
+                    this.log(`[BEAT] Auto-snare from mid freq energy: ${midFreqEnergy.toFixed(2)}`, 'music');
+                }
+
+                // Hi-hat density from high frequency energy
+                if (highFreqEnergy > 0.2) {
+                    const hiHatDensity = Math.min(highFreqEnergy * 4, 4);
+                    for (let i = 0; i < hiHatDensity; i++) {
+                        const timing = now + (0.125 * i); // 16th notes
+                        this.playHiHat(timing);
+                    }
+                }
+            }
+
             stopContinuousLearning() {
                 if (!this.continuousLearning.active) return;
                 
@@ -1315,6 +1752,12 @@
                 document.getElementById('bioFreq').textContent = this.bioSignature.fundamental.toFixed(2) + ' Hz';
                 document.getElementById('keyDetected').textContent = this.bioSignature.key || '--';
                 document.getElementById('tempoDetected').textContent = this.bioSignature.tempo + ' BPM';
+
+                // Update particle metrics display
+                document.getElementById('particleCount').textContent = particles.length;
+                document.getElementById('kuramotoR').textContent = kuramotoOrder.toFixed(2);
+                document.getElementById('globalEntropy').textContent = globalEntropy.toFixed(2);
+                document.getElementById('avgOmega').textContent = avgSynapticStrength.toFixed(3);
             }
             
             // ================================================================
@@ -1508,7 +1951,6 @@
             
             startPredictiveEngine() {
                 this.log('🧠 Predictive engine activated - learning patterns...', 'prediction');
-                this.prediction.grooveLocked = false;
                 this.predictiveLoop();
             }
             
@@ -1544,12 +1986,7 @@
                 if (beatsUntilPhraseEnd < this.prediction.anticipationTime) {
                     this.executePredictions();
                 }
-                
-                // Lock groove after first phrase
-                if (this.prediction.currentBar >= this.prediction.phraseLength && !this.prediction.grooveLocked) {
-                    this.lockGroove();
-                }
-                
+
                 // Update UI
                 this.updatePredictionDisplay();
                 
@@ -1608,14 +2045,7 @@
                     this.prediction.predictedNextFill = null;
                 }
             }
-            
-            lockGroove() {
-                this.prediction.grooveLocked = true;
-                this.log('🔒 GROOVE LOCKED - Band locked to your rhythm!', 'success');
-                document.getElementById('grooveLock').textContent = 'LOCKED ✓';
-                document.getElementById('grooveLock').style.color = 'var(--success)';
-            }
-            
+
             updatePredictionDisplay() {
                 const beatsUntilChange = (this.prediction.phraseLength * this.prediction.beatsPerBar) - 
                                         (this.prediction.currentBar * this.prediction.beatsPerBar + this.prediction.currentBeat);
@@ -1695,8 +2125,7 @@
             
             stopBand() {
                 this.isPlaying = false;
-                this.prediction.grooveLocked = false;
-                
+
                 // Stop all instruments
                 for (let inst in this.instruments) {
                     this.stopInstrument(inst);
@@ -1712,10 +2141,8 @@
                     adaptations: this.continuousLearning.adaptationCount,
                     patternsLearned: this.continuousLearning.patternHistory.length
                 });
-                
+
                 this.log('⏹️ Band stopped', 'warning');
-                document.getElementById('grooveLock').textContent = 'Inactive';
-                document.getElementById('grooveLock').style.color = '';
                 document.getElementById('learningStatus').textContent = 'Inactive';
             }
             
