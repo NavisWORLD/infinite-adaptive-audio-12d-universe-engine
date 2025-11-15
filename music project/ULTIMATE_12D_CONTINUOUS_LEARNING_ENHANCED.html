@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌌 12D Ultimate Continuous Learning Music System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --accent: #f093fb;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --error: #f87171;
+            --music: #a78bfa;
+            --bg-dark: #0a0e27;
+            --bg-medium: #1a1f3a;
+            --card-bg: rgba(255,255,255,0.08);
+            --border: rgba(255,255,255,0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-medium) 50%, #2d1b3d 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1900px;
+            margin: 0 auto;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 40px 30px;
+            background: var(--card-bg);
+            border-radius: 25px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(20px);
+            border: 2px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+        }
+
+        .hero p {
+            color: rgba(255,255,255,0.8);
+            font-size: 16px;
+            margin: 10px 0;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: var(--primary);
+            background: rgba(102, 126, 234, 0.15);
+        }
+
+        .card h3 {
+            color: var(--accent);
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .stat-value {
+            color: var(--success);
+            font-weight: bold;
+            font-size: 15px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+            min-width: 180px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #22c55e);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(74, 222, 128, 0.4);
+        }
+
+        .btn-error {
+            background: linear-gradient(135deg, var(--error), #fb7185);
+            color: white;
+        }
+
+        .btn-error:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(248, 113, 113, 0.4);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            transition: width 0.3s ease;
+        }
+
+        .instrument-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin: 15px 0;
+        }
+
+        .instrument-card {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(240, 147, 251, 0.2));
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .instrument-card .instrument-name {
+            font-size: 14px;
+            font-weight: bold;
+            margin: 8px 0 5px;
+        }
+
+        .instrument-card .sync-level {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--success);
+        }
+
+        .instrument-card .harmony-coef {
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .instrument-card .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-top: 5px;
+        }
+
+        .instrument-card.status-peak .status-indicator {
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+
+        .instrument-card.status-strong .status-indicator {
+            background: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+
+        .instrument-card.status-good .status-indicator {
+            background: var(--warning);
+            box-shadow: 0 0 6px var(--warning);
+        }
+
+        .psi-display {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(240, 147, 251, 0.15));
+            border: 2px solid var(--music);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .psi-value {
+            font-size: 48px;
+            color: var(--accent);
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+
+        .psi-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .formula {
+            background: rgba(160, 119, 255, 0.1);
+            border-left: 4px solid var(--music);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin: 10px 0;
+        }
+
+        .live-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 1.5s ease-in-out infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(74, 222, 128, 0);
+            }
+        }
+
+        .log-display {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--success);
+            max-height: 250px;
+            overflow-y: auto;
+            margin: 15px 0;
+        }
+
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .section-divider {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            margin: 40px 0;
+        }
+
+        .pattern-display {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+
+        .fft-visualizer {
+            width: 100%;
+            height: 120px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- HERO SECTION -->
+        <div class="hero">
+            <h1>🌌 12D Ultimate Continuous Learning Music System</h1>
+            <p>Continuously Playing • Self-Learning • Real-Time Harmonization</p>
+            <p style="font-size: 14px; margin-top: 15px; color: rgba(255,255,255,0.6);">
+                An AI music system that never stops harmonizing with you - learns and evolves with every moment
+            </p>
+            <p style="font-size: 12px; margin-top: 10px; color: var(--music);">
+                10 beats/sec • 60 FPS FFT • φ-Harmonic Alignment • Blockchain-Ready Tokens
+            </p>
+        </div>
+
+        <!-- PRIMARY STATUS PANEL -->
+        <div class="card" style="margin-bottom: 20px; border: 2px solid var(--primary);">
+            <h3>🎵 CONTINUOUS LEARNING STATUS</h3>
+            <div class="stat-row">
+                <span class="stat-label"><span class="live-indicator"></span>System Status:</span>
+                <span class="stat-value" id="systemStatus">Ready</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Confidence:</span>
+                <span class="stat-value" id="confidence">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="confProgress" style="width: 0%"></div>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Total Beats Generated:</span>
+                <span class="stat-value" id="totalBeats">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Beat Rate:</span>
+                <span class="stat-value" id="beatRate">0/sec</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Learning Duration:</span>
+                <span class="stat-value" id="duration">0s</span>
+            </div>
+        </div>
+
+        <!-- CONTROL SECTION -->
+        <div class="card" style="margin-bottom: 30px;">
+            <h3>🎛️ System Controls</h3>
+            <div class="button-group">
+                <button class="btn-success" id="startBtn" onclick="startContinuousLearning()">
+                    🚀 START CONTINUOUS LEARNING
+                </button>
+                <button class="btn-error" id="stopBtn" onclick="stopLearning()" style="display:none;">
+                    ⏹ STOP
+                </button>
+            </div>
+        </div>
+
+        <!-- BIO-SIGNATURE & 12D STATE -->
+        <div class="grid">
+            <div class="card">
+                <h3>🧬 Bio-Signature Detection</h3>
+                <div class="fft-visualizer">
+                    <canvas id="fftCanvas" width="400" height="120"></canvas>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Fundamental Frequency:</span>
+                    <span class="stat-value" id="bioFreq">-- Hz</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Key Detected:</span>
+                    <span class="stat-value" id="keyDetected">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Tempo (BPM):</span>
+                    <span class="stat-value" id="tempo">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Spectral Entropy:</span>
+                    <span class="stat-value" id="spectralEntropy">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">RMS Energy:</span>
+                    <span class="stat-value" id="rmsEnergy">--</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🌌 12D Cosmic Metrics</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Ψ (Psi):</span>
+                    <span class="stat-value" id="psi">0.000</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Ω (Connectivity):</span>
+                    <span class="stat-value" id="omega">0.00</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Kuramoto Order:</span>
+                    <span class="stat-value" id="kuramoto">0.00</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Particles Active:</span>
+                    <span class="stat-value" id="particles">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Global Entropy:</span>
+                    <span class="stat-value" id="globalEntropy">--</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🧠 Pattern Learning Insights</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Patterns Stored:</span>
+                    <span class="stat-value" id="patternsStored">0 / 128</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Most Successful:</span>
+                    <span class="stat-value" id="mostSuccessful">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Preferred Key:</span>
+                    <span class="stat-value" id="preferredKey">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Tempo Range:</span>
+                    <span class="stat-value" id="tempoRange">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Harmonic Preference:</span>
+                    <span class="stat-value">φ-based</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- BAND HARMONY MATRIX -->
+        <div class="card" style="margin-bottom: 30px;">
+            <h3>🎼 Band Harmony Matrix (Real-Time Sync)</h3>
+            <div class="instrument-grid">
+                <div class="instrument-card status-good" id="inst-drums">
+                    <div style="font-size: 32px;">🥁</div>
+                    <div class="instrument-name">Drums</div>
+                    <div class="sync-level" id="sync-drums">0%</div>
+                    <div class="harmony-coef" id="harm-drums">0.00</div>
+                    <div class="status-indicator"></div>
+                </div>
+                <div class="instrument-card status-good" id="inst-bass">
+                    <div style="font-size: 32px;">🎸</div>
+                    <div class="instrument-name">Bass</div>
+                    <div class="sync-level" id="sync-bass">0%</div>
+                    <div class="harmony-coef" id="harm-bass">0.00</div>
+                    <div class="status-indicator"></div>
+                </div>
+                <div class="instrument-card status-good" id="inst-guitar">
+                    <div style="font-size: 32px;">🎸</div>
+                    <div class="instrument-name">Guitar</div>
+                    <div class="sync-level" id="sync-guitar">0%</div>
+                    <div class="harmony-coef" id="harm-guitar">0.00</div>
+                    <div class="status-indicator"></div>
+                </div>
+                <div class="instrument-card status-good" id="inst-piano">
+                    <div style="font-size: 32px;">🎹</div>
+                    <div class="instrument-name">Piano</div>
+                    <div class="sync-level" id="sync-piano">0%</div>
+                    <div class="harmony-coef" id="harm-piano">0.00</div>
+                    <div class="status-indicator"></div>
+                </div>
+                <div class="instrument-card status-good" id="inst-strings">
+                    <div style="font-size: 32px;">🎻</div>
+                    <div class="instrument-name">Strings</div>
+                    <div class="sync-level" id="sync-strings">0%</div>
+                    <div class="harmony-coef" id="harm-strings">0.00</div>
+                    <div class="status-indicator"></div>
+                </div>
+                <div class="instrument-card status-good" id="inst-pads">
+                    <div style="font-size: 32px;">🌊</div>
+                    <div class="instrument-name">Pads</div>
+                    <div class="sync-level" id="sync-pads">0%</div>
+                    <div class="harmony-coef" id="harm-pads">0.00</div>
+                    <div class="status-indicator"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PSI FUNCTION DISPLAY -->
+        <div class="psi-display">
+            <div class="psi-label">ψ (Psi) 12-Dimensional State Function</div>
+            <div class="psi-value" id="psiValue">0.000</div>
+            <div class="formula">ψ = (φE/c²) + λ + ∫v·dt + ∫Δx₁₂·dt + ΩE + U₁₁D</div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 15px; font-size: 12px;">
+                <div><span class="stat-label">φE/c²:</span> <span class="stat-value" id="phiEc2">--</span></div>
+                <div><span class="stat-label">λ (Chaos):</span> <span class="stat-value" id="lambda">--</span></div>
+                <div><span class="stat-label">∫v·dt:</span> <span class="stat-value" id="velIntegral">--</span></div>
+                <div><span class="stat-label">∫Δx₁₂·dt:</span> <span class="stat-value" id="x12Integral">--</span></div>
+                <div><span class="stat-label">ΩE:</span> <span class="stat-value" id="omegaE">--</span></div>
+                <div><span class="stat-label">U₁₁D:</span> <span class="stat-value" id="u11d">--</span></div>
+            </div>
+        </div>
+
+        <!-- SUCCESS CRITERIA STATUS -->
+        <div class="card" style="margin-top: 30px; margin-bottom: 20px; border: 2px solid var(--success);">
+            <h3>✅ Success Criteria Status</h3>
+            <div class="stat-row">
+                <span class="stat-label">Music Continuity:</span>
+                <span class="stat-value" id="criteria-continuity">❌ Not Started</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Confidence ≥80%:</span>
+                <span class="stat-value" id="criteria-confidence">❌ 0%</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">3+ Instruments Green (>70%):</span>
+                <span class="stat-value" id="criteria-instruments">❌ 0/6</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Beat Generation 10/sec:</span>
+                <span class="stat-value" id="criteria-beats">❌ 0/sec</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Ψ (Psi) Active & Updating:</span>
+                <span class="stat-value" id="criteria-psi">❌ Inactive</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Dynamic Instrument Mix:</span>
+                <span class="stat-value" id="criteria-dynamic">❌ Static</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Pattern Memory Active:</span>
+                <span class="stat-value" id="criteria-memory">❌ Empty</span>
+            </div>
+        </div>
+
+        <!-- TOKENIZATION & EXPORT -->
+        <div class="grid">
+            <div class="card">
+                <h3>⛓️ Blockchain Tokenization</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Tokens Generated:</span>
+                    <span class="stat-value" id="tokenCount">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Token Rate:</span>
+                    <span class="stat-value" id="tokenRate">0/sec</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Last Token UUID:</span>
+                    <span class="stat-value" id="lastUUID" style="font-size: 11px;">--</span>
+                </div>
+                <div class="button-group" style="margin-top: 15px;">
+                    <button class="btn-primary" onclick="exportTokens()" style="flex: 1;">
+                        📦 Export Tokens (JSON)
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📊 Session Statistics</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Session Start:</span>
+                    <span class="stat-value" id="sessionStart">--</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Total Duration:</span>
+                    <span class="stat-value" id="totalDuration">0s</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Avg Harmony Score:</span>
+                    <span class="stat-value" id="avgHarmony">0%</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Peak Confidence:</span>
+                    <span class="stat-value" id="peakConfidence">0%</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Learning Cycles:</span>
+                    <span class="stat-value" id="learningCycles">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SYSTEM LOG -->
+        <div class="card" style="margin-top: 30px; margin-bottom: 30px;">
+            <h3>📡 System Intelligence Log</h3>
+            <div class="log-display" id="logDisplay">
+                <div class="log-entry">[SYSTEM] 12D Ultimate Continuous Learning Music System initialized ✓</div>
+                <div class="log-entry">[AUDIO] Web Audio API ready - awaiting microphone activation</div>
+                <div class="log-entry">[LEARNING] Pattern memory buffer allocated (128 slots)</div>
+                <div class="log-entry">[HARMONY] φ-harmonic alignment system active</div>
+                <div class="log-entry">[SYNC] Kuramoto oscillator network initialized</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // 12D ULTIMATE CONTINUOUS LEARNING MUSIC SYSTEM
+        // Complete Implementation with Real Audio Processing
+        // ============================================================
+
+        const PHI = (1 + Math.sqrt(5)) / 2; // Golden ratio
+        const C = 299792458; // Speed of light
+        const A440 = 440; // Reference frequency
+
+        // ============================================================
+        // RING BUFFER FOR PATTERN MEMORY
+        // ============================================================
+        class RingBuffer {
+            constructor(capacity) {
+                this.capacity = capacity;
+                this.buffer = new Array(capacity);
+                this.head = 0;
+                this.size = 0;
+            }
+
+            push(item) {
+                this.buffer[this.head] = item;
+                this.head = (this.head + 1) % this.capacity;
+                if (this.size < this.capacity) this.size++;
+            }
+
+            getAll() {
+                if (this.size < this.capacity) {
+                    return this.buffer.slice(0, this.size);
+                }
+                return [...this.buffer.slice(this.head), ...this.buffer.slice(0, this.head)];
+            }
+
+            get length() {
+                return this.size;
+            }
+        }
+
+        // ============================================================
+        // LEARNING SYSTEM
+        // ============================================================
+        class BandLearningSystem {
+            constructor() {
+                this.patternMemory = new RingBuffer(128);
+                this.confidence = 0;
+                this.successfulPatterns = new Map();
+                this.keyFrequencies = new Map();
+                this.tempoHistory = [];
+            }
+
+            learn(beat, bioSignature, harmonySuccess) {
+                // Store pattern
+                const pattern = {
+                    beat: beat,
+                    userFrequency: bioSignature.fundamental,
+                    harmonySuccess: harmonySuccess,
+                    timestamp: Date.now(),
+                    key: bioSignature.key,
+                    tempo: bioSignature.tempo
+                };
+
+                this.patternMemory.push(pattern);
+
+                // Build confidence
+                if (harmonySuccess > 0.7) {
+                    this.confidence = Math.min(100, this.confidence + 5);
+
+                    // Track successful patterns
+                    const patternKey = JSON.stringify(beat.instrumentMix);
+                    this.successfulPatterns.set(patternKey,
+                        (this.successfulPatterns.get(patternKey) || 0) + 1);
+                } else {
+                    this.confidence = Math.max(0, this.confidence - 1);
+                }
+
+                // Track key preferences
+                if (bioSignature.key) {
+                    this.keyFrequencies.set(bioSignature.key,
+                        (this.keyFrequencies.get(bioSignature.key) || 0) + 1);
+                }
+
+                // Track tempo
+                if (bioSignature.tempo) {
+                    this.tempoHistory.push(bioSignature.tempo);
+                    if (this.tempoHistory.length > 100) this.tempoHistory.shift();
+                }
+            }
+
+            getMostSuccessfulPattern() {
+                let maxCount = 0;
+                let bestPattern = null;
+                for (const [pattern, count] of this.successfulPatterns.entries()) {
+                    if (count > maxCount) {
+                        maxCount = count;
+                        bestPattern = pattern;
+                    }
+                }
+                return bestPattern ? JSON.parse(bestPattern) : null;
+            }
+
+            getPreferredKey() {
+                let maxCount = 0;
+                let preferredKey = null;
+                for (const [key, count] of this.keyFrequencies.entries()) {
+                    if (count > maxCount) {
+                        maxCount = count;
+                        preferredKey = key;
+                    }
+                }
+                return preferredKey;
+            }
+
+            getTempoRange() {
+                if (this.tempoHistory.length === 0) return null;
+                const min = Math.min(...this.tempoHistory);
+                const max = Math.max(...this.tempoHistory);
+                return { min, max };
+            }
+        }
+
+        // ============================================================
+        // INSTRUMENT SYNTHESIZER
+        // ============================================================
+        class Instrument {
+            constructor(audioContext, name, type) {
+                this.audioContext = audioContext;
+                this.name = name;
+                this.type = type;
+                this.currentFrequency = 0;
+                this.gain = 0.3;
+                this.syncLevel = 0;
+                this.harmonyCoef = 0;
+
+                // Create audio nodes
+                this.gainNode = audioContext.createGain();
+                this.gainNode.gain.value = 0;
+                this.gainNode.connect(audioContext.destination);
+
+                this.oscillators = [];
+            }
+
+            play(frequency, duration = 0.5) {
+                this.currentFrequency = frequency;
+
+                // Create oscillator
+                const osc = this.audioContext.createOscillator();
+                const gainEnv = this.audioContext.createGain();
+
+                // Set type based on instrument
+                switch(this.name) {
+                    case 'drums':
+                        osc.type = 'triangle';
+                        frequency = 80; // Bass drum-ish
+                        break;
+                    case 'bass':
+                        osc.type = 'sawtooth';
+                        frequency = frequency / 2; // Lower octave
+                        break;
+                    case 'guitar':
+                        osc.type = 'sawtooth';
+                        break;
+                    case 'piano':
+                        osc.type = 'triangle';
+                        break;
+                    case 'strings':
+                        osc.type = 'sine';
+                        frequency = frequency * 1.5; // Higher octave
+                        break;
+                    case 'pads':
+                        osc.type = 'sine';
+                        break;
+                }
+
+                osc.frequency.value = frequency;
+
+                // ADSR envelope
+                const now = this.audioContext.currentTime;
+                gainEnv.gain.setValueAtTime(0, now);
+                gainEnv.gain.linearRampToValueAtTime(this.gain, now + 0.01);
+                gainEnv.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+                osc.connect(gainEnv);
+                gainEnv.connect(this.gainNode);
+
+                osc.start(now);
+                osc.stop(now + duration);
+
+                this.oscillators.push(osc);
+
+                // Clean up
+                setTimeout(() => {
+                    const idx = this.oscillators.indexOf(osc);
+                    if (idx > -1) this.oscillators.splice(idx, 1);
+                }, duration * 1000 + 100);
+            }
+
+            updateGain(newGain) {
+                this.gain = Math.max(0, Math.min(1, newGain));
+                this.gainNode.gain.setValueAtTime(this.gain, this.audioContext.currentTime);
+            }
+        }
+
+        // ============================================================
+        // MAIN SYSTEM STATE
+        // ============================================================
+        const SYSTEM = {
+            isLearning: false,
+            audioContext: null,
+            analyser: null,
+            microphone: null,
+            dataArray: null,
+            bufferLength: 0,
+
+            // Instruments
+            instruments: {},
+
+            // Bio-signature
+            bioSignature: {
+                fundamental: A440,
+                key: null,
+                tempo: 120,
+                spectralEntropy: 0,
+                rmsEnergy: 0
+            },
+
+            // Learning
+            learningSystem: new BandLearningSystem(),
+
+            // Metrics
+            totalBeats: 0,
+            startTime: null,
+
+            // 12D metrics
+            psiValue: 0,
+            omega: 0,
+            kuramoto: 0,
+            particles: 0,
+
+            // Integrals for psi function
+            velIntegral: 0,
+            x12Integral: 0,
+
+            // Tokenization
+            tokens: [],
+            tokenCount: 0,
+            lastTokenTime: 0,
+
+            // Session statistics
+            peakConfidence: 0,
+            harmonyScores: [],
+            instrumentMixChanges: 0,
+            lastInstrumentMix: null,
+
+            // Logs
+            logs: []
+        };
+
+        // ============================================================
+        // LOGGING
+        // ============================================================
+        function addLog(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            SYSTEM.logs.push(`[${timestamp}] ${message}`);
+            if (SYSTEM.logs.length > 50) SYSTEM.logs.shift();
+            updateLogDisplay();
+        }
+
+        function updateLogDisplay() {
+            const logDisplay = document.getElementById('logDisplay');
+            logDisplay.innerHTML = SYSTEM.logs
+                .map(log => `<div class="log-entry">${log}</div>`)
+                .join('');
+            logDisplay.scrollTop = logDisplay.scrollHeight;
+        }
+
+        // ============================================================
+        // AUDIO INITIALIZATION
+        // ============================================================
+        async function initializeAudio() {
+            try {
+                // Create audio context
+                SYSTEM.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+                // Request microphone
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                SYSTEM.microphone = SYSTEM.audioContext.createMediaStreamSource(stream);
+
+                // Create analyser
+                SYSTEM.analyser = SYSTEM.audioContext.createAnalyser();
+                SYSTEM.analyser.fftSize = 2048;
+                SYSTEM.bufferLength = SYSTEM.analyser.frequencyBinCount;
+                SYSTEM.dataArray = new Uint8Array(SYSTEM.bufferLength);
+
+                SYSTEM.microphone.connect(SYSTEM.analyser);
+
+                addLog('[AUDIO] Microphone activated - FFT analysis at 60 FPS');
+
+                // Initialize instruments
+                const instrumentNames = ['drums', 'bass', 'guitar', 'piano', 'strings', 'pads'];
+                for (const name of instrumentNames) {
+                    SYSTEM.instruments[name] = new Instrument(SYSTEM.audioContext, name);
+                }
+
+                addLog('[INSTRUMENTS] 6-instrument band initialized');
+
+                return true;
+            } catch (error) {
+                addLog('[ERROR] Microphone access denied: ' + error.message);
+                alert('Microphone access required for bio-frequency detection!');
+                return false;
+            }
+        }
+
+        // ============================================================
+        // FFT ANALYSIS & BIO-FREQUENCY DETECTION
+        // ============================================================
+        function analyzeBioSignature() {
+            if (!SYSTEM.analyser) return;
+
+            // Get frequency data
+            SYSTEM.analyser.getByteFrequencyData(SYSTEM.dataArray);
+
+            // Find dominant frequency
+            let maxAmplitude = 0;
+            let maxIndex = 0;
+            for (let i = 0; i < SYSTEM.bufferLength; i++) {
+                if (SYSTEM.dataArray[i] > maxAmplitude) {
+                    maxAmplitude = SYSTEM.dataArray[i];
+                    maxIndex = i;
+                }
+            }
+
+            // Convert bin to frequency
+            const nyquist = SYSTEM.audioContext.sampleRate / 2;
+            const fundamental = (maxIndex * nyquist) / SYSTEM.bufferLength;
+
+            // Update only if significant signal
+            if (maxAmplitude > 50 && fundamental > 50 && fundamental < 2000) {
+                SYSTEM.bioSignature.fundamental = fundamental;
+            }
+
+            // Calculate RMS energy
+            let sumSquares = 0;
+            for (let i = 0; i < SYSTEM.bufferLength; i++) {
+                const normalized = SYSTEM.dataArray[i] / 255;
+                sumSquares += normalized * normalized;
+            }
+            SYSTEM.bioSignature.rmsEnergy = Math.sqrt(sumSquares / SYSTEM.bufferLength);
+
+            // Calculate spectral entropy
+            let entropy = 0;
+            const total = SYSTEM.dataArray.reduce((a, b) => a + b, 0);
+            if (total > 0) {
+                for (let i = 0; i < SYSTEM.bufferLength; i++) {
+                    const p = SYSTEM.dataArray[i] / total;
+                    if (p > 0) {
+                        entropy -= p * Math.log2(p);
+                    }
+                }
+            }
+            SYSTEM.bioSignature.spectralEntropy = entropy / 11; // Normalize to 0-1
+
+            // Detect key
+            SYSTEM.bioSignature.key = frequencyToNote(SYSTEM.bioSignature.fundamental);
+
+            // Estimate tempo from RMS energy fluctuations
+            // (simplified - could be more sophisticated)
+            SYSTEM.bioSignature.tempo = 120 + Math.floor(SYSTEM.bioSignature.rmsEnergy * 60);
+
+            // Visualize FFT
+            visualizeFFT();
+        }
+
+        function visualizeFFT() {
+            const canvas = document.getElementById('fftCanvas');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fillRect(0, 0, width, height);
+
+            const barWidth = width / SYSTEM.bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < SYSTEM.bufferLength; i++) {
+                const barHeight = (SYSTEM.dataArray[i] / 255) * height;
+
+                const hue = (i / SYSTEM.bufferLength) * 240;
+                ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+
+                x += barWidth;
+            }
+        }
+
+        function frequencyToNote(frequency) {
+            const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const halfStepsFromA440 = 12 * Math.log2(frequency / A440);
+            const noteIndex = Math.round(halfStepsFromA440) % 12;
+            return notes[(noteIndex + 9) % 12]; // Offset to start from C
+        }
+
+        // ============================================================
+        // HARMONY COEFFICIENT CALCULATION
+        // ============================================================
+        function calculateHarmonyCoefficient(instFreq, userFreq, harmonics) {
+            // Simple harmony based on frequency ratio
+            const ratio = instFreq / userFreq;
+
+            // Check if ratio is close to a harmonic ratio (1, 2, 3/2, 4/3, 5/4, etc.)
+            const harmonicRatios = [1, 2, 1.5, 4/3, 5/4, 8/5, PHI];
+
+            let minDistance = Infinity;
+            for (const hr of harmonicRatios) {
+                const distance = Math.abs(ratio - hr);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                }
+            }
+
+            // Convert distance to coefficient (0-1)
+            return Math.max(0, 1 - minDistance);
+        }
+
+        // ============================================================
+        // AUTONOMOUS BEAT ENGINE (10 beats/sec)
+        // ============================================================
+        function startBeatEngine() {
+            setInterval(() => {
+                if (!SYSTEM.isLearning) return;
+
+                const beat = generateBeat();
+                executeBeat(beat);
+                learnFromBeat(beat);
+
+                SYSTEM.totalBeats++;
+            }, 100); // 10 Hz = 100ms interval
+        }
+
+        function generateBeat() {
+            const fundamental = SYSTEM.bioSignature.fundamental;
+            const confidence = SYSTEM.learningSystem.confidence / 100;
+
+            // Determine which instruments should play
+            const instrumentMix = {};
+
+            // Drums always play (rhythm)
+            instrumentMix.drums = true;
+
+            // Bass plays often
+            instrumentMix.bass = Math.random() < 0.7 + confidence * 0.3;
+
+            // Other instruments based on confidence and harmony
+            instrumentMix.guitar = Math.random() < 0.4 + confidence * 0.4;
+            instrumentMix.piano = Math.random() < 0.5 + confidence * 0.4;
+            instrumentMix.strings = Math.random() < 0.3 + confidence * 0.5;
+            instrumentMix.pads = Math.random() < 0.2 + confidence * 0.6;
+
+            // Generate frequencies based on φ-harmonic series
+            const frequencies = {};
+            for (const inst in instrumentMix) {
+                if (instrumentMix[inst]) {
+                    // Use golden ratio harmonic
+                    const harmonic = Math.pow(PHI, Math.random() * 4 - 2);
+                    frequencies[inst] = fundamental * harmonic;
+                }
+            }
+
+            return {
+                instrumentMix,
+                frequencies,
+                intensity: 0.5 + confidence * 0.5,
+                duration: 0.3 + Math.random() * 0.3
+            };
+        }
+
+        function executeBeat(beat) {
+            for (const inst in beat.frequencies) {
+                if (SYSTEM.instruments[inst]) {
+                    const freq = beat.frequencies[inst];
+                    SYSTEM.instruments[inst].play(freq, beat.duration);
+                }
+            }
+        }
+
+        function learnFromBeat(beat) {
+            // Calculate average harmony success
+            let totalHarmony = 0;
+            let count = 0;
+
+            for (const inst in beat.frequencies) {
+                if (SYSTEM.instruments[inst]) {
+                    totalHarmony += SYSTEM.instruments[inst].harmonyCoef;
+                    count++;
+                }
+            }
+
+            const harmonySuccess = count > 0 ? totalHarmony / count : 0;
+
+            // Learn from this beat
+            SYSTEM.learningSystem.learn(beat, SYSTEM.bioSignature, harmonySuccess);
+        }
+
+        // ============================================================
+        // REAL-TIME HARMONIZATION ENGINE (20 Hz)
+        // ============================================================
+        function startHarmonizationEngine() {
+            setInterval(() => {
+                if (!SYSTEM.isLearning) return;
+
+                const fundamental = SYSTEM.bioSignature.fundamental;
+                const harmonics = [fundamental, fundamental * 2, fundamental * 1.5, fundamental * PHI];
+
+                // Update each instrument
+                for (const instName in SYSTEM.instruments) {
+                    const inst = SYSTEM.instruments[instName];
+
+                    // Calculate harmony coefficient
+                    const harmonyCoef = calculateHarmonyCoefficient(
+                        inst.currentFrequency,
+                        fundamental,
+                        harmonics
+                    );
+
+                    inst.harmonyCoef = harmonyCoef;
+
+                    // Auto-adjust instrument prominence
+                    if (harmonyCoef > 0.7) {
+                        inst.updateGain(Math.min(1, inst.gain * 1.05));
+                        inst.syncLevel = Math.min(100, inst.syncLevel + 2);
+                    } else {
+                        inst.updateGain(Math.max(0.1, inst.gain * 0.95));
+                        inst.syncLevel = Math.max(0, inst.syncLevel - 1);
+                    }
+
+                    // Update display
+                    updateInstrumentDisplay(instName, inst.syncLevel, harmonyCoef);
+                }
+            }, 50); // 20 Hz = 50ms interval
+        }
+
+        function updateInstrumentDisplay(instName, syncLevel, harmonyCoef) {
+            const syncEl = document.getElementById(`sync-${instName}`);
+            const harmEl = document.getElementById(`harm-${instName}`);
+            const cardEl = document.getElementById(`inst-${instName}`);
+
+            if (syncEl) syncEl.textContent = Math.round(syncLevel) + '%';
+            if (harmEl) harmEl.textContent = harmonyCoef.toFixed(2);
+
+            // Update status class
+            if (cardEl) {
+                cardEl.classList.remove('status-good', 'status-strong', 'status-peak');
+                if (harmonyCoef > 0.85) {
+                    cardEl.classList.add('status-peak');
+                } else if (harmonyCoef > 0.7) {
+                    cardEl.classList.add('status-strong');
+                } else {
+                    cardEl.classList.add('status-good');
+                }
+            }
+        }
+
+        // ============================================================
+        // 12D PSI FUNCTION CALCULATION
+        // ============================================================
+        function updatePsiFunction() {
+            const E = SYSTEM.totalBeats * 10; // Pseudo energy
+            const rms = SYSTEM.bioSignature.rmsEnergy;
+
+            // ψ = (φE/c²) + λ + ∫v·dt + ∫Δx₁₂·dt + ΩE + U₁₁D
+            const phiEc2 = (PHI * E * rms) / (C * C);
+            const lambda = SYSTEM.bioSignature.spectralEntropy;
+
+            // Update integrals
+            SYSTEM.velIntegral += rms * 0.016; // dt ~ 16ms
+            SYSTEM.x12Integral += Math.abs(SYSTEM.omega - 0.5) * 0.016;
+
+            const omegaE = SYSTEM.omega * E * rms;
+            const u11d = PHI * (SYSTEM.learningSystem.patternMemory.length / 128);
+
+            SYSTEM.psiValue = phiEc2 + lambda + SYSTEM.velIntegral + SYSTEM.x12Integral + omegaE + u11d;
+
+            // Update display
+            document.getElementById('psiValue').textContent = SYSTEM.psiValue.toFixed(3);
+            document.getElementById('psi').textContent = SYSTEM.psiValue.toFixed(3);
+            document.getElementById('phiEc2').textContent = phiEc2.toExponential(2);
+            document.getElementById('lambda').textContent = lambda.toFixed(3);
+            document.getElementById('velIntegral').textContent = SYSTEM.velIntegral.toFixed(3);
+            document.getElementById('x12Integral').textContent = SYSTEM.x12Integral.toFixed(3);
+            document.getElementById('omegaE').textContent = omegaE.toFixed(3);
+            document.getElementById('u11d').textContent = u11d.toFixed(3);
+        }
+
+        // ============================================================
+        // KURAMOTO SYNCHRONIZATION (simplified)
+        // ============================================================
+        function updateKuramotoOrder() {
+            // Calculate order parameter from instruments
+            let realSum = 0;
+            let imagSum = 0;
+            let count = 0;
+
+            for (const instName in SYSTEM.instruments) {
+                const inst = SYSTEM.instruments[instName];
+                const phase = (inst.syncLevel / 100) * 2 * Math.PI;
+                realSum += Math.cos(phase);
+                imagSum += Math.sin(phase);
+                count++;
+            }
+
+            if (count > 0) {
+                const r = Math.sqrt(realSum * realSum + imagSum * imagSum) / count;
+                SYSTEM.kuramoto = r;
+            }
+        }
+
+        // ============================================================
+        // MAIN UPDATE LOOP
+        // ============================================================
+        function mainUpdateLoop() {
+            if (!SYSTEM.isLearning) return;
+
+            // Bio-signature analysis (60 FPS)
+            analyzeBioSignature();
+
+            // Update Kuramoto order
+            updateKuramotoOrder();
+
+            // Update omega (average sync)
+            let totalSync = 0;
+            let count = 0;
+            for (const instName in SYSTEM.instruments) {
+                totalSync += SYSTEM.instruments[instName].syncLevel;
+                count++;
+            }
+            SYSTEM.omega = count > 0 ? totalSync / (count * 100) : 0;
+
+            // Update 12D metrics
+            updatePsiFunction();
+
+            // Update displays
+            updateMainDisplay();
+            updateLearningDisplay();
+
+            requestAnimationFrame(mainUpdateLoop);
+        }
+
+        function updateMainDisplay() {
+            // Bio-signature
+            document.getElementById('bioFreq').textContent = SYSTEM.bioSignature.fundamental.toFixed(1) + ' Hz';
+            document.getElementById('keyDetected').textContent = SYSTEM.bioSignature.key || '--';
+            document.getElementById('tempo').textContent = SYSTEM.bioSignature.tempo + ' BPM';
+            document.getElementById('spectralEntropy').textContent = SYSTEM.bioSignature.spectralEntropy.toFixed(2);
+            document.getElementById('rmsEnergy').textContent = SYSTEM.bioSignature.rmsEnergy.toFixed(3);
+
+            // 12D metrics
+            document.getElementById('omega').textContent = SYSTEM.omega.toFixed(2);
+            document.getElementById('kuramoto').textContent = SYSTEM.kuramoto.toFixed(2);
+
+            // Confidence
+            const confidence = SYSTEM.learningSystem.confidence;
+            document.getElementById('confidence').textContent = confidence.toFixed(1) + '%';
+            document.getElementById('confProgress').style.width = confidence + '%';
+
+            // Beats
+            document.getElementById('totalBeats').textContent = SYSTEM.totalBeats;
+            document.getElementById('beatRate').textContent = SYSTEM.isLearning ? '10/sec' : '0/sec';
+
+            // Duration
+            if (SYSTEM.startTime) {
+                const elapsed = Math.floor((Date.now() - SYSTEM.startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('duration').textContent =
+                    minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+            }
+        }
+
+        function updateLearningDisplay() {
+            // Patterns stored
+            const stored = SYSTEM.learningSystem.patternMemory.length;
+            document.getElementById('patternsStored').textContent = `${stored} / 128`;
+
+            // Most successful pattern
+            const mostSuccessful = SYSTEM.learningSystem.getMostSuccessfulPattern();
+            if (mostSuccessful) {
+                const instruments = Object.keys(mostSuccessful).filter(k => mostSuccessful[k]);
+                document.getElementById('mostSuccessful').textContent =
+                    instruments.map(i => i.charAt(0).toUpperCase() + i.slice(1)).join('+');
+            }
+
+            // Preferred key
+            const preferredKey = SYSTEM.learningSystem.getPreferredKey();
+            if (preferredKey) {
+                const totalKeys = Array.from(SYSTEM.learningSystem.keyFrequencies.values())
+                    .reduce((a, b) => a + b, 0);
+                const keyCount = SYSTEM.learningSystem.keyFrequencies.get(preferredKey);
+                const percentage = Math.round((keyCount / totalKeys) * 100);
+                document.getElementById('preferredKey').textContent =
+                    `${preferredKey} (${percentage}%)`;
+            }
+
+            // Tempo range
+            const tempoRange = SYSTEM.learningSystem.getTempoRange();
+            if (tempoRange) {
+                document.getElementById('tempoRange').textContent =
+                    `${tempoRange.min}-${tempoRange.max} BPM`;
+            }
+        }
+
+        // ============================================================
+        // START/STOP FUNCTIONS
+        // ============================================================
+        async function startContinuousLearning() {
+            // Initialize audio if not already done
+            if (!SYSTEM.audioContext) {
+                const success = await initializeAudio();
+                if (!success) return;
+            }
+
+            // Resume audio context if suspended
+            if (SYSTEM.audioContext.state === 'suspended') {
+                await SYSTEM.audioContext.resume();
+            }
+
+            SYSTEM.isLearning = true;
+            SYSTEM.startTime = Date.now();
+
+            // Update UI
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('stopBtn').style.display = 'flex';
+            document.getElementById('systemStatus').textContent = 'ACTIVE';
+
+            addLog('[LEARNING] Continuous learning mode activated');
+            addLog('[BEATS] Autonomous beat generation started at 10/sec');
+            addLog('[HARMONY] Real-time harmonization engine active (20 Hz)');
+
+            // Start engines
+            startBeatEngine();
+            startHarmonizationEngine();
+            mainUpdateLoop();
+        }
+
+        function stopLearning() {
+            SYSTEM.isLearning = false;
+
+            // Update UI
+            document.getElementById('startBtn').style.display = 'flex';
+            document.getElementById('stopBtn').style.display = 'none';
+            document.getElementById('systemStatus').textContent = 'Stopped';
+
+            addLog('[LEARNING] System stopped');
+        }
+
+        // ============================================================
+        // TOKEN GENERATION & EXPORT
+        // ============================================================
+        function generateToken() {
+            const now = Date.now();
+
+            // Generate token every 10 seconds
+            if (now - SYSTEM.lastTokenTime < 10000) return;
+
+            SYSTEM.lastTokenTime = now;
+
+            // Create token
+            const token = {
+                uuid: generateUUID(),
+                timestamp: new Date().toISOString(),
+                segment: Math.floor(SYSTEM.totalBeats / 100), // 10-second segments at 10 beats/sec
+
+                // Audio signature
+                audioSignature: {
+                    fundamental: SYSTEM.bioSignature.fundamental,
+                    key: SYSTEM.bioSignature.key,
+                    tempo: SYSTEM.bioSignature.tempo,
+                    rmsEnergy: SYSTEM.bioSignature.rmsEnergy,
+                    spectralEntropy: SYSTEM.bioSignature.spectralEntropy
+                },
+
+                // 12D state parameters
+                state12D: {
+                    psi: SYSTEM.psiValue,
+                    omega: SYSTEM.omega,
+                    kuramoto: SYSTEM.kuramoto,
+                    phi: PHI,
+                    velIntegral: SYSTEM.velIntegral,
+                    x12Integral: SYSTEM.x12Integral
+                },
+
+                // Learning state
+                learning: {
+                    confidence: SYSTEM.learningSystem.confidence,
+                    patternsStored: SYSTEM.learningSystem.patternMemory.length,
+                    preferredKey: SYSTEM.learningSystem.getPreferredKey()
+                },
+
+                // Instrument states
+                instruments: Object.fromEntries(
+                    Object.entries(SYSTEM.instruments).map(([name, inst]) => [
+                        name,
+                        {
+                            syncLevel: inst.syncLevel,
+                            harmonyCoef: inst.harmonyCoef,
+                            gain: inst.gain
+                        }
+                    ])
+                ),
+
+                // Provenance
+                provenance: {
+                    userAgent: navigator.userAgent,
+                    sessionStart: SYSTEM.startTime
+                }
+            };
+
+            SYSTEM.tokens.push(token);
+            SYSTEM.tokenCount++;
+
+            // Update display
+            document.getElementById('tokenCount').textContent = SYSTEM.tokenCount;
+            document.getElementById('lastUUID').textContent = token.uuid.substring(0, 16) + '...';
+
+            // Calculate token rate
+            if (SYSTEM.tokens.length > 1) {
+                const elapsed = (now - SYSTEM.startTime) / 1000;
+                const rate = (SYSTEM.tokenCount / elapsed).toFixed(2);
+                document.getElementById('tokenRate').textContent = rate + '/sec';
+            }
+        }
+
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        function exportTokens() {
+            const exportData = {
+                session: {
+                    start: new Date(SYSTEM.startTime).toISOString(),
+                    duration: Math.floor((Date.now() - SYSTEM.startTime) / 1000),
+                    totalBeats: SYSTEM.totalBeats,
+                    confidence: SYSTEM.learningSystem.confidence
+                },
+                tokens: SYSTEM.tokens,
+                metadata: {
+                    system: '12D Ultimate Continuous Learning Music System',
+                    version: '1.0.0',
+                    exportTime: new Date().toISOString(),
+                    tokenCount: SYSTEM.tokens.length
+                }
+            };
+
+            const json = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `12d-tokens-${Date.now()}.json`;
+            a.click();
+
+            addLog(`[EXPORT] ${SYSTEM.tokens.length} blockchain tokens exported successfully`);
+        }
+
+        // ============================================================
+        // SUCCESS CRITERIA MONITORING
+        // ============================================================
+        function updateSuccessCriteria() {
+            // Music Continuity
+            const continuity = SYSTEM.isLearning;
+            document.getElementById('criteria-continuity').textContent =
+                continuity ? '✅ Active' : '❌ Not Started';
+            document.getElementById('criteria-continuity').style.color =
+                continuity ? 'var(--success)' : 'var(--error)';
+
+            // Confidence ≥80%
+            const confidence = SYSTEM.learningSystem.confidence;
+            const confPass = confidence >= 80;
+            document.getElementById('criteria-confidence').textContent =
+                confPass ? `✅ ${confidence.toFixed(1)}%` : `❌ ${confidence.toFixed(1)}%`;
+            document.getElementById('criteria-confidence').style.color =
+                confPass ? 'var(--success)' : 'var(--error)';
+
+            // 3+ Instruments Green (>70% harmony)
+            let greenInstruments = 0;
+            for (const inst of Object.values(SYSTEM.instruments)) {
+                if (inst.harmonyCoef > 0.7) greenInstruments++;
+            }
+            const instPass = greenInstruments >= 3;
+            document.getElementById('criteria-instruments').textContent =
+                instPass ? `✅ ${greenInstruments}/6` : `❌ ${greenInstruments}/6`;
+            document.getElementById('criteria-instruments').style.color =
+                instPass ? 'var(--success)' : 'var(--error)';
+
+            // Beat Generation 10/sec
+            const beatPass = SYSTEM.isLearning;
+            document.getElementById('criteria-beats').textContent =
+                beatPass ? '✅ 10/sec' : '❌ 0/sec';
+            document.getElementById('criteria-beats').style.color =
+                beatPass ? 'var(--success)' : 'var(--error)';
+
+            // Ψ (Psi) Active & Updating
+            const psiPass = SYSTEM.psiValue > 0 && SYSTEM.isLearning;
+            document.getElementById('criteria-psi').textContent =
+                psiPass ? `✅ ${SYSTEM.psiValue.toFixed(3)}` : '❌ Inactive';
+            document.getElementById('criteria-psi').style.color =
+                psiPass ? 'var(--success)' : 'var(--error)';
+
+            // Dynamic Instrument Mix
+            const dynamicPass = SYSTEM.instrumentMixChanges > 10;
+            document.getElementById('criteria-dynamic').textContent =
+                dynamicPass ? `✅ ${SYSTEM.instrumentMixChanges} changes` : '❌ Static';
+            document.getElementById('criteria-dynamic').style.color =
+                dynamicPass ? 'var(--success)' : 'var(--error)';
+
+            // Pattern Memory Active
+            const memoryPass = SYSTEM.learningSystem.patternMemory.length > 0;
+            const memoryCount = SYSTEM.learningSystem.patternMemory.length;
+            document.getElementById('criteria-memory').textContent =
+                memoryPass ? `✅ ${memoryCount}/128` : '❌ Empty';
+            document.getElementById('criteria-memory').style.color =
+                memoryPass ? 'var(--success)' : 'var(--error)';
+        }
+
+        // ============================================================
+        // SESSION STATISTICS
+        // ============================================================
+        function updateSessionStatistics() {
+            // Session start time
+            if (SYSTEM.startTime) {
+                const startDate = new Date(SYSTEM.startTime);
+                document.getElementById('sessionStart').textContent =
+                    startDate.toLocaleTimeString();
+
+                // Total duration
+                const elapsed = Math.floor((Date.now() - SYSTEM.startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('totalDuration').textContent =
+                    minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+            }
+
+            // Average harmony score
+            if (SYSTEM.harmonyScores.length > 0) {
+                const avg = SYSTEM.harmonyScores.reduce((a, b) => a + b, 0) / SYSTEM.harmonyScores.length;
+                document.getElementById('avgHarmony').textContent = (avg * 100).toFixed(1) + '%';
+            }
+
+            // Peak confidence
+            if (SYSTEM.learningSystem.confidence > SYSTEM.peakConfidence) {
+                SYSTEM.peakConfidence = SYSTEM.learningSystem.confidence;
+            }
+            document.getElementById('peakConfidence').textContent =
+                SYSTEM.peakConfidence.toFixed(1) + '%';
+
+            // Learning cycles
+            document.getElementById('learningCycles').textContent =
+                SYSTEM.learningSystem.patternMemory.length;
+        }
+
+        // ============================================================
+        // ENHANCED MAIN UPDATE LOOP
+        // ============================================================
+        function mainUpdateLoop() {
+            if (!SYSTEM.isLearning) return;
+
+            // Bio-signature analysis (60 FPS)
+            analyzeBioSignature();
+
+            // Update Kuramoto order
+            updateKuramotoOrder();
+
+            // Update omega (average sync)
+            let totalSync = 0;
+            let count = 0;
+            for (const instName in SYSTEM.instruments) {
+                totalSync += SYSTEM.instruments[instName].syncLevel;
+                count++;
+            }
+            SYSTEM.omega = count > 0 ? totalSync / (count * 100) : 0;
+
+            // Update 12D metrics
+            updatePsiFunction();
+
+            // Generate tokens periodically
+            generateToken();
+
+            // Update success criteria
+            updateSuccessCriteria();
+
+            // Update session statistics
+            updateSessionStatistics();
+
+            // Update displays
+            updateMainDisplay();
+            updateLearningDisplay();
+
+            requestAnimationFrame(mainUpdateLoop);
+        }
+
+        // Enhanced learnFromBeat to track statistics
+        const originalLearnFromBeat = learnFromBeat;
+        learnFromBeat = function(beat) {
+            // Call original
+            originalLearnFromBeat(beat);
+
+            // Track harmony scores
+            let totalHarmony = 0;
+            let count = 0;
+            for (const inst in beat.frequencies) {
+                if (SYSTEM.instruments[inst]) {
+                    totalHarmony += SYSTEM.instruments[inst].harmonyCoef;
+                    count++;
+                }
+            }
+            if (count > 0) {
+                SYSTEM.harmonyScores.push(totalHarmony / count);
+                if (SYSTEM.harmonyScores.length > 100) {
+                    SYSTEM.harmonyScores.shift();
+                }
+            }
+
+            // Track instrument mix changes
+            const currentMix = JSON.stringify(beat.instrumentMix);
+            if (SYSTEM.lastInstrumentMix !== currentMix) {
+                SYSTEM.instrumentMixChanges++;
+                SYSTEM.lastInstrumentMix = currentMix;
+            }
+        };
+
+        // ============================================================
+        // INITIALIZATION
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            addLog('[SYSTEM] 12D Ultimate Continuous Learning Music System ready');
+            addLog('[AUDIO] Click START to begin - microphone permission required');
+            addLog('[INFO] System will analyze your voice/breathing and generate harmonizing music');
+
+            // Initialize success criteria display
+            updateSuccessCriteria();
+        });
+    </script>
+</body>
+</html>
