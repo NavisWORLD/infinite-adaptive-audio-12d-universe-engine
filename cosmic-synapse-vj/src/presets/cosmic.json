@@ -1,0 +1,22 @@
+{
+  "name": "Cosmic",
+  "description": "Space, galaxies, stars - cosmic journey visualization",
+  "particleCount": 30,
+  "audioSensitivity": 0.6,
+  "speed": 0.5,
+  "colorPalette": "cosmic",
+  "trailLength": 2000,
+  "physics": {
+    "blendLorenz": 0.7
+  },
+  "camera": {
+    "autoRotate": true,
+    "rotationSpeed": 0.2,
+    "zoom": 1.0
+  },
+  "postProcessing": {
+    "bloom": 0.6,
+    "glow": 0.7
+  },
+  "phiHarmonics": true
+}

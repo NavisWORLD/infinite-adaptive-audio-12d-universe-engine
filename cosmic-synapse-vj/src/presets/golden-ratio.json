@@ -1,0 +1,23 @@
+{
+  "name": "Golden Ratio",
+  "description": "φ-harmonic emphasis with mathematical beauty and balance",
+  "particleCount": 21,
+  "audioSensitivity": 0.8,
+  "speed": 0.618,
+  "colorPalette": "warm",
+  "trailLength": 1618,
+  "physics": {
+    "blendLorenz": 0.618
+  },
+  "camera": {
+    "autoRotate": true,
+    "rotationSpeed": 0.161,
+    "zoom": 1.618
+  },
+  "postProcessing": {
+    "bloom": 0.618,
+    "glow": 0.618
+  },
+  "phiHarmonics": true,
+  "note": "All parameters tuned to golden ratio φ = 1.618..."
+}

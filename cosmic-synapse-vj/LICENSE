@@ -1,0 +1,66 @@
+MIT License (Free Version Features)
+Commercial License Required for Pro Features
+
+Copyright (c) 2025 Cosmic Synapse VJ
+
+DUAL LICENSE STRUCTURE:
+
+================================================================================
+PART 1: FREE VERSION (MIT License)
+================================================================================
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of the FREE VERSION features of this software and associated documentation
+files (the "Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Software, and to permit persons to whom
+the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+FREE VERSION FEATURES INCLUDE:
+- Core visualization engine (src/core/engine.js)
+- Audio analysis (microphone only) (src/core/audio.js)
+- Basic UI controls
+- 5 built-in presets
+- Screenshot export (1080p maximum)
+- Personal, non-commercial use
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+PART 2: PRO VERSION (Commercial License Required)
+================================================================================
+
+The following features require a Pro License ($20 one-time or $5/month):
+
+PRO FEATURES:
+- MIDI controller support (src/ui/midi.js - Pro features)
+- 4K/8K screenshot export
+- Video recording (4K60fps)
+- Audio file upload
+- Premium presets (10+)
+- Commercial use rights
+
+To obtain a Pro License:
+- Purchase at: https://gumroad.com/l/cosmic-vj
+- Or subscribe at: [subscription link]
+
+Commercial use of this software without a Pro License is prohibited.
+
+For questions about licensing, contact: support@cosmicvj.com
+
+================================================================================
+ATTRIBUTION
+================================================================================
+
+If you use this software in a project, please credit:
+"Powered by Cosmic Synapse VJ - 12D Audio Visualizer"
+Link: https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/tree/main/cosmic-synapse-vj

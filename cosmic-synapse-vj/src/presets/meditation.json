@@ -1,0 +1,22 @@
+{
+  "name": "Meditation",
+  "description": "Calm, flowing, peaceful visuals for meditation and relaxation",
+  "particleCount": 15,
+  "audioSensitivity": 0.3,
+  "speed": 0.3,
+  "colorPalette": "cool",
+  "trailLength": 3000,
+  "physics": {
+    "blendLorenz": 0.5
+  },
+  "camera": {
+    "autoRotate": true,
+    "rotationSpeed": 0.1,
+    "zoom": 1.2
+  },
+  "postProcessing": {
+    "bloom": 0.4,
+    "glow": 0.6
+  },
+  "phiHarmonics": true
+}

@@ -1,0 +1,43 @@
+{
+  "name": "cosmic-synapse-vj",
+  "version": "1.0.0",
+  "description": "Professional audio-reactive visualization tool based on 12D Cosmic Synapse Theory",
+  "main": "src/app.js",
+  "type": "module",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "npx http-server -p 8000",
+    "build": "echo 'Build script placeholder - add bundler if needed'",
+    "test": "echo 'Test script placeholder'"
+  },
+  "keywords": [
+    "audio-visualizer",
+    "vj",
+    "music-visualization",
+    "12d",
+    "cosmic-synapse-theory",
+    "threejs",
+    "webgl",
+    "midi",
+    "golden-ratio",
+    "chaos-theory",
+    "lorenz-attractor"
+  ],
+  "author": "Your Name <your.email@example.com>",
+  "license": "SEE LICENSE FILE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/issues"
+  },
+  "homepage": "https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/tree/main/cosmic-synapse-vj",
+  "dependencies": {},
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

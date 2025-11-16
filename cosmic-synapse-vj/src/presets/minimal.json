@@ -1,0 +1,22 @@
+{
+  "name": "Minimal",
+  "description": "Clean, geometric, simple visuals with minimal complexity",
+  "particleCount": 8,
+  "audioSensitivity": 0.5,
+  "speed": 0.4,
+  "colorPalette": "monochrome",
+  "trailLength": 1000,
+  "physics": {
+    "blendLorenz": 0.3
+  },
+  "camera": {
+    "autoRotate": false,
+    "rotationSpeed": 0,
+    "zoom": 1.5
+  },
+  "postProcessing": {
+    "bloom": 0.2,
+    "glow": 0.3
+  },
+  "phiHarmonics": false
+}
