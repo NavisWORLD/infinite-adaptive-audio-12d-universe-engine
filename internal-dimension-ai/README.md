@@ -42,7 +42,42 @@ Input → Processing → Output
 
 ---
 
-## Quick Start
+## 🚀 Quick Start (For Researchers - No Programming Needed!)
+
+### Super Easy Setup (3 steps)
+
+**Step 1**: Open a terminal and navigate to this directory
+```bash
+cd internal-dimension-ai
+```
+
+**Step 2**: Run the automatic setup script
+```bash
+chmod +x setup.sh    # Make script executable (only needed once)
+./setup.sh           # Run setup (takes 5-10 minutes)
+```
+
+**Step 3**: Start the easy interface
+```bash
+./start.sh
+```
+
+That's it! You'll see a menu where you can:
+- Run quick demos (5-15 minutes)
+- Run research experiments
+- Visualize results
+- No coding required!
+
+### ⚡ Even Faster: One-Line Quick Demo
+
+If you just want to see it work immediately:
+```bash
+./setup.sh && source venv/bin/activate && python examples/01_quick_demo.py
+```
+
+---
+
+## 📖 For Programmers: Manual Installation
 
 ### Installation
 
