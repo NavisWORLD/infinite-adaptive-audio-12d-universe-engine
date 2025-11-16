@@ -528,8 +528,8 @@ Yes (MIT License), but please:
 - **Documentation**: See [docs/](docs/)
 - **Issues**: [GitHub Issues](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/discussions)
-- **Email**: research@navisworld.ai
-- **Ethics Concerns**: ethics@navisworld.ai
+- **Email**: pheras.king@gmail.com
+- **Ethics Concerns**: pheras.king@gmail.com
 
 ---
 
@@ -562,3 +562,4 @@ MIT License - See [LICENSE](LICENSE) for details
 **Version**: 1.0.0
 **Last Updated**: 2024-11-16
 **Status**: Experimental Research
+
