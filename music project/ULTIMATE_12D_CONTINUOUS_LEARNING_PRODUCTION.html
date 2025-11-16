@@ -626,9 +626,29 @@ There is NO possibility of audio feedback loop.
                         <span class="metric-label">Patterns Learned:</span>
                         <span class="metric-value" id="patternsLearned">0</span>
                     </div>
+                    <div class="metric-row" style="border: none; padding: 5px 0; margin-top: 10px; border-top: 1px solid rgba(102, 126, 234, 0.2);">
+                        <span class="metric-label">Harmony Mode:</span>
+                        <span class="metric-value" id="harmonyMode">💤 AMBIENT</span>
+                    </div>
+                    <div class="metric-row" style="border: none; padding: 5px 0;">
+                        <span class="metric-label">Current Key:</span>
+                        <span class="metric-value" id="currentKey">--</span>
+                    </div>
+                    <div class="metric-row" style="border: none; padding: 5px 0;">
+                        <span class="metric-label">Current Chord:</span>
+                        <span class="metric-value" id="currentChord">--</span>
+                    </div>
+                    <div class="metric-row" style="border: none; padding: 5px 0;">
+                        <span class="metric-label">Musical Intensity:</span>
+                        <span class="metric-value" id="musicalIntensity">0%</span>
+                    </div>
+                    <div class="metric-row" style="border: none; padding: 5px 0;">
+                        <span class="metric-label">Active Instruments:</span>
+                        <span class="metric-value" id="activeInstruments">DRUMS</span>
+                    </div>
                 </div>
             </div>
-            
+
             <!-- 12D PSI CALCULATION -->
             <div class="card">
                 <div class="card-header">
@@ -1098,7 +1118,51 @@ There is NO possibility of audio feedback loop.
                     rho: 28,
                     beta: 8/3
                 };
-                
+
+                // PHASE 1: Continuous Harmony Engine
+                this.harmonyUpdateInterval = 100; // Update every 100ms
+                this.lastHarmonyUpdate = 0;
+                this.currentHarmonyMode = 'ambient'; // 'ambient' or 'active'
+                this.currentHarmonyFreqs = null;
+                this.lastLoggedFreq = 0;
+
+                // PHASE 2: Dynamic Instrument Mix
+                this.instrumentConfidenceThresholds = {
+                    drums: 0,      // Always active
+                    bass: 20,      // After 20% confidence
+                    piano: 40,     // After 40% confidence
+                    guitar: 50,    // After 50% confidence
+                    strings: 60,   // After 60% confidence
+                    pads: 70       // After 70% confidence
+                };
+                this.activeInstrumentSet = new Set(['drums']); // Start with only drums
+
+                // PHASE 4: Groove-Lock Synchronization
+                this.grooveLock = {
+                    active: false,
+                    userBeatInterval: null,
+                    lastBeatTime: 0,
+                    beatConfidence: 0,
+                    missedBeats: 0
+                };
+
+                // PHASE 5: Chord Progressions
+                this.chordProgression = {
+                    currentChord: 0,
+                    progression: ['I', 'IV', 'V', 'I'], // Classic I-IV-V-I
+                    chordDuration: 4, // bars
+                    lastChordChange: 0,
+                    learningProgression: []
+                };
+
+                // PHASE 7: Fill System
+                this.fillSystem = {
+                    lastFillTime: 0,
+                    fillCooldown: 4000, // 4 seconds between fills
+                    userPauseDuration: 0,
+                    lastUserSingTime: 0
+                };
+
                 this.init();
             }
             
@@ -1775,7 +1839,45 @@ There is NO possibility of audio feedback loop.
                             const avgInterval = intervals.reduce((a,b) => a+b) / intervals.length;
                             this.prediction.detectedTempo = Math.round(60000 / avgInterval);
                             this.bioSignature.tempo = this.prediction.detectedTempo;
+
+                            // PHASE 4: Activate groove lock when confident
+                            const variance = intervals.reduce((sum, val) => sum + Math.pow(val - avgInterval, 2), 0) / intervals.length;
+
+                            // Lock groove if variance is low (consistent rhythm)
+                            if (variance < 10000) { // 100ms stddev threshold
+                                this.grooveLock.active = true;
+                                this.grooveLock.userBeatInterval = avgInterval;
+                                this.grooveLock.beatConfidence = Math.min(100, this.grooveLock.beatConfidence + 10);
+
+                                if (!this.prediction.grooveLocked) {
+                                    this.prediction.grooveLocked = true;
+                                    this.log('[GROOVE-LOCK] 🔒 Locked to your rhythm!', 'success');
+                                    if (document.getElementById('grooveLock')) {
+                                        document.getElementById('grooveLock').textContent = 'LOCKED ✓';
+                                        document.getElementById('grooveLock').style.color = '#00ff00';
+                                    }
+                                }
+                            }
                         }
+                    }
+                }
+
+                // PHASE 7: Fill System - Detect user pauses and track for fills
+                if (this.bioSignature.isUserSinging) {
+                    this.fillSystem.lastUserSingTime = Date.now();
+                    this.fillSystem.userPauseDuration = 0;
+                } else {
+                    // User paused - accumulate pause duration
+                    this.fillSystem.userPauseDuration = Date.now() - this.fillSystem.lastUserSingTime;
+
+                    // If paused for 1-3 seconds, play a fill
+                    if (this.fillSystem.userPauseDuration > 1000 &&
+                        this.fillSystem.userPauseDuration < 3000 &&
+                        Date.now() - this.fillSystem.lastFillTime > this.fillSystem.fillCooldown &&
+                        this.isPlaying) {
+
+                        this.playMusicalFill();
+                        this.fillSystem.lastFillTime = Date.now();
                     }
                 }
             }
@@ -1810,7 +1912,201 @@ There is NO possibility of audio feedback loop.
                 const octave = Math.floor((Math.round(semitones) + 57) / 12);
                 return notes[(noteIndex + 12) % 12];
             }
-            
+
+            // ================================================================
+            // PHASE 1: CONTINUOUS HARMONY ENGINE
+            // Real-time harmony updates every 100ms
+            // ================================================================
+
+            continuousHarmonyLoop() {
+                if (!this.isPlaying) return;
+
+                const now = Date.now();
+
+                // Update harmony frequencies every 100ms
+                if (now - this.lastHarmonyUpdate > this.harmonyUpdateInterval) {
+                    this.updateLiveHarmonies();
+                    this.lastHarmonyUpdate = now;
+                }
+
+                requestAnimationFrame(() => this.continuousHarmonyLoop());
+            }
+
+            updateLiveHarmonies() {
+                const fundamental = this.bioSignature.fundamental;
+                const isUserSinging = this.bioSignature.isUserSinging;
+
+                if (!isUserSinging || !fundamental || fundamental < 50) {
+                    // User silent - maintain ambient mode
+                    this.currentHarmonyMode = 'ambient';
+                    return;
+                }
+
+                // User is singing - update all harmony frequencies in real-time
+                this.currentHarmonyMode = 'active';
+                this.currentHarmonyFreqs = this.getHarmonyFrequencies(fundamental, this.bioSignature.key);
+
+                // Update confidence-based instrument activation
+                this.updateInstrumentMix();
+
+                // Advance chord progression
+                this.advanceChordProgression();
+
+                // Log only on significant changes
+                if (Math.abs(fundamental - this.lastLoggedFreq) > 5) {
+                    this.log(`[LIVE HARMONY] Tracking ${this.bioSignature.key} | Confidence: ${this.continuousLearning.confidenceLevel.toFixed(0)}%`, 'music');
+                    this.lastLoggedFreq = fundamental;
+                }
+            }
+
+            // ================================================================
+            // PHASE 2 & 6: DYNAMIC INSTRUMENT MIX
+            // Activates instruments based on confidence AND energy/intensity
+            // ================================================================
+
+            updateInstrumentMix() {
+                const confidence = this.continuousLearning.confidenceLevel;
+                const intensity = this.getMusicalIntensity();
+                const wasActive = new Set(this.activeInstrumentSet);
+                this.activeInstrumentSet.clear();
+
+                // Drums - always active
+                this.activeInstrumentSet.add('drums');
+
+                // Bass - active if confidence > 20% OR intensity > 0.3
+                if (confidence >= 20 || intensity > 0.3) {
+                    this.activeInstrumentSet.add('bass');
+                }
+
+                // Piano - active if confidence > 40% OR intensity > 0.5
+                if ((confidence >= 40 || intensity > 0.5) && this.instruments.piano.enabled) {
+                    this.activeInstrumentSet.add('piano');
+                }
+
+                // Guitar - active if confidence > 50% AND intensity > 0.6
+                if (confidence >= 50 && intensity > 0.6 && this.instruments.guitar.enabled) {
+                    this.activeInstrumentSet.add('guitar');
+                }
+
+                // Strings - active if confidence > 60% OR intensity < 0.4 (soft moments)
+                if ((confidence >= 60 || (intensity < 0.4 && this.bioSignature.isUserSinging)) && this.instruments.strings.enabled) {
+                    this.activeInstrumentSet.add('strings');
+                }
+
+                // Pads - active if confidence > 70% OR very soft singing
+                if ((confidence >= 70 || (intensity < 0.3 && this.bioSignature.isUserSinging)) && this.instruments.pads.enabled) {
+                    this.activeInstrumentSet.add('pads');
+                }
+
+                // Log significant changes
+                for (const inst of this.activeInstrumentSet) {
+                    if (!wasActive.has(inst)) {
+                        this.log(`[ARRANGEMENT] 🎼 ${inst.toUpperCase()} joined (Conf: ${confidence.toFixed(0)}% | Intensity: ${(intensity * 100).toFixed(0)}%)`, 'prediction');
+                    }
+                }
+            }
+
+            shouldInstrumentPlay(instrumentName) {
+                return this.activeInstrumentSet.has(instrumentName);
+            }
+
+            // ================================================================
+            // PHASE 5: INTELLIGENT CHORD PROGRESSIONS
+            // Builds chord progressions from learned patterns
+            // ================================================================
+
+            getCurrentChordRoot(fundamental) {
+                const chord = this.chordProgression.progression[this.chordProgression.currentChord];
+
+                // Musical intervals from tonic
+                const intervals = {
+                    'I': 1,           // Tonic
+                    'ii': 9/8,        // Supertonic (major second)
+                    'iii': 5/4,       // Mediant (major third)
+                    'IV': 4/3,        // Subdominant (perfect fourth)
+                    'V': 3/2,         // Dominant (perfect fifth)
+                    'vi': 5/3,        // Submediant (major sixth)
+                    'vii': 15/8       // Leading tone (major seventh)
+                };
+
+                return fundamental * (intervals[chord] || 1);
+            }
+
+            advanceChordProgression() {
+                const now = Date.now();
+                const barDuration = (60 / this.rhythmTracker.tempo) * 4 * 1000; // 4 beats = 1 bar
+                const progressionInterval = barDuration * this.chordProgression.chordDuration;
+
+                if (now - this.chordProgression.lastChordChange > progressionInterval) {
+                    this.chordProgression.currentChord = (this.chordProgression.currentChord + 1) % this.chordProgression.progression.length;
+                    this.chordProgression.lastChordChange = now;
+
+                    const chordName = this.chordProgression.progression[this.chordProgression.currentChord];
+                    this.log(`[PROGRESSION] Chord change → ${chordName}`, 'music');
+                }
+            }
+
+            // ================================================================
+            // PHASE 6: ENERGY-RESPONSIVE DYNAMICS
+            // Gets musical intensity from multiple metrics
+            // ================================================================
+
+            getMusicalIntensity() {
+                const energy = this.bioSignature.rmsEnergy;
+                const spectralCentroid = this.bioSignature.spectralCentroid || 1000;
+                const spectralSpread = this.bioSignature.spectralSpread || 500;
+
+                // Combine metrics for intensity (0-1)
+                const energyFactor = Math.min(1, energy * 5); // 0.2 max → 1.0
+                const brightnessFactor = Math.min(1, spectralCentroid / 3000); // Higher = brighter
+                const densityFactor = Math.min(1, spectralSpread / 2000); // Spread = complexity
+
+                return (energyFactor * 0.5 + brightnessFactor * 0.3 + densityFactor * 0.2);
+            }
+
+            // ================================================================
+            // PHASE 4: GROOVE-LOCK SYNCHRONIZATION
+            // Plays on user's detected beat
+            // ================================================================
+
+            playOnUserBeat(callback) {
+                if (!this.grooveLock.active) {
+                    // No groove lock - play on system tempo
+                    callback();
+                    return;
+                }
+
+                const now = Date.now();
+                const timeSinceLastBeat = now - (this.prediction.userBeatTimes[this.prediction.userBeatTimes.length - 1] || 0);
+                const nextBeatIn = this.grooveLock.userBeatInterval - (timeSinceLastBeat % this.grooveLock.userBeatInterval);
+
+                setTimeout(callback, nextBeatIn);
+            }
+
+            // ================================================================
+            // PHASE 7: PREDICTIVE FILLS & BREAKS
+            // Plays musical fills during user pauses
+            // ================================================================
+
+            playMusicalFill() {
+                this.log('[FILL] 🥁 Adding drum fill during your pause', 'music');
+
+                const now = this.audioContext.currentTime;
+                const beatDuration = 60 / this.rhythmTracker.tempo;
+
+                // Rapid snare roll
+                for (let i = 0; i < 4; i++) {
+                    setTimeout(() => {
+                        this.playSnare(this.audioContext.currentTime);
+                    }, i * (beatDuration / 4) * 1000);
+                }
+
+                // Crash at end
+                setTimeout(() => {
+                    this.playHiHat(this.audioContext.currentTime);
+                }, beatDuration * 1000);
+            }
+
             updateBioDisplay() {
                 document.getElementById('bioFreq').textContent = this.bioSignature.fundamental.toFixed(2) + ' Hz';
                 document.getElementById('keyDetected').textContent = this.bioSignature.key || '--';
@@ -1948,28 +2244,55 @@ There is NO possibility of audio feedback loop.
                     return null;
                 }
 
+                // PHASE 5: Get chord root from progression
+                const chordRoot = this.getCurrentChordRoot(fundamental);
+
                 // Detect if user is in major or minor key (from spectral analysis)
                 const isMinor = this.bioSignature.spectralEntropy > 0.5;
 
-                // Generate chord based on detected key
-                const majorChord = [
-                    fundamental,                              // Root
-                    fundamental * this.INTERVALS.majorThird,  // Major third
-                    fundamental * this.INTERVALS.fifth        // Perfect fifth
-                ];
+                // PHASE 8: Use ψ to determine chord richness (0-1 normalized)
+                const psiNormalized = Math.max(0, Math.min(1, this.currentPsi / 10));
 
-                const minorChord = [
-                    fundamental,                              // Root
-                    fundamental * this.INTERVALS.minorThird,  // Minor third
-                    fundamental * this.INTERVALS.fifth        // Perfect fifth
-                ];
+                // Build chord based on ψ richness
+                let pianoChord;
+                if (psiNormalized > 0.7) {
+                    // Rich extended chord (7ths)
+                    pianoChord = isMinor ? [
+                        chordRoot,
+                        chordRoot * this.INTERVALS.minorThird,
+                        chordRoot * this.INTERVALS.fifth,
+                        chordRoot * this.INTERVALS.minorSeventh
+                    ] : [
+                        chordRoot,
+                        chordRoot * this.INTERVALS.majorThird,
+                        chordRoot * this.INTERVALS.fifth,
+                        chordRoot * this.INTERVALS.majorSeventh
+                    ];
+                } else if (psiNormalized > 0.4) {
+                    // Standard triad
+                    pianoChord = isMinor ? [
+                        chordRoot,
+                        chordRoot * this.INTERVALS.minorThird,
+                        chordRoot * this.INTERVALS.fifth
+                    ] : [
+                        chordRoot,
+                        chordRoot * this.INTERVALS.majorThird,
+                        chordRoot * this.INTERVALS.fifth
+                    ];
+                } else {
+                    // Minimal - just root and fifth (power chord)
+                    pianoChord = [
+                        chordRoot,
+                        chordRoot * this.INTERVALS.fifth
+                    ];
+                }
 
                 return {
-                    bass: fundamental * this.INTERVALS.octaveBelow,  // Bass plays octave below
-                    piano: isMinor ? minorChord : majorChord,        // Piano plays chord
-                    strings: fundamental * this.INTERVALS.fifth,     // Strings play fifth above
-                    pads: fundamental * this.INTERVALS.octave,       // Pads play octave above
-                    guitar: fundamental * this.INTERVALS.majorThird, // Guitar plays third
+                    bass: chordRoot * this.INTERVALS.octaveBelow,  // Bass plays chord root octave below
+                    piano: pianoChord,                             // Piano plays chord based on ψ richness
+                    strings: chordRoot * this.INTERVALS.fifth,     // Strings play fifth above
+                    pads: chordRoot * this.INTERVALS.octave,       // Pads play octave above
+                    guitar: chordRoot * this.INTERVALS.majorThird, // Guitar plays third
                     drums: 80  // Fixed bass drum frequency
                 };
             }
@@ -2375,12 +2698,29 @@ There is NO possibility of audio feedback loop.
                 this.startHarmony();
                 this.log('[AUDIO] 🎹 Harmony engines started (piano, guitar, strings, pads)', 'success');
 
+                // PHASE 10: Start all adaptive systems
+                this.log('[HARMONY] 🎵 Starting continuous harmony engine...', 'info');
+                this.continuousHarmonyLoop();
+                this.log('[HARMONY] ✓ Continuous harmony engine started (100ms update loop)', 'success');
+
+                // Initialize chord progression
+                this.chordProgression.lastChordChange = Date.now();
+                this.log('[PROGRESSION] ✓ Chord progression initialized: ' + this.chordProgression.progression.join(' → '), 'music');
+
+                // Initialize harmony mode
+                this.currentHarmonyMode = 'ambient';
+                this.currentHarmonyFreqs = null;
+                this.lastLoggedFreq = 0;
+
                 this.compositionLoop();
                 this.visualizationLoop();
                 this.updateLearningDisplay(); // Start updating learning stats
 
                 this.log('🎼 === 12D Band is now LIVE and playing WITH you! ===', 'success');
                 this.log('💡 Sing or play any note - the band will adapt harmonies in real-time!', 'prediction');
+                this.log('🔒 System will groove-lock to your rhythm automatically!', 'prediction');
+                this.log('🎸 Instruments will layer dynamically based on your confidence and intensity!', 'prediction');
+                this.log('🌌 All 12D adaptive systems online and grooving!', 'success');
                 // === AUDIO ENGINE END ===
             }
             
@@ -2625,68 +2965,52 @@ There is NO possibility of audio feedback loop.
                 }
             }
             
+            // PHASE 3: CONTINUOUS SUSTAINED PIANO HARMONIES
             playPianoChord() {
-                if (!this.isPlaying) return;
+                if (!this.isPlaying || !this.shouldInstrumentPlay('piano')) return;
+
+                // Stop previous piano notes
+                for (let osc of this.instruments.piano.oscillators) {
+                    try {
+                        osc.stop();
+                        osc.disconnect();
+                    } catch (e) {}
+                }
+                this.instruments.piano.oscillators = [];
 
                 const now = this.audioContext.currentTime;
-                const fundamental = this.bioSignature.fundamental;
+                const harmonyFreqs = this.currentHarmonyFreqs;
                 const userVolume = this.bioSignature.rmsEnergy;
 
-                // Use new harmony system if user is singing (Phase 9)
-                let chordFreqs;
-                if (fundamental && fundamental > 50 && this.bioSignature.isUserSinging) {
-                    const harmonyFreqs = this.getHarmonyFrequencies(fundamental, this.bioSignature.key);
-                    if (harmonyFreqs && harmonyFreqs.piano) {
-                        chordFreqs = harmonyFreqs.piano;
-                    } else {
-                        // Fallback to phi harmonics
-                        chordFreqs = [
-                            this.currentHarmonics[0],
-                            this.currentHarmonics[2],
-                            this.currentHarmonics[4],
-                            this.currentHarmonics[7]
-                        ];
-                    }
-                } else {
-                    // User not singing - use phi harmonics
-                    chordFreqs = [
-                        this.currentHarmonics[0],
-                        this.currentHarmonics[2],
-                        this.currentHarmonics[4],
-                        this.currentHarmonics[7]
-                    ];
+                if (!harmonyFreqs || !harmonyFreqs.piano) {
+                    setTimeout(() => this.playPianoChord(), 100);
+                    return;
                 }
 
-                for (let freq of chordFreqs) {
-                    // Check if frequency will harmonize (Phase 9)
+                // Play SUSTAINED chord that changes with user
+                for (let freq of harmonyFreqs.piano) {
                     const userFreq = this.bioSignature.currentUserNote;
-                    if (userFreq && !this.willHarmonize(freq, userFreq)) {
-                        continue; // Skip dissonant notes
-                    }
+                    if (userFreq && !this.willHarmonize(freq, userFreq)) continue;
 
                     const osc = this.audioContext.createOscillator();
                     const gain = this.audioContext.createGain();
 
                     osc.type = 'triangle';
-                    osc.frequency.value = Math.max(20, Math.min(20000, freq));
+                    osc.frequency.setValueAtTime(Math.max(20, Math.min(20000, freq)), now);
 
-                    // Dynamic volume (Phase 10)
-                    const targetGain = this.bioSignature.isUserSinging
-                        ? Math.min(0.15, userVolume * 0.8)
-                        : 0.08;
-
-                    gain.gain.setValueAtTime(0, now);
-                    gain.gain.linearRampToValueAtTime(targetGain, now + 0.1);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
+                    // Continuous sustained note with dynamic volume
+                    const targetGain = Math.min(0.12, userVolume * 0.8);
+                    gain.gain.setValueAtTime(targetGain, now);
 
                     osc.connect(gain);
                     gain.connect(this.instruments.piano.gain);
 
                     osc.start(now);
-                    osc.stop(now + 1.5);
+                    this.instruments.piano.oscillators.push(osc);
                 }
 
-                setTimeout(() => this.playPianoChord(), (60 / this.rhythmTracker.tempo) * 2 * 1000);
+                // Update every 200ms for continuous tracking
+                setTimeout(() => this.playPianoChord(), 200);
             }
             
             playGuitarStrum() {
@@ -3040,21 +3364,54 @@ There is NO possibility of audio feedback loop.
                 ctx.stroke();
             }
             
+            // PHASE 9: ENHANCED REAL-TIME METRICS DISPLAY
             updateLearningDisplay() {
                 if (!this.isPlaying) return;
-                
+
                 // Update learning statistics
                 const confidence = (this.continuousLearning.confidenceLevel * 100).toFixed(1);
                 document.getElementById('aiConfidence').textContent = confidence + '%';
                 document.getElementById('patternsLearned').textContent = this.continuousLearning.patternHistory.length;
-                
+
                 if (this.continuousLearning.active) {
                     document.getElementById('learningStatus').textContent = 'LEARNING ✓';
                     document.getElementById('learningStatus').style.color = 'var(--success)';
                 }
-                
-                // Continue updating
-                setTimeout(() => this.updateLearningDisplay(), 500);
+
+                // Update harmony stats (safe with element checks)
+                const currentKeyEl = document.getElementById('currentKey');
+                if (currentKeyEl) {
+                    currentKeyEl.textContent = this.bioSignature.key || '--';
+                }
+
+                const currentChordEl = document.getElementById('currentChord');
+                if (currentChordEl) {
+                    currentChordEl.textContent = this.chordProgression.progression[this.chordProgression.currentChord] || '--';
+                }
+
+                const activeInstrumentsEl = document.getElementById('activeInstruments');
+                if (activeInstrumentsEl) {
+                    activeInstrumentsEl.textContent = Array.from(this.activeInstrumentSet).join(', ').toUpperCase() || 'NONE';
+                }
+
+                const musicalIntensityEl = document.getElementById('musicalIntensity');
+                if (musicalIntensityEl) {
+                    musicalIntensityEl.textContent = (this.getMusicalIntensity() * 100).toFixed(0) + '%';
+                }
+
+                const harmonyModeEl = document.getElementById('harmonyMode');
+                if (harmonyModeEl) {
+                    harmonyModeEl.textContent = this.currentHarmonyMode === 'active' ? '🎵 ACTIVE' : '💤 AMBIENT';
+                }
+
+                // Groove lock status
+                const grooveLockEl = document.getElementById('grooveLock');
+                if (grooveLockEl && this.grooveLock.active) {
+                    grooveLockEl.textContent = `LOCKED ✓ (${this.grooveLock.beatConfidence.toFixed(0)}%)`;
+                }
+
+                // Continue updating every 100ms for smooth real-time display
+                setTimeout(() => this.updateLearningDisplay(), 100);
             }
             
             // ================================================================
