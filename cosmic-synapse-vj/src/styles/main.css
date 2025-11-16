@@ -1,0 +1,546 @@
+/* ============================================
+   Cosmic Synapse VJ - Main Styles
+   Dark theme, minimal design, professional UI
+   ============================================ */
+
+:root {
+    /* Color Palette */
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #1a1a1a;
+    --bg-tertiary: #252525;
+    --text-primary: #ffffff;
+    --text-secondary: #999999;
+    --text-tertiary: #666666;
+
+    /* Accent Colors */
+    --accent-primary: #6600ff;
+    --accent-secondary: #9933ff;
+    --accent-glow: rgba(102, 0, 255, 0.5);
+    --accent-blue: #00d4ff;
+    --accent-pink: #ff006e;
+
+    /* UI Elements */
+    --border-color: #333333;
+    --border-color-light: #444444;
+    --shadow-color: rgba(0, 0, 0, 0.5);
+
+    /* Spacing */
+    --spacing-xs: 5px;
+    --spacing-sm: 10px;
+    --spacing-md: 15px;
+    --spacing-lg: 20px;
+    --spacing-xl: 30px;
+
+    /* Border Radius */
+    --radius-sm: 5px;
+    --radius-md: 10px;
+    --radius-lg: 15px;
+    --radius-full: 50px;
+
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+}
+
+/* ============================================
+   Reset & Base Styles
+   ============================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+    line-height: 1.6;
+}
+
+/* ============================================
+   Main Layout
+   ============================================ */
+
+#app-container {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+#canvas-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(ellipse at center, #1a0033 0%, #0a0a0a 100%);
+}
+
+#main-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* ============================================
+   Indicators (FPS, Audio, MIDI)
+   ============================================ */
+
+.indicator {
+    position: absolute;
+    padding: 8px 15px;
+    border-radius: var(--radius-md);
+    font-size: 0.9em;
+    font-weight: 600;
+    z-index: 100;
+    display: none;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#fps-counter {
+    top: var(--spacing-sm);
+    left: var(--spacing-sm);
+    background: rgba(0, 0, 0, 0.7);
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    font-family: 'Courier New', monospace;
+    font-size: 0.85em;
+    z-index: 100;
+}
+
+#audio-indicator {
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    background: rgba(255, 0, 128, 0.7);
+    animation: pulse 2s infinite;
+}
+
+#audio-indicator.active {
+    display: block;
+}
+
+#midi-indicator {
+    top: 50px;
+    right: var(--spacing-sm);
+    background: rgba(0, 212, 255, 0.7);
+}
+
+#midi-indicator.active {
+    display: block;
+    animation: pulse-blue 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 20px rgba(255, 0, 128, 0.5);
+    }
+    50% {
+        opacity: 0.7;
+        box-shadow: 0 0 40px rgba(255, 0, 128, 0.8);
+    }
+}
+
+@keyframes pulse-blue {
+    0%, 100% {
+        background: rgba(0, 212, 255, 0.7);
+        box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+    }
+    50% {
+        background: rgba(0, 255, 255, 0.9);
+        box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+    }
+}
+
+/* ============================================
+   Control Panel
+   ============================================ */
+
+#controls-panel {
+    background: var(--bg-secondary);
+    border-top: 2px solid var(--border-color);
+    max-height: 60vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: var(--spacing-lg);
+}
+
+/* Custom Scrollbar */
+#controls-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+#controls-panel::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+#controls-panel::-webkit-scrollbar-thumb {
+    background: var(--accent-primary);
+    border-radius: var(--radius-sm);
+}
+
+#controls-panel::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-secondary);
+}
+
+/* ============================================
+   Panel Header
+   ============================================ */
+
+.panel-header-main {
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.panel-header-main h1 {
+    font-size: 2em;
+    background: linear-gradient(45deg, var(--accent-primary), var(--accent-blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: var(--spacing-xs);
+}
+
+.tagline {
+    color: var(--text-secondary);
+    font-size: 0.95em;
+}
+
+/* ============================================
+   Audio Controls
+   ============================================ */
+
+.audio-controls {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* ============================================
+   Sections
+   ============================================ */
+
+.section {
+    margin-bottom: var(--spacing-lg);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md) 0;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    user-select: none;
+}
+
+.section-header h2 {
+    font-size: 1.1em;
+    color: var(--accent-blue);
+    font-weight: 600;
+}
+
+.toggle-icon {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+    transition: transform var(--transition-normal);
+}
+
+.section.collapsible .section-header:hover {
+    color: var(--accent-primary);
+}
+
+.section.collapsible .section-header:hover .toggle-icon {
+    color: var(--accent-primary);
+}
+
+.panel-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--transition-normal);
+}
+
+.panel-content.open {
+    max-height: 1000px;
+    padding-top: var(--spacing-md);
+}
+
+.collapsible.open .toggle-icon {
+    transform: rotate(180deg);
+}
+
+/* ============================================
+   Preset Buttons
+   ============================================ */
+
+.preset-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+
+.preset-button {
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-color);
+    color: var(--text-primary);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.preset-button:hover {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 20px var(--accent-glow);
+    transform: translateY(-2px);
+}
+
+.preset-button.active {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 25px var(--accent-glow);
+}
+
+.preset-icon {
+    font-size: 1.8em;
+}
+
+.preset-name {
+    font-size: 0.9em;
+    font-weight: 600;
+}
+
+/* ============================================
+   Controls Grid
+   ============================================ */
+
+.controls-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-md);
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.control-group label {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    font-weight: 500;
+}
+
+.help-text {
+    color: var(--text-tertiary);
+    font-size: 0.8em;
+    margin-top: 2px;
+}
+
+/* ============================================
+   Metrics Grid
+   ============================================ */
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+
+.metric-box {
+    background: rgba(102, 0, 255, 0.1);
+    border: 1px solid rgba(102, 0, 255, 0.3);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    text-align: center;
+}
+
+.metric-label {
+    display: block;
+    font-size: 0.8em;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.metric-value {
+    display: block;
+    font-size: 1.3em;
+    font-weight: 700;
+    color: var(--accent-primary);
+    font-family: 'Courier New', monospace;
+}
+
+/* ============================================
+   Export Buttons
+   ============================================ */
+
+.export-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+
+.pro-gate {
+    text-align: center;
+    padding: var(--spacing-lg);
+    background: rgba(255, 165, 0, 0.1);
+    border: 2px dashed rgba(255, 165, 0, 0.5);
+    border-radius: var(--radius-md);
+    margin-top: var(--spacing-md);
+}
+
+.pro-gate p {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+/* ============================================
+   Footer
+   ============================================ */
+
+.footer {
+    text-align: center;
+    padding: var(--spacing-lg) 0;
+    border-top: 1px solid var(--border-color);
+    margin-top: var(--spacing-lg);
+    font-size: 0.85em;
+    color: var(--text-tertiary);
+}
+
+.footer a {
+    color: var(--accent-blue);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.footer a:hover {
+    color: var(--accent-primary);
+}
+
+/* ============================================
+   Notification System
+   ============================================ */
+
+#notification-container {
+    position: fixed;
+    bottom: var(--spacing-lg);
+    right: var(--spacing-lg);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.notification {
+    background: var(--bg-secondary);
+    border: 2px solid var(--accent-primary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+    box-shadow: 0 5px 30px var(--accent-glow);
+    animation: slideIn var(--transition-normal);
+    max-width: 300px;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.notification.success {
+    border-color: #00ff88;
+    box-shadow: 0 5px 30px rgba(0, 255, 136, 0.3);
+}
+
+.notification.error {
+    border-color: #ff0044;
+    box-shadow: 0 5px 30px rgba(255, 0, 68, 0.3);
+}
+
+/* ============================================
+   Status Messages
+   ============================================ */
+
+.status-message {
+    padding: var(--spacing-sm);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-sm);
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    margin-top: var(--spacing-md);
+}
+
+/* ============================================
+   MIDI Mappings Display
+   ============================================ */
+
+.midi-mappings {
+    margin-top: var(--spacing-md);
+}
+
+.midi-mapping-item {
+    background: rgba(255, 255, 255, 0.05);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--spacing-xs);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.midi-mapping-item .cc-number {
+    color: var(--accent-blue);
+    font-weight: 600;
+}
+
+.midi-mapping-item .parameter {
+    color: var(--text-primary);
+}
+
+.midi-mapping-item .remove-btn {
+    color: var(--accent-pink);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+
+@media (max-width: 768px) {
+    .panel-header-main h1 {
+        font-size: 1.5em;
+    }
+
+    .preset-buttons {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    }
+
+    .controls-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .audio-controls {
+        flex-direction: column;
+    }
+}

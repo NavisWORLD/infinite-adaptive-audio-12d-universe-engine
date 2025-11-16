@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Synapse VJ - 12D Audio Visualizer</title>
+    <meta name="description" content="Professional audio-reactive visualization tool based on 12D Cosmic Synapse Theory">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/controls.css">
+</head>
+<body>
+    <div id="app-container">
+        <!-- Main Visualization Canvas -->
+        <div id="canvas-container">
+            <canvas id="main-canvas"></canvas>
+            <div id="fps-counter">FPS: <span id="fps">60</span></div>
+            <div id="audio-indicator" class="indicator">🎤 LISTENING</div>
+            <div id="midi-indicator" class="indicator">🎹 MIDI</div>
+        </div>
+
+        <!-- Control Panel -->
+        <div id="controls-panel">
+            <!-- Header -->
+            <div class="panel-header-main">
+                <h1>🌌 COSMIC SYNAPSE VJ</h1>
+                <p class="tagline">12D Audio Visualizer</p>
+            </div>
+
+            <!-- Audio Controls -->
+            <div class="audio-controls">
+                <button id="mic-button" class="btn btn-primary">
+                    <span class="icon">🎤</span> Start Microphone
+                </button>
+                <label class="file-upload-btn">
+                    <span class="icon">📁</span> Load Audio File
+                    <input type="file" id="audio-file" accept="audio/*" style="display: none;">
+                </label>
+            </div>
+
+            <!-- Presets -->
+            <div class="section">
+                <div class="section-header">
+                    <h2>✨ Presets</h2>
+                </div>
+                <div id="preset-buttons" class="preset-buttons">
+                    <button class="preset-button" data-preset="meditation">
+                        <span class="preset-icon">🧘</span>
+                        <span class="preset-name">Meditation</span>
+                    </button>
+                    <button class="preset-button" data-preset="psychedelic">
+                        <span class="preset-icon">🌀</span>
+                        <span class="preset-name">Psychedelic</span>
+                    </button>
+                    <button class="preset-button" data-preset="minimal">
+                        <span class="preset-icon">◼️</span>
+                        <span class="preset-name">Minimal</span>
+                    </button>
+                    <button class="preset-button" data-preset="cosmic">
+                        <span class="preset-icon">🌌</span>
+                        <span class="preset-name">Cosmic</span>
+                    </button>
+                    <button class="preset-button" data-preset="golden-ratio">
+                        <span class="preset-icon">φ</span>
+                        <span class="preset-name">Golden Ratio</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Basic Controls -->
+            <div class="section">
+                <div class="section-header">
+                    <h2>🎛️ Controls</h2>
+                </div>
+                <div id="basic-controls" class="controls-grid">
+                    <div class="control-group">
+                        <label for="particle-count">Particle Count</label>
+                        <div class="slider-container">
+                            <input type="range" id="particle-count" min="5" max="100" value="30" step="1">
+                            <span class="value-display">30</span>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label for="audio-sensitivity">Audio Sensitivity</label>
+                        <div class="slider-container">
+                            <input type="range" id="audio-sensitivity" min="0" max="2" value="0.6" step="0.1">
+                            <span class="value-display">0.6</span>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label for="color-palette">Color Palette</label>
+                        <select id="color-palette" class="select-control">
+                            <option value="cosmic">Cosmic</option>
+                            <option value="warm">Warm</option>
+                            <option value="cool">Cool</option>
+                            <option value="psychedelic">Psychedelic</option>
+                            <option value="monochrome">Monochrome</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="speed">Speed</label>
+                        <div class="slider-container">
+                            <input type="range" id="speed" min="0.1" max="2" value="0.5" step="0.1">
+                            <span class="value-display">0.5</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Panel (Collapsible) -->
+            <div class="section collapsible">
+                <div class="section-header" id="advanced-header">
+                    <h2>🔧 Advanced</h2>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div id="advanced-controls" class="panel-content">
+                    <div class="controls-grid">
+                        <div class="control-group">
+                            <label for="trail-length">Trail Length</label>
+                            <div class="slider-container">
+                                <input type="range" id="trail-length" min="100" max="5000" value="2000" step="100">
+                                <span class="value-display">2000</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label for="blend-lorenz">Physics Blend</label>
+                            <div class="slider-container">
+                                <input type="range" id="blend-lorenz" min="0" max="1" value="0.7" step="0.05">
+                                <span class="value-display">0.7</span>
+                            </div>
+                            <small class="help-text">0=gravity, 1=chaos</small>
+                        </div>
+                        <div class="control-group">
+                            <label>
+                                <input type="checkbox" id="phi-harmonics" checked>
+                                φ-Harmonics
+                            </label>
+                        </div>
+                        <div class="control-group">
+                            <label>
+                                <input type="checkbox" id="auto-rotate" checked>
+                                Auto Rotate Camera
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MIDI Panel (Collapsible) -->
+            <div class="section collapsible">
+                <div class="section-header" id="midi-header">
+                    <h2>🎹 MIDI</h2>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div id="midi-controls" class="panel-content">
+                    <div id="midi-status" class="status-message">No MIDI devices detected</div>
+                    <div id="midi-mappings" class="midi-mappings"></div>
+                    <button id="midi-learn" class="btn btn-secondary">Learn MIDI Mapping</button>
+                </div>
+            </div>
+
+            <!-- Export Panel (Collapsible) -->
+            <div class="section collapsible">
+                <div class="section-header" id="export-header">
+                    <h2>📹 Export</h2>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div id="export-controls" class="panel-content">
+                    <div class="export-buttons">
+                        <button id="screenshot-button" class="btn btn-export">
+                            <span class="icon">📸</span> Screenshot (4K)
+                        </button>
+                        <button id="video-record-button" class="btn btn-export">
+                            <span class="icon">🎥</span> Record Video
+                        </button>
+                    </div>
+                    <div class="pro-gate" id="export-pro-gate" style="display: none;">
+                        <p>🔒 High-res export requires Pro version</p>
+                        <button class="btn btn-upgrade">Upgrade to Pro - $20</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metrics Display -->
+            <div class="section">
+                <div class="section-header">
+                    <h2>📊 Metrics</h2>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-box">
+                        <span class="metric-label">R_ω</span>
+                        <span class="metric-value" id="metric-r-omega">0.000</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">R_ψ</span>
+                        <span class="metric-value" id="metric-r-psi">0.000</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Causal Density</span>
+                        <span class="metric-value" id="metric-causal">0.000</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-label">Audio RMS</span>
+                        <span class="metric-value" id="metric-rms">0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                <p>Built on 12D Cosmic Synapse Theory | <a href="https://github.com/yourusername/cosmic-synapse-vj" target="_blank">GitHub</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification System -->
+    <div id="notification-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script type="module" src="core/engine.js"></script>
+    <script type="module" src="core/audio.js"></script>
+    <script type="module" src="ui/controls.js"></script>
+    <script type="module" src="ui/midi.js"></script>
+    <script type="module" src="export/screenshot.js"></script>
+    <script type="module" src="export/video-recorder.js"></script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>

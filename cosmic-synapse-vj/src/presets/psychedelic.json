@@ -1,0 +1,23 @@
+{
+  "name": "Psychedelic",
+  "description": "Intense, complex, trippy visuals for psychedelic experiences",
+  "particleCount": 50,
+  "audioSensitivity": 1.5,
+  "speed": 0.8,
+  "colorPalette": "psychedelic",
+  "trailLength": 5000,
+  "physics": {
+    "blendLorenz": 0.9
+  },
+  "camera": {
+    "autoRotate": true,
+    "rotationSpeed": 0.3,
+    "zoom": 0.8
+  },
+  "postProcessing": {
+    "bloom": 0.8,
+    "glow": 1.0,
+    "trails": true
+  },
+  "phiHarmonics": true
+}
