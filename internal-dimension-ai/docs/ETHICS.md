@@ -505,7 +505,7 @@ We welcome:
 
 For ethical concerns or questions:
 - GitHub Issues: [repository]/issues
-- Email: ethics@navisworld.ai
+- Email: pheras.king@gmail.com
 - Ethics Board: [To be established]
 
 ---
@@ -514,6 +514,7 @@ For ethical concerns or questions:
 
 **Last Updated**: 2024-11-16
 **Version**: 1.0
-**Authors**: NavisWORLD Research Team
+**Authors**: NavisWORLD Research Team  
 
-**License**: This ethics framework is released under CC-BY-4.0. Anyone using Internal Dimension AI should adopt these or equivalent guidelines.
+**License**: This ethics framework is released under https://zenodo.org/records/17574447 CC-BY-4.0. Anyone using Internal Dimension AI should adopt these or equivalent guidelines.  
+
