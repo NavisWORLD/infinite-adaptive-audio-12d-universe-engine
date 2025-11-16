@@ -544,13 +544,21 @@ class PPOTrainer:
 
             # Logging
             if episode % self.log_interval == 0:
-                log_msg = (
-                    f"Episode {episode}/{num_episodes} | "
-                    f"Reward: {history['episode_rewards'][-1]:.2f} | "
-                    f"Length: {history['episode_lengths'][-1]:.0f} | "
-                    f"Policy Loss: {update_stats['policy_loss']:.4f} | "
-                    f"Value Loss: {update_stats['value_loss']:.4f}"
-                )
+                # Safety check: only log if we have episode data
+                if len(history['episode_rewards']) > 0:
+                    log_msg = (
+                        f"Episode {episode}/{num_episodes} | "
+                        f"Reward: {history['episode_rewards'][-1]:.2f} | "
+                        f"Length: {history['episode_lengths'][-1]:.0f} | "
+                        f"Policy Loss: {update_stats['policy_loss']:.4f} | "
+                        f"Value Loss: {update_stats['value_loss']:.4f}"
+                    )
+                else:
+                    log_msg = (
+                        f"Episode {episode}/{num_episodes} | "
+                        f"Policy Loss: {update_stats['policy_loss']:.4f} | "
+                        f"Value Loss: {update_stats['value_loss']:.4f}"
+                    )
 
                 if self.has_internal_dims and len(self.episode_x12_means) > 0:
                     log_msg += f" | x₁₂: {self.episode_x12_means[-1]:.3f} | m₁₂: {self.episode_m12_means[-1]:.3f}"
@@ -562,7 +570,8 @@ class PPOTrainer:
 
                 # TensorBoard logging
                 if self.use_tensorboard and self.writer is not None:
-                    self.writer.add_scalar('Reward/Episode', history['episode_rewards'][-1], episode)
+                    if len(history['episode_rewards']) > 0:
+                        self.writer.add_scalar('Reward/Episode', history['episode_rewards'][-1], episode)
                     self.writer.add_scalar('Loss/Policy', update_stats['policy_loss'], episode)
                     self.writer.add_scalar('Loss/Value', update_stats['value_loss'], episode)
                     self.writer.add_scalar('Entropy', update_stats['entropy'], episode)
