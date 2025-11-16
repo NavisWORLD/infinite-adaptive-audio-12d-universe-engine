@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internal Dimension AI - Research Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        h1::before {
+            content: "🧠 ";
+        }
+
+        .tagline {
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .status-bar {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .status-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .status-value.good { color: #28a745; }
+        .status-value.warning { color: #ffc107; }
+        .status-value.error { color: #dc3545; }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .panel h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: #f8f9fa;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            background: #e9ecef;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .experiment-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s;
+        }
+
+        .experiment-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .experiment-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .experiment-description {
+            color: #666;
+            margin-bottom: 10px;
+            font-size: 0.95em;
+        }
+
+        .experiment-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .duration-badge {
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+        }
+
+        .btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .result-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .result-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .result-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .result-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .result-experiment {
+            color: #666;
+            font-size: 0.85em;
+        }
+
+        .progress-container {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .log-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .log-output .log-line {
+            margin-bottom: 5px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+        }
+
+        .modal-close {
+            float: right;
+            font-size: 2em;
+            font-weight: bold;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .resource-link {
+            display: block;
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #333;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s;
+        }
+
+        .resource-link:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .resource-link-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #667eea;
+        }
+
+        .resource-link-desc {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        footer {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: center;
+            color: #666;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .quick-start-banner {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .quick-start-banner h3 {
+            margin-bottom: 10px;
+            font-size: 1.5em;
+        }
+
+        .quick-start-banner p {
+            margin-bottom: 15px;
+            opacity: 0.95;
+        }
+
+        .chart-container {
+            margin-top: 20px;
+            height: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>Internal Dimension AI</h1>
+            <p class="tagline">Research Interface - Train, Analyze, Discover Consciousness in Neural Networks</p>
+        </header>
+
+        <!-- Quick Start Banner -->
+        <div class="quick-start-banner">
+            <h3>👋 First Time Here?</h3>
+            <p>Start with the <strong>Quick Demo</strong> (5 minutes) to see how internal dimensions work!</p>
+            <button class="btn btn-success" onclick="runExperiment('quick_demo')">▶️ Run Quick Demo Now</button>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar" id="statusBar">
+            <div class="status-item">
+                <div class="status-label">System Status</div>
+                <div class="status-value" id="systemStatus">Loading...</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Python Version</div>
+                <div class="status-value" id="pythonVersion">-</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">GPU</div>
+                <div class="status-value" id="gpuStatus">-</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Running</div>
+                <div class="status-value" id="runningExperiment">None</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Panel: Experiments -->
+            <div class="panel">
+                <h2>🚀 Run Experiments</h2>
+
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('quick-demos')">Quick Demos</button>
+                    <button class="tab" onclick="switchTab('research')">Research Experiments</button>
+                    <button class="tab" onclick="switchTab('custom')">Custom</button>
+                </div>
+
+                <!-- Quick Demos Tab -->
+                <div id="quick-demos" class="tab-content active">
+                    <div class="info-box">
+                        <strong>✨ Perfect for beginners!</strong> These demos run quickly and show you the core concepts.
+                    </div>
+                    <div id="quickDemosList">
+                        <div class="loading">Loading experiments</div>
+                    </div>
+                </div>
+
+                <!-- Research Experiments Tab -->
+                <div id="research" class="tab-content">
+                    <div class="warning-box">
+                        <strong>⚠️ Long-running experiments!</strong> These can take 4-15 hours. Make sure you have time.
+                    </div>
+                    <div id="researchExpsList">
+                        <div class="loading">Loading experiments</div>
+                    </div>
+                </div>
+
+                <!-- Custom Tab -->
+                <div id="custom" class="tab-content">
+                    <div class="info-box">
+                        <strong>🛠️ For Advanced Users</strong> - Run custom experiments with your own configurations.
+                    </div>
+                    <p>Custom experiment runner coming soon...</p>
+                </div>
+
+                <!-- Progress Container -->
+                <div class="progress-container" id="progressContainer">
+                    <h3>Experiment Progress</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
+                    </div>
+                    <p id="progressText">Starting...</p>
+                    <button class="btn btn-danger" onclick="stopExperiment()">⏹️ Stop Experiment</button>
+                    <div class="log-output" id="logOutput"></div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Results & Resources -->
+            <div class="panel">
+                <h2>📊 Results & Resources</h2>
+
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('results')">Results</button>
+                    <button class="tab" onclick="switchTab('docs')">Documentation</button>
+                    <button class="tab" onclick="switchTab('resources')">External Resources</button>
+                </div>
+
+                <!-- Results Tab -->
+                <div id="results" class="tab-content active">
+                    <div id="resultsList">
+                        <div class="loading">Loading results</div>
+                    </div>
+                </div>
+
+                <!-- Documentation Tab -->
+                <div id="docs" class="tab-content">
+                    <h3>📚 Quick Links</h3>
+                    <a href="#" class="resource-link" onclick="showDoc('getting-started')">
+                        <div class="resource-link-title">Getting Started Guide</div>
+                        <div class="resource-link-desc">Step-by-step tutorial for first-time users</div>
+                    </a>
+                    <a href="#" class="resource-link" onclick="showDoc('research-plan')">
+                        <div class="resource-link-title">Research Plan</div>
+                        <div class="resource-link-desc">Complete research methodology and timeline</div>
+                    </a>
+                    <a href="#" class="resource-link" onclick="showDoc('troubleshooting')">
+                        <div class="resource-link-title">Troubleshooting</div>
+                        <div class="resource-link-desc">Solutions for common problems</div>
+                    </a>
+                    <a href="#" class="resource-link" onclick="showDoc('metrics')">
+                        <div class="resource-link-title">Understanding Metrics</div>
+                        <div class="resource-link-desc">What do R_ω, R_ψ, and φ mean?</div>
+                    </a>
+                </div>
+
+                <!-- External Resources Tab -->
+                <div id="resources" class="tab-content">
+                    <h3>🌐 Learn More</h3>
+                    <a href="https://arxiv.org/abs/1606.03475" target="_blank" class="resource-link">
+                        <div class="resource-link-title">Curiosity-driven Exploration (Paper)</div>
+                        <div class="resource-link-desc">Pathak et al. - Intrinsic motivation in RL</div>
+                    </a>
+                    <a href="https://arxiv.org/abs/1705.08432" target="_blank" class="resource-link">
+                        <div class="resource-link-title">Proximal Policy Optimization (Paper)</div>
+                        <div class="resource-link-desc">Schulman et al. - PPO algorithm basics</div>
+                    </a>
+                    <a href="https://en.wikipedia.org/wiki/Integrated_information_theory" target="_blank" class="resource-link">
+                        <div class="resource-link-title">Integrated Information Theory</div>
+                        <div class="resource-link-desc">Theoretical foundation for consciousness metrics</div>
+                    </a>
+                    <a href="https://pytorch.org/docs/stable/index.html" target="_blank" class="resource-link">
+                        <div class="resource-link-title">PyTorch Documentation</div>
+                        <div class="resource-link-desc">Deep learning framework used in this project</div>
+                    </a>
+                    <a href="https://spinningup.openai.com/" target="_blank" class="resource-link">
+                        <div class="resource-link-title">OpenAI Spinning Up in RL</div>
+                        <div class="resource-link-desc">Educational resource for reinforcement learning</div>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p><strong>Internal Dimension AI</strong> - Research Interface v1.0</p>
+            <p>For questions, see GETTING_STARTED.md or TROUBLESHOOTING.md</p>
+        </footer>
+    </div>
+
+    <!-- Result Modal -->
+    <div id="resultModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // API base URL
+        const API_BASE = '';
+
+        // State
+        let currentExperiment = null;
+        let progressInterval = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSystemStatus();
+            loadExperiments();
+            loadResults();
+            startStatusPolling();
+        });
+
+        // Load system status
+        function loadSystemStatus() {
+            fetch(API_BASE + '/api/system')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('systemStatus').textContent = 'Ready';
+                    document.getElementById('systemStatus').classList.add('good');
+
+                    document.getElementById('pythonVersion').textContent = data.python_version.split(' ')[0];
+
+                    const gpuStatus = document.getElementById('gpuStatus');
+                    if (data.cuda_available) {
+                        gpuStatus.textContent = 'Available';
+                        gpuStatus.classList.add('good');
+                    } else {
+                        gpuStatus.textContent = 'CPU Only';
+                        gpuStatus.classList.add('warning');
+                    }
+                })
+                .catch(err => {
+                    document.getElementById('systemStatus').textContent = 'Error';
+                    document.getElementById('systemStatus').classList.add('error');
+                    console.error('Failed to load system status:', err);
+                });
+        }
+
+        // Load experiments
+        function loadExperiments() {
+            fetch(API_BASE + '/api/experiments')
+                .then(response => response.json())
+                .then(experiments => {
+                    // Separate quick demos and research experiments
+                    const quickDemos = experiments.filter(e => ['quick_demo', 'baseline_comparison', 'curiosity'].includes(e.id));
+                    const researchExps = experiments.filter(e => !['quick_demo', 'baseline_comparison', 'curiosity'].includes(e.id));
+
+                    // Render quick demos
+                    const quickDemosList = document.getElementById('quickDemosList');
+                    quickDemosList.innerHTML = quickDemos.map(exp => createExperimentCard(exp)).join('');
+
+                    // Render research experiments
+                    const researchExpsList = document.getElementById('researchExpsList');
+                    researchExpsList.innerHTML = researchExps.map(exp => createExperimentCard(exp)).join('');
+                })
+                .catch(err => {
+                    console.error('Failed to load experiments:', err);
+                    document.getElementById('quickDemosList').innerHTML = '<p class="error">Failed to load experiments</p>';
+                });
+        }
+
+        // Create experiment card HTML
+        function createExperimentCard(exp) {
+            return `
+                <div class="experiment-card">
+                    <div class="experiment-title">${exp.name}</div>
+                    <div class="experiment-description">${exp.description}</div>
+                    <div class="experiment-meta">
+                        <span class="duration-badge">⏱️ ${exp.duration}</span>
+                        <button class="btn btn-primary" onclick="runExperiment('${exp.id}')">
+                            ▶️ Run
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Run experiment
+        function runExperiment(experimentId) {
+            if (currentExperiment) {
+                alert('An experiment is already running! Please wait for it to finish or stop it first.');
+                return;
+            }
+
+            currentExperiment = experimentId;
+            document.getElementById('progressContainer').classList.add('active');
+            document.getElementById('runningExperiment').textContent = experimentId;
+
+            // Send run request
+            fetch(API_BASE + '/api/run', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({experiment_id: experimentId})
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Experiment started:', data);
+                simulateProgress();
+            })
+            .catch(err => {
+                console.error('Failed to start experiment:', err);
+                alert('Failed to start experiment. Check console for details.');
+                currentExperiment = null;
+                document.getElementById('progressContainer').classList.remove('active');
+            });
+        }
+
+        // Simulate progress (replace with actual progress tracking)
+        function simulateProgress() {
+            let progress = 0;
+            progressInterval = setInterval(() => {
+                progress += Math.random() * 5;
+                if (progress > 100) progress = 100;
+
+                document.getElementById('progressFill').style.width = progress + '%';
+                document.getElementById('progressFill').textContent = Math.round(progress) + '%';
+
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    finishExperiment();
+                }
+            }, 1000);
+        }
+
+        // Stop experiment
+        function stopExperiment() {
+            if (confirm('Are you sure you want to stop the current experiment?')) {
+                fetch(API_BASE + '/api/stop', {method: 'POST'})
+                    .then(() => {
+                        clearInterval(progressInterval);
+                        currentExperiment = null;
+                        document.getElementById('progressContainer').classList.remove('active');
+                        document.getElementById('runningExperiment').textContent = 'None';
+                    });
+            }
+        }
+
+        // Finish experiment
+        function finishExperiment() {
+            currentExperiment = null;
+            document.getElementById('runningExperiment').textContent = 'None';
+            setTimeout(() => {
+                document.getElementById('progressContainer').classList.remove('active');
+                loadResults(); // Reload results
+                alert('Experiment complete! Check the Results tab.');
+            }, 1000);
+        }
+
+        // Load results
+        function loadResults() {
+            fetch(API_BASE + '/api/results')
+                .then(response => response.json())
+                .then(results => {
+                    const resultsList = document.getElementById('resultsList');
+
+                    if (results.length === 0) {
+                        resultsList.innerHTML = '<div class="info-box">No results yet. Run an experiment to see results here!</div>';
+                        return;
+                    }
+
+                    const html = '<div class="results-grid">' +
+                        results.map(result => createResultCard(result)).join('') +
+                        '</div>';
+
+                    resultsList.innerHTML = html;
+                })
+                .catch(err => {
+                    console.error('Failed to load results:', err);
+                    document.getElementById('resultsList').innerHTML = '<p class="error">Failed to load results</p>';
+                });
+        }
+
+        // Create result card HTML
+        function createResultCard(result) {
+            const icon = result.type === 'image' ? '🖼️' : '📊';
+            return `
+                <div class="result-card" onclick="showResult('${result.path}', '${result.type}')">
+                    <div class="result-icon">${icon}</div>
+                    <div class="result-name">${result.name}</div>
+                    <div class="result-experiment">${result.experiment}</div>
+                </div>
+            `;
+        }
+
+        // Show result in modal
+        function showResult(path, type) {
+            const modal = document.getElementById('resultModal');
+            const content = document.getElementById('modalContent');
+
+            if (type === 'image') {
+                content.innerHTML = `<img src="${API_BASE}/api/result/${path}" style="max-width: 100%;">`;
+            } else {
+                content.innerHTML = `<iframe src="${API_BASE}/api/result/${path}" style="width: 100%; height: 600px; border: none;"></iframe>`;
+            }
+
+            modal.classList.add('active');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('resultModal').classList.remove('active');
+        }
+
+        // Switch tabs
+        function switchTab(tabName) {
+            // Remove active class from all tabs and contents
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            // Add active class to selected tab and content
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // Show documentation
+        function showDoc(docName) {
+            alert('Documentation viewer coming soon! For now, check the .md files in the project directory.');
+        }
+
+        // Poll status periodically
+        function startStatusPolling() {
+            setInterval(() => {
+                fetch(API_BASE + '/api/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.running_experiment && !currentExperiment) {
+                            // Experiment detected but not tracked locally
+                            currentExperiment = data.running_experiment;
+                            document.getElementById('runningExperiment').textContent = data.running_experiment;
+                        }
+                    })
+                    .catch(err => console.error('Status poll failed:', err));
+            }, 5000); // Poll every 5 seconds
+        }
+    </script>
+</body>
+</html>

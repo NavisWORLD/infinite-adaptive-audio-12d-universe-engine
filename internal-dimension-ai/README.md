@@ -44,7 +44,32 @@ Input → Processing → Output
 
 ## 🚀 Quick Start (For Researchers - No Programming Needed!)
 
-### Super Easy Setup (3 steps)
+### 🌐 Option 1: Web Interface (EASIEST!)
+
+**Run everything in your web browser!**
+
+```bash
+cd internal-dimension-ai
+./setup.sh      # First time only (5-10 minutes)
+./start_web.sh  # Opens in browser automatically!
+```
+
+**Windows:**
+```bash
+cd internal-dimension-ai
+setup_windows.bat
+start_web.bat
+```
+
+You'll get a beautiful web interface where you can:
+- ✨ Click buttons to run experiments
+- 📊 View results in your browser
+- 📈 See live progress bars
+- 📚 Browse documentation
+- 🌐 Access external resources
+- **Zero coding required!**
+
+### 💻 Option 2: Command-Line Menu
 
 **Step 1**: Open a terminal and navigate to this directory
 ```bash
@@ -57,7 +82,7 @@ chmod +x setup.sh    # Make script executable (only needed once)
 ./setup.sh           # Run setup (takes 5-10 minutes)
 ```
 
-**Step 3**: Start the easy interface
+**Step 3**: Start the menu interface
 ```bash
 ./start.sh
 ```
