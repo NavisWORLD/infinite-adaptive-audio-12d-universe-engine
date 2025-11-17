@@ -751,6 +751,80 @@ There is NO possibility of audio feedback loop.
                     📦 Export Tokens (JSON)
                 </button>
             </div>
+
+            <!-- 12D CHAOS METRICS CARD -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="status-dot"></span>
+                        12D CHAOS METRICS
+                    </div>
+                </div>
+
+                <div class="bio-display">
+                    <div class="metric-row">
+                        <span class="metric-label">Lyapunov Exponent (λ)</span>
+                        <span class="metric-value" id="lyapunov-value">0.000</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Chaos Regime</span>
+                        <span class="metric-value" id="chaos-regime">UNKNOWN</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Attractor Dimension</span>
+                        <span class="metric-value" id="attractor-dimension">0.00</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Audio Chaos</span>
+                        <span class="metric-value" id="audio-chaos">0.000</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Active Particles</span>
+                        <span class="metric-value" id="particle-count">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PSI BREAKDOWN CARD -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="status-dot"></span>
+                        ψ (PSI) BREAKDOWN
+                    </div>
+                </div>
+
+                <div class="bio-display">
+                    <div class="metric-row">
+                        <span class="metric-label">ψ Total</span>
+                        <span class="metric-value" id="psi-total">0.000</span>
+                    </div>
+                    <div class="metric-row" style="font-size: 0.85em; opacity: 0.8;">
+                        <span class="metric-label">Energy Term (φE/Eref)</span>
+                        <span class="metric-value" id="psi-energy-term">0.00e+0</span>
+                    </div>
+                    <div class="metric-row" style="font-size: 0.85em; opacity: 0.8;">
+                        <span class="metric-label">Lambda Term (λ)</span>
+                        <span class="metric-value" id="psi-lambda-term">0.000</span>
+                    </div>
+                    <div class="metric-row" style="font-size: 0.85em; opacity: 0.8;">
+                        <span class="metric-label">Velocity Integral</span>
+                        <span class="metric-value" id="psi-velint-term">0.000</span>
+                    </div>
+                    <div class="metric-row" style="font-size: 0.85em; opacity: 0.8;">
+                        <span class="metric-label">x₁₂ Integral</span>
+                        <span class="metric-value" id="psi-x12int-term">0.000</span>
+                    </div>
+                    <div class="metric-row" style="font-size: 0.85em; opacity: 0.8;">
+                        <span class="metric-label">Omega Term (ΩE)</span>
+                        <span class="metric-value" id="psi-omega-term">0.00e+0</span>
+                    </div>
+                    <div class="metric-row" style="font-size: 0.85em; opacity: 0.8;">
+                        <span class="metric-label">Potential Term (U₁₁D)</span>
+                        <span class="metric-value" id="psi-potential-term">0.00e+0</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- LIVE MICROPHONE PITCH DISPLAY -->
@@ -792,6 +866,9 @@ There is NO possibility of audio feedback loop.
             </button>
             <button class="btn btn-stop" onclick="stopBand()">⏹ STOP</button>
             <button class="btn btn-test" onclick="testBand()">🧪 TEST INSTRUMENTS</button>
+            <button class="btn btn-test" onclick="if(window.conductor) { const p = addParticleFromAudio(440, 0.5); conductor.log('[TEST] Spawned particle at 440Hz', 'success'); }">
+                🌌 SPAWN TEST PARTICLE (440Hz)
+            </button>
         </div>
 
         <!-- GENRE SELECTION -->
@@ -896,7 +973,377 @@ There is NO possibility of audio feedback loop.
         // - Token Generation with Blockchain Provenance
         // - Professional Studio Prediction Intelligence
         // ====================================================================
-        
+
+        // ====================================================================
+        // SAFE MATH UTILITY FUNCTIONS (12D Engine Support)
+        // Prevents NaN/Infinity propagation in calculations
+        // ====================================================================
+
+        function safeDivide(num, denom, fallback = 0) {
+            if (!isFinite(num) || !isFinite(denom) || denom === 0) return fallback;
+            const result = num / denom;
+            return isFinite(result) ? result : fallback;
+        }
+
+        function safeSqrt(value, fallback = 0) {
+            if (!isFinite(value) || value < 0) return fallback;
+            const result = Math.sqrt(value);
+            return isFinite(result) ? result : fallback;
+        }
+
+        function safeLog(value, fallback = 0) {
+            if (!isFinite(value) || value <= 0) return fallback;
+            const result = Math.log(value);
+            return isFinite(result) ? result : fallback;
+        }
+
+        function safeExp(value, fallback = 0, maxValue = 1e10) {
+            if (!isFinite(value)) return fallback;
+            if (value > 20) return maxValue; // Prevent overflow
+            const result = Math.exp(value);
+            return isFinite(result) && result < maxValue ? result : maxValue;
+        }
+
+        function safeClamp(value, min, max, fallback = 0) {
+            if (!isFinite(value)) return fallback;
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function safeNormalize(value, ref = 1.0) {
+            if (!isFinite(value) || !isFinite(ref) || ref === 0) return 0;
+            return safeClamp(value / ref, 0, 1, 0);
+        }
+
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        // ====================================================================
+        // LORENZ PARTICLE CLASS (Complete 12D Entity)
+        // Core particle system for 12D Cosmic Synapse physics
+        // Modified for music production context (no THREE.js visualization)
+        // ====================================================================
+
+        class LorenzParticle {
+            constructor(x, y, z, color, frequency = 0, parent = null) {
+                this.id = generateUUID();
+
+                // 3D Position & Velocity
+                this.x = x || 0.1;
+                this.y = y || 0;
+                this.z = z || 0;
+                this.velocity = { x: 0, y: 0, z: 0 };
+
+                // Visual properties (kept for compatibility, but no rendering)
+                this.color = color || 0x00d4ff;
+                this.points = [];
+                this.maxPoints = 2000;
+
+                // Particle properties
+                this.frequency = frequency;
+                this.energy = 0; // Legacy energy (kept for compatibility)
+                this.mass = 1;
+                this.entropy = 0; // Legacy entropy
+                this.memory = new Array(10).fill(0);
+                this.tokens = []; // Token list per particle
+                this.parent = parent; // Track parent for replication
+                this.createdAt = Date.now();
+
+                // ============================================================================
+                // 12D CST NEW PROPERTIES - COMPLETE IMPLEMENTATION
+                // ============================================================================
+                // Internal adaptive state (12th dimension)
+                this.x12 = 0; // Adaptive state (dimensionless, bounded [-1, 1])
+                this.m12 = 0; // Memory of x12
+                this.dx12_dt = 0; // Rate of change of internal state
+                this.dm12_dt = 0; // Rate of change of memory
+
+                // 12D evolution parameters (Equation 2.11 from paper)
+                this.k_adaptation = 0.01;    // Rate constant for interaction-driven changes (1/s)
+                this.gamma_decay = 0.005;    // Decay constant for stability (1/s)
+                this.alpha_memory = 0.1;     // Memory adaptation rate (1/s)
+                this.sigma_similarity = 1.0; // Spread parameter for Gaussian similarity
+
+                // Energy and potential
+                this.Ec = 0; // Cosmic energy = kinetic + potential + dark matter
+                this.Ugrav = 0; // Gravitational potential energy
+                this.Udm = 0; // Dark matter potential contribution
+                this.vi = 0; // Characteristic frequency = Ec/h
+                this.nu = this.frequency || 0; // Frequency (Hz) - initialized from audio frequency or 0
+                this.theta = Math.random() * 2 * Math.PI; // Phase (initialized randomly)
+
+                // Network properties
+                this.neighbors = []; // Cached neighbor indices
+                this.omega = 0; // Ωi = synaptic strength (includes Gaussian similarity)
+                this.entropyS = 0; // Boltzmann-style coarse-grained entropy
+
+                // State function tracking (ψ breakdown - Section 2.8)
+                this.total_x12_variation = 0.0; // ∫|Δx₁₂|dt - accumulated over time
+                this.total_velocity_integral = 0.0; // ∫||v||dt - accumulated over time
+                this.psi = 0.0; // Complete 12D state function
+                this.x12_history = []; // Track internal state evolution
+
+                // 11D projection
+                this.projection11D = {
+                    pos11D: new Float64Array(11).fill(0),
+                    vel11D: new Float64Array(11).fill(0)
+                };
+
+                // Initialize 11D projection (project 3D position to 11D)
+                this.update11DProjection();
+            }
+
+            // Update 11D projection from 3D position
+            // CST v2.0+ additive: Maintains per-particle 11D position/velocity projections
+            update11DProjection() {
+                // Simple orthogonal projection: replicate x,y,z with variations
+                const scale = 0.1;
+                for (let i = 0; i < 11; i++) {
+                    const dim = i % 3;
+                    const coord = dim === 0 ? this.x : (dim === 1 ? this.y : this.z);
+                    this.projection11D.pos11D[i] = coord * (1 + i * scale);
+                    const velCoord = dim === 0 ? this.velocity.x : (dim === 1 ? this.velocity.y : this.velocity.z);
+                    this.projection11D.vel11D[i] = velCoord * (1 + i * scale);
+                }
+            }
+
+            /**
+             * Main particle update using Lorenz dynamics
+             * @param {number} audioModulation - Audio modulation factor (default 1.0)
+             * @param {object} gravAcceleration - Optional gravitational acceleration {x, y, z}
+             * @param {object} params - Simulation parameters {sigma, rho, beta, dt, physics}
+             */
+            update(audioModulation = 1.0, gravAcceleration = null, params = {}) {
+                // Extract parameters with defaults
+                const sigma = params.sigma || 10;
+                const rho = params.rho || 28;
+                const beta = params.beta || 2.667;
+                const dt = params.dt || 0.005;
+                const physics = params.physics || { gravEnabled: false, blendLorenz: 0.7 };
+
+                // === NaN PREVENTION ===
+                this.sanitizeState();
+                audioModulation = isFinite(audioModulation) && audioModulation > 0 ? audioModulation : 1.0;
+
+                // Audio-modulated Lorenz equations
+                const effectiveSigma = sigma * (1 + audioModulation * 0.5);
+                const effectiveRho = rho * (1 + audioModulation * 0.3);
+
+                const dxLorenz = effectiveSigma * (this.y - this.x) * dt;
+                const dyLorenz = (this.x * (effectiveRho - this.z) - this.y) * dt;
+                const dzLorenz = (this.x * this.y - beta * this.z) * dt;
+
+                // Blend Lorenz and gravitational accelerations
+                let dx, dy, dz;
+                if (gravAcceleration && physics.gravEnabled) {
+                    const dxGrav = gravAcceleration.x * dt;
+                    const dyGrav = gravAcceleration.y * dt;
+                    const dzGrav = gravAcceleration.z * dt;
+
+                    dx = physics.blendLorenz * dxLorenz + (1 - physics.blendLorenz) * dxGrav;
+                    dy = physics.blendLorenz * dyLorenz + (1 - physics.blendLorenz) * dyGrav;
+                    dz = physics.blendLorenz * dzLorenz + (1 - physics.blendLorenz) * dzGrav;
+                } else {
+                    dx = dxLorenz;
+                    dy = dyLorenz;
+                    dz = dzLorenz;
+                }
+
+                this.x += dx;
+                this.y += dy;
+                this.z += dz;
+
+                // Update velocity
+                this.velocity = { x: dx / dt, y: dy / dt, z: dz / dt };
+
+                // Update 11D projection
+                this.update11DProjection();
+
+                // Store point for trajectory tracking
+                this.points.push({ x: this.x, y: this.y, z: this.z });
+
+                if (this.points.length > this.maxPoints) {
+                    this.points.shift();
+                }
+
+                // Calculate cosmic energy: Ec = 0.5 * m * v^2 * c^2 (relativistic-inspired)
+                const velocityMagnitude = Math.sqrt(dx*dx + dy*dy + dz*dz) / dt;
+                this.energy = 0.5 * this.mass * velocityMagnitude * velocityMagnitude;
+
+                // Update entropy based on trajectory complexity
+                this.entropy = Math.log(this.points.length + 1) * this.energy;
+
+                // Accumulate velocity integral for ψ calculation
+                this.total_velocity_integral += velocityMagnitude * dt;
+
+                // === POST-UPDATE NaN CHECK ===
+                this.sanitizeState();
+
+                return { dx, dy, dz };
+            }
+
+            /**
+             * Update 12th dimension internal state and memory
+             * Implements evolution equations from Section 2.11 of the 12D CST paper
+             *
+             * @param {number} Omega_i - Total synaptic strength for this particle
+             * @param {number} dt - Time step (seconds)
+             *
+             * Evolution equations:
+             *   dx₁₂/dt = k·Ωᵢ - γ·x₁₂  (Equation 2.11)
+             *   dm₁₂/dt = α·(x₁₂ - m₁₂)  (Memory adaptation)
+             */
+            update12thDimension(Omega_i, dt) {
+                // Validate inputs
+                if (!isFinite(Omega_i) || !isFinite(dt)) {
+                    console.warn('Invalid inputs to update12thDimension:', { Omega_i, dt });
+                    return;
+                }
+
+                // Evolution equation: dx12/dt = k·Ω - γ·x12 (Equation 2.11)
+                // This drives internal state toward high connectivity (high Ω) while decay provides stability
+                this.dx12_dt = this.k_adaptation * Omega_i - this.gamma_decay * this.x12;
+
+                // Update internal state using forward Euler integration
+                this.x12 += this.dx12_dt * dt;
+
+                // Clamp to reasonable bounds [-1, 1] to prevent runaway
+                this.x12 = Math.max(-1, Math.min(1, this.x12));
+
+                // Track total variation for ψ calculation: ∫|Δx₁₂|dt (Section 2.8, Term 4)
+                this.total_x12_variation += Math.abs(this.dx12_dt) * dt;
+
+                // Memory evolution: dm12/dt = α·(x12 - m12)
+                // Memory tracks internal state with time constant τ = 1/α
+                this.dm12_dt = this.alpha_memory * (this.x12 - this.m12);
+                this.m12 += this.dm12_dt * dt;
+
+                // Clamp memory as well
+                this.m12 = Math.max(-1, Math.min(1, this.m12));
+
+                // Store history for analysis (limit to prevent memory issues)
+                this.x12_history.push(this.x12);
+                if (this.x12_history.length > 1000) {
+                    this.x12_history.shift(); // Keep last 1000 values
+                }
+            }
+
+            /**
+             * Check if particle should replicate based on energy and synaptic strength
+             * @param {object} config - Configuration {replicationThreshold, particles, maxParticles}
+             * @returns {LorenzParticle|null} - New offspring particle if replicated, null otherwise
+             */
+            checkReplication(config = {}) {
+                const replicationThreshold = config.replicationThreshold || 50;
+                const particles = config.particles || [];
+                const maxParticles = config.maxParticles || 30;
+
+                // Replication when Ec and omega exceed thresholds
+                const energyThreshold = this.Ec > replicationThreshold;
+                const omegaThreshold = this.omega > 0.1; // Minimum synaptic strength
+
+                if (energyThreshold && omegaThreshold && particles.length < maxParticles) {
+                    // Create offspring particle
+                    const offset = (Math.random() * 2 - 1) * 0.5;
+
+                    // Slight color variation (if using hex colors)
+                    const newColor = typeof this.color === 'number' ? this.color : 0x00d4ff;
+
+                    const offspring = new LorenzParticle(
+                        this.x + offset,
+                        this.y + offset,
+                        this.z + offset,
+                        newColor,
+                        this.frequency * (1 + (Math.random() * 0.1 - 0.05)), // Slight frequency mutation
+                        this.id // Set parent
+                    );
+
+                    offspring.mass = this.mass * (0.95 + Math.random() * 0.1);
+                    offspring.x12 = this.x12 + (Math.random() * 0.2 - 0.1); // Inherit with variation
+                    offspring.m12 = this.m12;
+
+                    // Split energy
+                    this.Ec *= 0.5;
+                    offspring.Ec = this.Ec;
+                    this.energy *= 0.5; // Legacy
+                    offspring.energy = this.energy;
+
+                    return offspring;
+                }
+
+                return null;
+            }
+
+            /**
+             * Assign frequency to particle and create token
+             * @param {number} freq - Frequency in Hz
+             * @param {number} magnitude - Magnitude/amplitude
+             */
+            assignFrequency(freq, magnitude) {
+                this.frequency = freq;
+                const tokenObj = {
+                    id: generateUUID(),
+                    type: 'frequency_assignment',
+                    frequency: freq,
+                    magnitude: magnitude,
+                    particleId: this.id,
+                    timestamp: Date.now() / 1000,
+                    eventType: 'frequency_assignment'
+                };
+                this.tokens.push(tokenObj);
+            }
+
+            /**
+             * Sanitize particle state to prevent NaN/Infinity propagation
+             */
+            sanitizeState() {
+                // Positions
+                this.x = isFinite(this.x) ? this.x : 0.1;
+                this.y = isFinite(this.y) ? this.y : 0;
+                this.z = isFinite(this.z) ? this.z : 0;
+
+                // Velocities
+                this.velocity.x = isFinite(this.velocity.x) ? this.velocity.x : 0;
+                this.velocity.y = isFinite(this.velocity.y) ? this.velocity.y : 0;
+                this.velocity.z = isFinite(this.velocity.z) ? this.velocity.z : 0;
+
+                // 12D states
+                this.x12 = safeClamp(this.x12, -1, 1, 0);
+                this.m12 = safeClamp(this.m12, -1, 1, 0);
+                this.dx12_dt = isFinite(this.dx12_dt) ? this.dx12_dt : 0;
+                this.dm12_dt = isFinite(this.dm12_dt) ? this.dm12_dt : 0;
+
+                // Energy values (must be positive)
+                this.Ec = isFinite(this.Ec) && this.Ec > 0 ? this.Ec : 0.01;
+                this.energy = isFinite(this.energy) && this.energy > 0 ? this.energy : 0.01;
+                this.Ugrav = isFinite(this.Ugrav) ? this.Ugrav : 0;
+                this.Udm = isFinite(this.Udm) ? this.Udm : 0;
+                this.omega = isFinite(this.omega) ? this.omega : 0;
+                this.entropyS = isFinite(this.entropyS) ? this.entropyS : 0;
+                this.psi = isFinite(this.psi) ? this.psi : 0;
+            }
+
+            /**
+             * Destroy particle (stub for compatibility - no visual cleanup needed)
+             */
+            destroy() {
+                // No THREE.js cleanup needed in music context
+                // Clear arrays to free memory
+                this.points = [];
+                this.tokens = [];
+                this.memory = [];
+                this.x12_history = [];
+            }
+        }
+
+        // ====================================================================
+        // END OF 12D ENGINE HELPER FUNCTIONS AND LORENZ PARTICLE CLASS
+        // ====================================================================
+
         class Ultimate12DProfessionalAIBandConductor {
             constructor() {
                 // Universal constants
@@ -1085,6 +1532,7 @@ There is NO possibility of audio feedback loop.
 
                 // Musical state
                 this.currentPsi = 0;
+                this.musicalIntensity = 0.5;
                 this.currentHarmonics = [];
                 this.genre = 'jazz';
                 this.isPlaying = false;
@@ -1105,6 +1553,7 @@ There is NO possibility of audio feedback loop.
                     lastBeatTime: 0,
                     beatInterval: 0,
                     tempo: 120,
+                    tempoModulation: 1.0,
                     timeSignature: [4, 4],
                     groove: null
                 };
@@ -1430,7 +1879,33 @@ There is NO possibility of audio feedback loop.
                 
                 // Pattern recognition and learning
                 this.learnFromPatterns(freqData, timeData);
-                
+
+                // Spawn particles from audio input
+                const detectedFrequency = this.bioSignature.fundamental;
+                if (detectedFrequency && detectedFrequency > 0 && this.continuousLearning.confidenceLevel > 70) {
+                    // Spawn a particle on strong detection
+                    if (particles.length < 100) { // Limit to prevent lag
+                        const energy = Math.min(1.0, this.bioSignature.energy);
+                        addParticleFromAudio(detectedFrequency, energy);
+
+                        // Update frequency data for chaos calculation
+                        frequencyData.push({
+                            frequency: detectedFrequency,
+                            magnitude: energy
+                        });
+
+                        // Keep only recent data (last 100 points)
+                        if (frequencyData.length > 100) {
+                            frequencyData.shift();
+                        }
+                    }
+                }
+
+                // Update global audio state
+                isAudioActive = this.continuousLearning.active && this.bioSignature.energy > 0.1;
+                audioEnergy = this.bioSignature.energy || 0;
+                spectralCentroid = detectedFrequency || 0;
+
                 // Continue loop at 100ms intervals
                 setTimeout(() => this.continuousAnalysisLoop(), 100);
             }
@@ -2649,6 +3124,19 @@ There is NO possibility of audio feedback loop.
                     await this.audioContext.resume();
                 }
 
+                // Initialize 12D particle system
+                this.log('[12D ENGINE] Initializing particle physics...', 'info');
+
+                // Spawn initial seed particles
+                for (let i = 0; i < 5; i++) {
+                    const freq = this.bioSignature.fundamental * Math.pow(phi, i - 2);
+                    addParticleFromAudio(freq, 0.3);
+                }
+
+                this.log(`[12D ENGINE] Spawned ${particles.length} seed particles`, 'success');
+                this.log('[12D ENGINE] Lyapunov tracking active', 'success');
+                this.log('[12D ENGINE] PSI accumulation active', 'success');
+
                 this.isPlaying = true;
                 this.startTime = this.audioContext.currentTime;
 
@@ -2735,7 +3223,15 @@ There is NO possibility of audio feedback loop.
                 
                 // Stop continuous learning
                 this.stopContinuousLearning();
-                
+
+                // Clean up particle system
+                this.log('[12D ENGINE] Cleaning up particles...', 'info');
+                particles.length = 0; // Clear all particles
+                frequencyData.length = 0;
+                isAudioActive = false;
+                audioEnergy = 0;
+                this.log('[12D ENGINE] Particle system reset', 'info');
+
                 // Generate session end token
                 this.generateToken('SESSION_END', {
                     duration: (Date.now() - this.startTime) / 1000,
@@ -3194,11 +3690,63 @@ There is NO possibility of audio feedback loop.
 
                 const dt = 0.1; // 100ms timestep
 
+                // Update 12D particle system
+                const audioMod = {
+                    rmsEnergy: audioEnergy,
+                    frequency: this.bioSignature.fundamental || 440
+                };
+                updateLorenzParticles(audioMod, null);
+
+                // Update chaos metrics
+                updateChaosMetrics();
+
+                // Update PSI
+                const psiResult = updatePsiNormalized(particles, physics, timestep.dt);
+                this.currentPsi = psiResult.psiTotal;
+
+                // Update particle count display
+                safeUpdateElement('particle-count', particles.length.toString());
+
                 // Update 12D cosmic state
                 this.update12DState(dt);
 
                 // Calculate ψ (psi) - 12D musical information density
                 this.calculate12DPsi();
+
+                // === MUSIC DRIVEN BY 12D METRICS ===
+
+                // 1. Chaos regime affects tempo
+                const lambda = chaosTracker.lyapunov;
+                if (lambda < 0.1) {
+                    // ORDERED: slower, stable tempo
+                    this.rhythmTracker.tempoModulation = 0.9; // 90% of base tempo
+                } else if (lambda >= 0.1 && lambda < 0.5) {
+                    // EDGE OF CHAOS: normal tempo
+                    this.rhythmTracker.tempoModulation = 1.0;
+                } else {
+                    // CHAOTIC: faster, intense tempo
+                    this.rhythmTracker.tempoModulation = 1.15; // 115% of base tempo
+                }
+
+                // 2. Attractor dimension affects harmonic complexity
+                const dimension = chaosTracker.attractorDimension;
+                const harmonicCount = Math.floor(safeClamp(dimension * 2, 3, 12, 6));
+                this.tokens.phiHarmonicsCount = harmonicCount;
+
+                // 3. PSI affects overall intensity/volume
+                const psiNormalized = safeClamp(this.currentPsi / 10, 0, 1, 0.5);
+                this.musicalIntensity = psiNormalized;
+
+                // 4. Particle count affects instrument layering
+                if (particles.length > 50) {
+                    // High particle count: enable all instruments
+                    this.instruments.strings.enabled = true;
+                    this.instruments.pads.enabled = true;
+                } else if (particles.length < 20) {
+                    // Low particle count: minimal arrangement
+                    this.instruments.strings.enabled = false;
+                    this.instruments.pads.enabled = false;
+                }
 
                 // Make compositional decisions based on ψ
                 if (this.currentPsi < 0.3) {
@@ -3233,10 +3781,13 @@ There is NO possibility of audio feedback loop.
             
             visualizationLoop() {
                 if (!this.isPlaying) return;
-                
+
                 this.drawSpectrum();
                 this.drawWaveform();
-                
+
+                // Update 12D chaos metrics display
+                updateChaosMetrics();
+
                 requestAnimationFrame(() => this.visualizationLoop());
             }
             
@@ -3470,7 +4021,736 @@ There is NO possibility of audio feedback loop.
         // ====================================================================
         // GLOBAL INITIALIZATION
         // ====================================================================
-        
+
+        // ====================================================================
+        // 12D ENGINE GLOBAL STATE
+        // Particle system and chaos tracking for real-time 12D physics
+        // ====================================================================
+
+        // Particle system
+        let particles = [];
+        let frameCount = 0;
+
+        // Audio state
+        let isAudioActive = false;
+        let frequencyData = [];  // [{frequency, magnitude}, ...]
+        let audioEnergy = 0;
+        let spectralCentroid = 0;
+
+        // Physics constants
+        const h = 6.62607015e-34;   // Planck constant
+        const kB = 1.380649e-23;    // Boltzmann constant
+        const phi = 1.618033988749895; // Golden ratio
+        const c = 299792458;         // Speed of light (m/s)
+
+        // 12D Physics parameters (these will be tuned by conductor)
+        const physics = {
+            sigma: 10,
+            rho: 28,
+            beta: 8/3,
+            G: 6.67430e-11,
+            a0: 1.2e-10,
+            m0: 1.0,
+            Eref: 1e-20,
+            vref: 1000,
+            epsilon: 1e-10,
+            rCutoff: 100,
+            blendLorenz: 0.5,
+            gravEnabled: true,
+            dmEnabled: true
+        };
+
+        const timestep = {
+            dt: 0.016,  // ~60 FPS
+            dtMax: 0.033,
+            adaptive: false
+        };
+
+        const adapt = {
+            k: 0.01,
+            gamma: 0.005,
+            alpha: 0.1,
+            sigmaSimilarity: 1.0
+        };
+
+        const sync = {
+            Ksync: 0.05
+        };
+
+        // PSI Accumulators (Map-based for particle tracking)
+        const psiAccumulators = {
+            velocityIntegral: new Map(),
+            x12Integral: new Map(),
+            x12Previous: new Map()
+        };
+
+        // Chaos tracking state
+        let chaosTracker = {
+            referenceStates: [],
+            lyapunovHistory: [],
+            maxHistory: 100,
+            attractorSamples: [],
+            maxAttractorSamples: 200,
+            lastUpdate: 0,
+
+            // Current metrics (updated by updateChaosMetrics)
+            lyapunov: 0,
+            attractorDimension: 0,
+            chaosRegime: 'UNKNOWN',
+            audioChaos: 0
+        };
+
+        // ====================================================================
+        // 12D METRICS CALCULATION FUNCTIONS
+        // Real-time chaos and complexity measurements from particle ensemble
+        // ====================================================================
+
+        /**
+         * Calculate 12D Lyapunov exponent (chaos metric)
+         * Measures divergence rate in 12D state space
+         * @returns {number} Lambda ∈ [0, 3]
+         */
+        function compute12DLyapunovExponent() {
+            if (particles.length < 2) return 0;
+
+            // Use middle particle as reference
+            const refIndex = Math.floor(particles.length / 2);
+            if (refIndex >= particles.length) return 0;
+
+            const refParticle = particles[refIndex];
+
+            // Construct 12D state vector for reference
+            const refState = [
+                refParticle.x || 0,
+                refParticle.y || 0,
+                refParticle.z || 0,
+                refParticle.velocity.x || 0,
+                refParticle.velocity.y || 0,
+                refParticle.velocity.z || 0,
+                refParticle.x12 || 0,
+                refParticle.m12 || 0,
+                refParticle.dx12_dt || 0,
+                refParticle.dm12_dt || 0,
+                refParticle.theta || 0,
+                refParticle.psi || 0
+            ];
+
+            // Check all components are finite
+            if (!refState.every(x => isFinite(x))) return 0;
+
+            let sumLogDivergence = 0;
+            let count = 0;
+            const epsilon = 1e-6;
+
+            // Compare with all other particles
+            for (let i = 0; i < particles.length; i++) {
+                if (i === refIndex) continue;
+
+                const p = particles[i];
+                const compareState = [
+                    p.x || 0,
+                    p.y || 0,
+                    p.z || 0,
+                    p.velocity.x || 0,
+                    p.velocity.y || 0,
+                    p.velocity.z || 0,
+                    p.x12 || 0,
+                    p.m12 || 0,
+                    p.dx12_dt || 0,
+                    p.dm12_dt || 0,
+                    p.theta || 0,
+                    p.psi || 0
+                ];
+
+                if (!compareState.every(x => isFinite(x))) continue;
+
+                // Calculate 12D Euclidean distance with weights
+                let distSq = 0;
+                const weights = [1, 1, 1, 0.5, 0.5, 0.5, 2, 2, 1, 1, 0.5, 2]; // Emphasize 12D components
+
+                for (let j = 0; j < 12; j++) {
+                    const diff = refState[j] - compareState[j];
+                    distSq += weights[j] * diff * diff;
+                }
+
+                const dist = Math.sqrt(distSq);
+
+                if (dist > epsilon && isFinite(dist)) {
+                    sumLogDivergence += Math.log(dist / epsilon);
+                    count++;
+                }
+            }
+
+            if (count === 0) return 0;
+
+            const avgLogDivergence = sumLogDivergence / count;
+            const lambda = safeClamp(avgLogDivergence / 10, 0, 3, 0); // Scale to [0, 3]
+
+            return isFinite(lambda) ? lambda : 0;
+        }
+
+        /**
+         * Calculate attractor dimension using correlation method
+         * Estimates fractal dimension in 12D phase space
+         * @returns {number} Dimension ∈ [0, 12]
+         */
+        function computeAttractorDimension() {
+            const now = Date.now();
+
+            // Sample particle states every 50ms
+            if (now - chaosTracker.lastUpdate > 50 && particles.length > 0) {
+                const sampleParticle = particles[Math.floor(Math.random() * particles.length)];
+                chaosTracker.attractorSamples.push({
+                    x: sampleParticle.x || 0,
+                    y: sampleParticle.y || 0,
+                    z: sampleParticle.z || 0,
+                    x12: sampleParticle.x12 || 0,
+                    dx12_dt: sampleParticle.dx12_dt || 0,
+                    psi: sampleParticle.psi || 0
+                });
+
+                if (chaosTracker.attractorSamples.length > chaosTracker.maxAttractorSamples) {
+                    chaosTracker.attractorSamples.shift();
+                }
+
+                chaosTracker.lastUpdate = now;
+            }
+
+            if (chaosTracker.attractorSamples.length < 10) {
+                // Fallback heuristic
+                return Math.log2(particles.length + 1) * 0.5;
+            }
+
+            // Correlation dimension calculation
+            const samples = chaosTracker.attractorSamples;
+            const scales = [0.1, 0.5, 1.0, 2.0, 5.0];
+            const correlations = [];
+
+            for (const scale of scales) {
+                let count = 0;
+                let total = 0;
+
+                for (let i = 0; i < samples.length; i++) {
+                    for (let j = i + 1; j < samples.length; j++) {
+                        const s1 = samples[i];
+                        const s2 = samples[j];
+
+                        // 6D distance metric
+                        const dist = Math.sqrt(
+                            Math.pow(s1.x - s2.x, 2) +
+                            Math.pow(s1.y - s2.y, 2) +
+                            Math.pow(s1.z - s2.z, 2) +
+                            Math.pow(s1.x12 - s2.x12, 2) +
+                            Math.pow(s1.dx12_dt - s2.dx12_dt, 2) +
+                            Math.pow(s1.psi - s2.psi, 2)
+                        );
+
+                        if (dist < scale) count++;
+                        total++;
+                    }
+                }
+
+                if (total > 0) {
+                    correlations.push({ scale, correlation: count / total });
+                }
+            }
+
+            if (correlations.length < 2) {
+                return Math.log2(particles.length + 1) * 0.5;
+            }
+
+            // Estimate dimension from log-log slope
+            let sumLogScale = 0, sumLogCorr = 0, sumProduct = 0, sumLogScaleSq = 0;
+            let validPoints = 0;
+
+            for (const pt of correlations) {
+                if (pt.correlation > 0) {
+                    const logScale = Math.log(pt.scale);
+                    const logCorr = Math.log(pt.correlation);
+                    sumLogScale += logScale;
+                    sumLogCorr += logCorr;
+                    sumProduct += logScale * logCorr;
+                    sumLogScaleSq += logScale * logScale;
+                    validPoints++;
+                }
+            }
+
+            if (validPoints < 2) {
+                return Math.log2(particles.length + 1) * 0.5;
+            }
+
+            const slope = (validPoints * sumProduct - sumLogScale * sumLogCorr) /
+                          (validPoints * sumLogScaleSq - sumLogScale * sumLogScale);
+
+            const dimension = safeClamp(slope, 0, 12, 0);
+
+            return isFinite(dimension) ? dimension : Math.log2(particles.length + 1) * 0.5;
+        }
+
+        /**
+         * Classify chaos regime based on Lyapunov exponent
+         * @param {number} lambda - Lyapunov exponent
+         * @returns {string} Regime classification
+         */
+        function classifyChaosRegime(lambda) {
+            if (lambda < 0.1) return 'ORDERED (stable)';
+            else if (lambda >= 0.1 && lambda < 0.5) return 'EDGE-OF-CHAOS';
+            else if (lambda >= 0.5 && lambda < 1.5) return 'WEAKLY CHAOTIC';
+            else return 'STRONGLY CHAOTIC';
+        }
+
+        /**
+         * Calculate audio chaos from frequency variance
+         * @returns {number} Spectral entropy/chaos metric
+         */
+        function calculateAudioChaos() {
+            if (frequencyData.length < 2) return 0;
+
+            let variance = 0;
+            const mean = frequencyData.reduce((sum, d) => sum + (d.magnitude || 0), 0) / frequencyData.length;
+            frequencyData.forEach(d => {
+                variance += Math.pow((d.magnitude || 0) - mean, 2);
+            });
+            return Math.sqrt(variance / frequencyData.length);
+        }
+
+        // ====================================================================
+        // PSI (ψ) CALCULATION SYSTEM
+        // Complete 12D state function with 6-term breakdown
+        // ====================================================================
+
+        /**
+         * Compute ψ breakdown across all particles
+         * ψ = (φE/Eref) + λ + ∫||v||dt + ∫|Δx₁₂|dt + ΩE + (Ugrav+Udm)/Eref
+         * @param {Array} particles - Particle array
+         * @param {Object} refs - Reference values {Eref, vref}
+         * @param {number} dt - Timestep
+         * @returns {Object} PSI breakdown and statistics
+         */
+        function updatePsiNormalized(particleArray = particles, refs = physics, dt = timestep.dt) {
+            if (!particleArray || particleArray.length === 0) {
+                return {
+                    terms: {
+                        energyTerm: 0,
+                        lambdaTerm: 0,
+                        velocityIntegralTerm: 0,
+                        x12IntegralTerm: 0,
+                        omegaTerm: 0,
+                        potentialTerm: 0
+                    },
+                    psiTotal: 0,
+                    x12IntAvg: 0,
+                    x12IntMax: 0
+                };
+            }
+
+            const Eref = refs.Eref || 1e-20;
+            const vref = refs.vref || 1000;
+
+            let sumEnergyTerm = 0;
+            let sumLambdaTerm = 0;
+            let sumVelocityIntegral = 0;
+            let sumX12Integral = 0;
+            let sumOmegaTerm = 0;
+            let sumPotentialTerm = 0;
+
+            let maxX12Integral = 0;
+            let validCount = 0;
+
+            // Update accumulators for each particle
+            for (const particle of particleArray) {
+                if (!particle || !particle.id) continue;
+
+                const pid = particle.id;
+
+                // === TERM 3: Velocity Integral ===
+                const vx = particle.velocity?.x || 0;
+                const vy = particle.velocity?.y || 0;
+                const vz = particle.velocity?.z || 0;
+                const vMag = Math.sqrt(vx*vx + vy*vy + vz*vz);
+
+                const vIntPrev = psiAccumulators.velocityIntegral.get(pid) || 0;
+                const vIntNew = vIntPrev + (vMag / vref) * dt;
+                psiAccumulators.velocityIntegral.set(pid, vIntNew);
+
+                // === TERM 4: X12 Integral ===
+                const x12Current = particle.x12 || 0;
+                const x12Prev = psiAccumulators.x12Previous.get(pid);
+
+                let x12IntPrev = psiAccumulators.x12Integral.get(pid) || 0;
+
+                if (x12Prev !== undefined) {
+                    const deltaX12 = Math.abs(x12Current - x12Prev);
+                    x12IntPrev += deltaX12;
+                }
+
+                psiAccumulators.x12Integral.set(pid, x12IntPrev);
+                psiAccumulators.x12Previous.set(pid, x12Current);
+
+                maxX12Integral = Math.max(maxX12Integral, x12IntPrev);
+
+                // === TERM 1: Energy ===
+                const Ec = particle.Ec || 0;
+                const energyTerm = phi * (Ec / Eref);
+
+                // === TERM 2: Lambda ===
+                const lambda = particle.lambda || chaosTracker.lyapunov || 0;
+                const lambdaTerm = lambda;
+
+                // === TERM 5: Omega ===
+                const omega = particle.omega || 0;
+                const omegaTerm = omega * (Ec / Eref);
+
+                // === TERM 6: Potential ===
+                const Ugrav = particle.Ugrav || 0;
+                const Udm = particle.Udm || 0;
+                const potentialTerm = (Ugrav + Udm) / Eref;
+
+                // Accumulate
+                if (isFinite(energyTerm)) sumEnergyTerm += energyTerm;
+                if (isFinite(lambdaTerm)) sumLambdaTerm += lambdaTerm;
+                if (isFinite(vIntNew)) sumVelocityIntegral += vIntNew;
+                if (isFinite(x12IntPrev)) sumX12Integral += x12IntPrev;
+                if (isFinite(omegaTerm)) sumOmegaTerm += omegaTerm;
+                if (isFinite(potentialTerm)) sumPotentialTerm += potentialTerm;
+
+                validCount++;
+
+                // Update particle's psi
+                particle.psi = energyTerm + lambdaTerm + vIntNew + x12IntPrev + omegaTerm + potentialTerm;
+                if (!isFinite(particle.psi)) particle.psi = 0;
+            }
+
+            if (validCount === 0) validCount = 1;
+
+            const terms = {
+                energyTerm: sumEnergyTerm / validCount,
+                lambdaTerm: sumLambdaTerm / validCount,
+                velocityIntegralTerm: sumVelocityIntegral / validCount,
+                x12IntegralTerm: sumX12Integral / validCount,
+                omegaTerm: sumOmegaTerm / validCount,
+                potentialTerm: sumPotentialTerm / validCount
+            };
+
+            const psiTotal = terms.energyTerm + terms.lambdaTerm + terms.velocityIntegralTerm +
+                             terms.x12IntegralTerm + terms.omegaTerm + terms.potentialTerm;
+
+            return {
+                terms,
+                psiTotal: isFinite(psiTotal) ? psiTotal : 0,
+                x12IntAvg: sumX12Integral / validCount,
+                x12IntMax: maxX12Integral
+            };
+        }
+
+        /**
+         * Compute ψ for single particle (alternative formula)
+         * @param {LorenzParticle} particle - Particle to compute
+         * @param {number} phi - Golden ratio
+         * @param {number} c - Speed of light
+         * @returns {number} PSI value
+         */
+        function computeParticlePsi(particle, phiValue = phi, c = 299792458) {
+            const Ec = isFinite(particle.Ec) && particle.Ec > 0 ? particle.Ec : 0.01;
+            const term1 = safeDivide(phiValue * Ec, c * c, 0);
+            const term2 = safeDivide(particle.lambda || 0, 1e-52, 0);
+            const term3 = particle.total_velocity_integral || 0;
+            const term4 = particle.total_x12_variation || 0;
+            const term5 = (particle.omega || 0) * Ec;
+            const term6 = (particle.Ugrav || 0) + (particle.Udm || 0);
+
+            return isFinite(term1 + term2 + term3 + term4 + term5 + term6)
+                ? (term1 + term2 + term3 + term4 + term5 + term6)
+                : 0;
+        }
+
+        // ====================================================================
+        // UPDATE CHAOS METRICS (Real-Time Display Updates)
+        // Called every frame to recalculate and display 12D metrics
+        // ====================================================================
+
+        /**
+         * Update chaos metrics and UI displays
+         * Calculates Lyapunov, attractor dimension, chaos regime, and audio chaos
+         * Updates all UI elements with current values
+         */
+        function updateChaosMetrics() {
+            if (particles.length === 0) {
+                // Reset displays when no particles
+                chaosTracker.lyapunov = 0;
+                chaosTracker.attractorDimension = 0;
+                chaosTracker.chaosRegime = 'UNKNOWN';
+                chaosTracker.audioChaos = 0;
+
+                // Update UI elements (if they exist)
+                safeUpdateElement('lyapunov-value', '0.000');
+                safeUpdateElement('attractor-dimension', '0.00');
+                safeUpdateElement('chaos-regime', 'UNKNOWN');
+                safeUpdateElement('audio-chaos', '0.000');
+                safeUpdateElement('particle-count', '0');
+
+                // Reset PSI breakdown displays
+                safeUpdateElement('psi-total', '0.000');
+                safeUpdateElement('psi-energy-term', '0.00e+0');
+                safeUpdateElement('psi-lambda-term', '0.000');
+                safeUpdateElement('psi-velint-term', '0.000');
+                safeUpdateElement('psi-x12int-term', '0.000');
+                safeUpdateElement('psi-omega-term', '0.00e+0');
+                safeUpdateElement('psi-potential-term', '0.00e+0');
+
+                return;
+            }
+
+            // Calculate real-time metrics
+            const lyapunov = compute12DLyapunovExponent();
+            const attractorDim = computeAttractorDimension();
+            const chaosRegime = classifyChaosRegime(lyapunov);
+            const chaos = calculateAudioChaos();
+
+            // Store in tracker
+            chaosTracker.lyapunov = lyapunov;
+            chaosTracker.attractorDimension = attractorDim;
+            chaosTracker.chaosRegime = chaosRegime;
+            chaosTracker.audioChaos = chaos;
+
+            // Add to history
+            if (chaosTracker.lyapunovHistory.length >= chaosTracker.maxHistory) {
+                chaosTracker.lyapunovHistory.shift();
+            }
+            chaosTracker.lyapunovHistory.push(lyapunov);
+
+            // Update UI elements
+            safeUpdateElement('lyapunov-value', lyapunov.toFixed(3));
+            safeUpdateElement('attractor-dimension', attractorDim.toFixed(2));
+            safeUpdateElement('chaos-regime', chaosRegime);
+            safeUpdateElement('audio-chaos', chaos.toFixed(3));
+            safeUpdateElement('particle-count', particles.length.toString());
+
+            // Calculate and update PSI breakdown
+            const psiData = updatePsiNormalized(particles, physics, timestep.dt);
+            safeUpdateElement('psi-total', psiData.psiTotal.toFixed(3));
+            safeUpdateElement('psi-energy-term', psiData.terms.energyTerm.toExponential(2));
+            safeUpdateElement('psi-lambda-term', psiData.terms.lambdaTerm.toFixed(3));
+            safeUpdateElement('psi-velint-term', psiData.terms.velocityIntegralTerm.toFixed(3));
+            safeUpdateElement('psi-x12int-term', psiData.terms.x12IntegralTerm.toFixed(3));
+            safeUpdateElement('psi-omega-term', psiData.terms.omegaTerm.toExponential(2));
+            safeUpdateElement('psi-potential-term', psiData.terms.potentialTerm.toExponential(2));
+
+            // Add visual feedback when audio is active
+            if (isAudioActive && audioEnergy > 0.05) {
+                safeUpdateElementStyle('lyapunov-value', 'color', 'var(--success)');
+                safeUpdateElementStyle('lyapunov-value', 'font-weight', '700');
+            } else {
+                safeUpdateElementStyle('lyapunov-value', 'color', '');
+                safeUpdateElementStyle('lyapunov-value', 'font-weight', '');
+            }
+
+            // Debug logging (every 60 frames = ~1 second)
+            if (frameCount % 60 === 0) {
+                console.log(`[12D METRICS] λ=${lyapunov.toFixed(3)}, Dim=${attractorDim.toFixed(2)}, Regime=${chaosRegime}, Particles=${particles.length}`);
+            }
+        }
+
+        /**
+         * Safe UI element update (doesn't crash if element doesn't exist)
+         * @param {string} id - Element ID
+         * @param {string} value - Value to set
+         */
+        function safeUpdateElement(id, value) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        }
+
+        /**
+         * Safe style update
+         * @param {string} id - Element ID
+         * @param {string} property - CSS property
+         * @param {string} value - Value to set
+         */
+        function safeUpdateElementStyle(id, property, value) {
+            const el = document.getElementById(id);
+            if (el) el.style[property] = value;
+        }
+
+        // ====================================================================
+        // AUDIO-DRIVEN PARTICLE SPAWNING
+        // Creates 12D particles from audio features
+        // ====================================================================
+
+        /**
+         * Map audio features to 12D internal state parameters
+         * Implements Section 5 of the Cosmic Synapse Theory paper
+         * @param {LorenzParticle} particle - Particle to modulate
+         * @param {Object} audioFeatures - Audio analysis data
+         */
+        function mapAudioToInternalState(particle, audioFeatures) {
+            if (!particle || !audioFeatures) return;
+
+            const {
+                rmsEnergy = 0,
+                spectralCentroid = 0,
+                highFreqRatio = 0,
+                lowFreqRatio = 0,
+                avgMagnitude = 0
+            } = audioFeatures;
+
+            // 1. High frequency → k_adaptation
+            particle.k_adaptation = 0.005 + highFreqRatio * 0.015; // [0.005, 0.020]
+
+            // 2. Low frequency → gamma_decay
+            particle.gamma_decay = 0.003 + lowFreqRatio * 0.007; // [0.003, 0.010]
+
+            // 3. Spectral centroid → sigma_similarity
+            particle.sigma_similarity = 0.5 + (spectralCentroid / 2000) * 1.5; // [0.5, 2.0]
+
+            // 4. RMS energy → x12 nudge
+            particle.x12 += 0.1 * (rmsEnergy - 0.5) * 0.01;
+            particle.x12 = safeClamp(particle.x12, -1, 1, 0);
+
+            // 5. Average magnitude → alpha_memory
+            particle.alpha_memory = 0.05 + avgMagnitude * 0.15; // [0.05, 0.20]
+
+            // 6. Audio RMS → omega modulation (STRONG effect)
+            const randomWalk = (Math.random() - 0.5) * 0.1;
+            const resonance = Math.sin(Date.now() / 1000) * 0.2;
+            particle.omega += (rmsEnergy * 2.0 + randomWalk * 0.3 + resonance) * (timestep.dt || 0.016);
+            particle.omega = safeClamp(particle.omega, 0, 2, 0);
+        }
+
+        /**
+         * Create particle from audio onset/peak
+         * @param {number} frequency - Dominant frequency (Hz)
+         * @param {number} energy - Energy level [0, 1]
+         * @returns {LorenzParticle} Newly created particle
+         */
+        function addParticleFromAudio(frequency, energy) {
+            const offset = particles.length * 0.1;
+
+            // Map frequency to hue (0-20000 Hz → 0-360 degrees)
+            const hue = (frequency / 20000) * 360;
+
+            // Create color (can be simplified without THREE.js)
+            const colorHex = hslToHex(hue, 100, 50);
+
+            const particle = new LorenzParticle(
+                0.1 + offset + energy * 5,  // x
+                offset,                      // y
+                offset,                      // z
+                colorHex,                    // color
+                frequency,                   // frequency
+                null                         // no parent
+            );
+
+            // Set mass based on energy
+            particle.mass = 1 + energy * 10;
+
+            // Add to global particles array
+            particles.push(particle);
+
+            console.log(`[PARTICLE SPAWN] f=${frequency.toFixed(1)}Hz, E=${energy.toFixed(2)}, mass=${particle.mass.toFixed(1)}`);
+
+            return particle;
+        }
+
+        /**
+         * Convert HSL to hex color (simple utility)
+         * @param {number} h - Hue [0, 360]
+         * @param {number} s - Saturation [0, 100]
+         * @param {number} l - Lightness [0, 100]
+         * @returns {number} Color as hex number
+         */
+        function hslToHex(h, s, l) {
+            s /= 100;
+            l /= 100;
+            const k = n => (n + h / 30) % 12;
+            const a = s * Math.min(l, 1 - l);
+            const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+
+            const r = Math.round(255 * f(0));
+            const g = Math.round(255 * f(8));
+            const b = Math.round(255 * f(4));
+
+            return (r << 16) | (g << 8) | b;
+        }
+
+        /**
+         * Update all Lorenz particles (main update loop)
+         * @param {Object} audioModulation - Current audio state
+         * @param {Object} gravAcceleration - Gravitational forces (can be null)
+         */
+        function updateLorenzParticles(audioModulation = {}, gravAcceleration = null) {
+            if (particles.length === 0) return;
+
+            const dt = timestep.dt || 0.016;
+
+            // Calculate audio features for 12D mapping
+            const audioFeatures = {
+                rmsEnergy: audioEnergy || 0,
+                spectralCentroid: spectralCentroid || 0,
+                highFreqRatio: calculateHighFreqRatio(),
+                lowFreqRatio: calculateLowFreqRatio(),
+                avgMagnitude: calculateAvgMagnitude()
+            };
+
+            // Update each particle
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const particle = particles[i];
+
+                // Map audio to 12D state
+                mapAudioToInternalState(particle, audioFeatures);
+
+                // Update Lorenz dynamics
+                particle.update(audioModulation, gravAcceleration);
+
+                // Update 12D dimension
+                const Omega_i = particle.omega || 0;
+                particle.update12thDimension(Omega_i, dt);
+
+                // Check for replication
+                const offspring = particle.checkReplication();
+                if (offspring && particles.length < 500) { // Limit max particles
+                    particles.push(offspring);
+                }
+
+                // Remove dead/unstable particles
+                if (!isFinite(particle.x) || !isFinite(particle.y) || !isFinite(particle.z)) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            frameCount++;
+        }
+
+        /**
+         * Calculate high frequency ratio from frequencyData
+         * @returns {number} Ratio [0, 1]
+         */
+        function calculateHighFreqRatio() {
+            if (frequencyData.length === 0) return 0;
+            const highFreq = frequencyData.filter(d => d.frequency > 2000);
+            return highFreq.length / frequencyData.length;
+        }
+
+        /**
+         * Calculate low frequency ratio from frequencyData
+         * @returns {number} Ratio [0, 1]
+         */
+        function calculateLowFreqRatio() {
+            if (frequencyData.length === 0) return 0;
+            const lowFreq = frequencyData.filter(d => d.frequency < 500);
+            return lowFreq.length / frequencyData.length;
+        }
+
+        /**
+         * Calculate average magnitude from frequencyData
+         * @returns {number} Average magnitude
+         */
+        function calculateAvgMagnitude() {
+            if (frequencyData.length === 0) return 0;
+            const sum = frequencyData.reduce((acc, d) => acc + (d.magnitude || 0), 0);
+            return sum / frequencyData.length;
+        }
+
         let conductor;
         
         window.addEventListener('load', () => {
