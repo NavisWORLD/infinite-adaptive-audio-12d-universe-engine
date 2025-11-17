@@ -1431,7 +1431,14 @@ There is NO possibility of audio feedback loop.
                     learningRate: 0.1,
                     patternHistory: [],
                     adaptationCount: 0,
-                    confidenceLevel: 0
+                    confidenceLevel: 0,
+
+                    // FFT Configuration (FIX 1)
+                    fftSize: 2048,
+                    bufferLength: 1024, // fftSize / 2
+                    sampleRate: 44100,  // Will be updated when mic starts
+                    intensity: 0,
+                    confidence: 0
                 };
                 
                 // PREDICTION ENGINE (Professional Studio Behavior)
@@ -1862,49 +1869,39 @@ There is NO possibility of audio feedback loop.
             
             continuousAnalysisLoop() {
                 if (!this.continuousLearning.active) return;
-                
+
                 const analyzer = this.continuousLearning.micAnalyzer;
                 const bufferLength = analyzer.frequencyBinCount;
                 const freqData = new Float32Array(bufferLength);
                 const timeData = new Uint8Array(bufferLength);
-                
+
                 analyzer.getFloatFrequencyData(freqData);
                 analyzer.getByteTimeDomainData(timeData);
-                
+
                 // Continuous learning update
                 this.updateBioSignatureFromLiveAudio(freqData, timeData);
-                
+
                 // Update 12D state based on new patterns
                 this.adaptiveUpdate12DState();
-                
+
                 // Pattern recognition and learning
                 this.learnFromPatterns(freqData, timeData);
 
-                // Spawn particles from audio input
+                // FIX 1 & FIX 5: Spawn particles from audio input with improved sensitivity
                 const detectedFrequency = this.bioSignature.fundamental;
-                if (detectedFrequency && detectedFrequency > 0 && this.continuousLearning.confidenceLevel > 70) {
-                    // Spawn a particle on strong detection
-                    if (particles.length < 100) { // Limit to prevent lag
-                        const energy = Math.min(1.0, this.bioSignature.energy);
+                // FIX 5: Lower confidence threshold from 0.7 to 0.2, filter low frequencies
+                if (detectedFrequency && detectedFrequency > 20 && this.continuousLearning.confidence > 0.2) {
+                    // FIX 5: Increased particle limit from 100 to 200
+                    if (particles.length < 200) {
+                        const energy = Math.min(1.0, this.continuousLearning.intensity * 2); // Amplify
                         addParticleFromAudio(detectedFrequency, energy);
 
-                        // Update frequency data for chaos calculation
-                        frequencyData.push({
-                            frequency: detectedFrequency,
-                            magnitude: energy
-                        });
-
-                        // Keep only recent data (last 100 points)
-                        if (frequencyData.length > 100) {
-                            frequencyData.shift();
-                        }
+                        this.log(`[PARTICLE] Spawned from audio: ${detectedFrequency.toFixed(1)}Hz, E=${energy.toFixed(2)}`, 'success');
                     }
                 }
 
                 // Update global audio state
-                isAudioActive = this.continuousLearning.active && this.bioSignature.energy > 0.1;
-                audioEnergy = this.bioSignature.energy || 0;
-                spectralCentroid = detectedFrequency || 0;
+                isAudioActive = this.continuousLearning.intensity > 0.05;
 
                 // Continue loop at 100ms intervals
                 setTimeout(() => this.continuousAnalysisLoop(), 100);
@@ -1917,6 +1914,11 @@ There is NO possibility of audio feedback loop.
                 // === AUDIO ENGINE: PITCH DETECTION ===
                 // Use enhanced autocorrelation method for better accuracy
                 const sampleRate = this.continuousLearning.micContext.sampleRate;
+
+                // FIX 1: Define freqStep at the top so it's available throughout the method
+                const nyquist = sampleRate / 2;
+                const freqStep = nyquist / freqData.length;
+
                 const pitchResult = this.detectPitchAutocorrelation(timeData, sampleRate);
 
                 let currentFundamental = null;
@@ -1927,9 +1929,6 @@ There is NO possibility of audio feedback loop.
                     pitchClarity = pitchResult.clarity;
                 } else {
                     // Fallback to FFT peak detection if autocorrelation fails
-                    const nyquist = sampleRate / 2;
-                    const freqStep = nyquist / freqData.length;
-
                     let maxMag = -Infinity;
                     let peakIndex = 0;
 
@@ -1962,15 +1961,15 @@ There is NO possibility of audio feedback loop.
                         this.log(`[MIC] User singing/playing ${this.frequencyToNote(currentFundamental)} (${currentFundamental.toFixed(1)} Hz)`, 'music');
                     }
                 }
-                
+
                 // Smooth update using exponential moving average
                 if (this.bioSignature.fundamental) {
-                    this.bioSignature.fundamental = 
+                    this.bioSignature.fundamental =
                         this.bioSignature.fundamental * (1 - alpha) + currentFundamental * alpha;
                 } else {
                     this.bioSignature.fundamental = currentFundamental;
                 }
-                
+
                 // Update spectral centroid
                 let numerator = 0, denominator = 0;
                 for (let i = 0; i < freqData.length; i++) {
@@ -1980,31 +1979,55 @@ There is NO possibility of audio feedback loop.
                     denominator += magnitude;
                 }
                 const currentCentroid = numerator / denominator;
-                
+
                 if (this.bioSignature.spectralCentroid) {
-                    this.bioSignature.spectralCentroid = 
+                    this.bioSignature.spectralCentroid =
                         this.bioSignature.spectralCentroid * (1 - alpha) + currentCentroid * alpha;
                 } else {
                     this.bioSignature.spectralCentroid = currentCentroid;
                 }
-                
+
                 // Update energy
                 let energy = 0;
                 for (let val of timeData) {
                     energy += Math.abs(val - 128);
                 }
                 energy = energy / (timeData.length * 128);
-                
+
                 if (this.bioSignature.energy) {
-                    this.bioSignature.energy = 
+                    this.bioSignature.energy =
                         this.bioSignature.energy * (1 - alpha) + energy * alpha;
                 } else {
                     this.bioSignature.energy = energy;
                 }
-                
+
+                // FIX 1: Update global audio state variables for chaos calculations
+                if (currentFundamental && currentFundamental > 20 && currentFundamental < 20000) {
+                    const magnitude = pitchClarity; // Use pitch clarity as magnitude
+
+                    // Update frequencyData array for calculateAudioChaos()
+                    frequencyData.push({
+                        frequency: currentFundamental,
+                        magnitude: magnitude
+                    });
+
+                    // Keep only last 100 points
+                    if (frequencyData.length > 100) {
+                        frequencyData.shift();
+                    }
+                }
+
+                // Update global energy and spectral centroid
+                audioEnergy = this.bioSignature.energy;
+                spectralCentroid = this.bioSignature.spectralCentroid;
+
+                // Update intensity and confidence for particle spawning
+                this.continuousLearning.intensity = this.bioSignature.energy;
+                this.continuousLearning.confidence = pitchClarity;
+
                 // Update key detection
                 this.bioSignature.key = this.frequencyToNote(this.bioSignature.fundamental);
-                
+
                 // Update display periodically (every 10 frames to avoid flicker)
                 if (this.continuousLearning.adaptationCount % 10 === 0) {
                     this.updateBioDisplay();
@@ -3715,18 +3738,33 @@ There is NO possibility of audio feedback loop.
 
                 // === MUSIC DRIVEN BY 12D METRICS ===
 
-                // 1. Chaos regime affects tempo
+                // FIX 6: Adaptive tempo smoothing with lerp
                 const lambda = chaosTracker.lyapunov;
+                let targetTempoMod = 1.0;
+
                 if (lambda < 0.1) {
-                    // ORDERED: slower, stable tempo
-                    this.rhythmTracker.tempoModulation = 0.9; // 90% of base tempo
+                    // ORDERED: more dramatic slow down
+                    targetTempoMod = 0.85;
                 } else if (lambda >= 0.1 && lambda < 0.5) {
                     // EDGE OF CHAOS: normal tempo
-                    this.rhythmTracker.tempoModulation = 1.0;
+                    targetTempoMod = 1.0;
+                } else if (lambda >= 0.5 && lambda < 1.5) {
+                    // MODERATE CHAOS: moderate increase
+                    targetTempoMod = 1.1;
                 } else {
-                    // CHAOTIC: faster, intense tempo
-                    this.rhythmTracker.tempoModulation = 1.15; // 115% of base tempo
+                    // STRONGLY CHAOTIC: faster but not extreme
+                    targetTempoMod = 1.2;
                 }
+
+                // Initialize tempo modulation if it doesn't exist
+                if (!this.rhythmTracker.tempoModulation) {
+                    this.rhythmTracker.tempoModulation = 1.0;
+                }
+
+                // Smooth transition using lerp
+                const lerpFactor = 0.05; // Slow smooth transition
+                this.rhythmTracker.tempoModulation +=
+                    (targetTempoMod - this.rhythmTracker.tempoModulation) * lerpFactor;
 
                 // 2. Attractor dimension affects harmonic complexity
                 const dimension = chaosTracker.attractorDimension;
@@ -3787,6 +3825,11 @@ There is NO possibility of audio feedback loop.
 
                 // Update 12D chaos metrics display
                 updateChaosMetrics();
+
+                // FIX 4: Update debug display every 10 frames
+                if (frameCount % 10 === 0) {
+                    updateDebugDisplay();
+                }
 
                 requestAnimationFrame(() => this.visualizationLoop());
             }
@@ -4184,7 +4227,8 @@ There is NO possibility of audio feedback loop.
             if (count === 0) return 0;
 
             const avgLogDivergence = sumLogDivergence / count;
-            const lambda = safeClamp(avgLogDivergence / 10, 0, 3, 0); // Scale to [0, 3]
+            // FIX 2: Better scaling for Lyapunov exponent
+            const lambda = safeClamp(avgLogDivergence * 0.05, 0, 3, 0); // Better scaling
 
             return isFinite(lambda) ? lambda : 0;
         }
@@ -4551,6 +4595,58 @@ There is NO possibility of audio feedback loop.
             }
         }
 
+        // ====================================================================
+        // FIX 4: REAL-TIME DEBUG DISPLAY
+        // Shows what's actually happening in the system
+        // ====================================================================
+
+        function updateDebugDisplay() {
+            // Create debug panel if it doesn't exist
+            let debugPanel = document.getElementById('debug-panel');
+            if (!debugPanel) {
+                debugPanel = document.createElement('div');
+                debugPanel.id = 'debug-panel';
+                debugPanel.style.cssText = `
+                    position: fixed;
+                    top: 10px;
+                    right: 10px;
+                    background: rgba(0,0,0,0.8);
+                    color: #0f0;
+                    padding: 15px;
+                    border-radius: 8px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 12px;
+                    z-index: 10000;
+                    min-width: 300px;
+                `;
+                document.body.appendChild(debugPanel);
+            }
+
+            // Update debug info
+            debugPanel.innerHTML = `
+                <strong>🔬 12D ENGINE DEBUG</strong><br>
+                <hr style="border-color: #0f0; margin: 5px 0;">
+                Particles: ${particles.length}<br>
+                Audio Active: ${isAudioActive ? '✓' : '✗'}<br>
+                Audio Energy: ${audioEnergy.toFixed(3)}<br>
+                Spectral Centroid: ${spectralCentroid.toFixed(1)} Hz<br>
+                Frequency Data Points: ${frequencyData.length}<br>
+                <hr style="border-color: #0f0; margin: 5px 0;">
+                Lyapunov (λ): ${chaosTracker.lyapunov.toFixed(3)}<br>
+                Attractor Dim: ${chaosTracker.attractorDimension.toFixed(2)}<br>
+                Regime: ${chaosTracker.chaosRegime}<br>
+                <hr style="border-color: #0f0; margin: 5px 0;">
+                Frame: ${frameCount}<br>
+                ${particles.length > 0 ? `
+                Sample Particle:<br>
+                &nbsp;&nbsp;x12: ${particles[0].x12.toFixed(3)}<br>
+                &nbsp;&nbsp;omega: ${particles[0].omega.toFixed(3)}<br>
+                &nbsp;&nbsp;psi: ${particles[0].psi.toFixed(3)}<br>
+                &nbsp;&nbsp;pos: (${particles[0].x.toFixed(1)}, ${particles[0].y.toFixed(1)}, ${particles[0].z.toFixed(1)})<br>
+                ` : ''}
+            `;
+        }
+
         /**
          * Safe UI element update (doesn't crash if element doesn't exist)
          * @param {string} id - Element ID
@@ -4699,12 +4795,28 @@ There is NO possibility of audio feedback loop.
                 // Map audio to 12D state
                 mapAudioToInternalState(particle, audioFeatures);
 
-                // Update Lorenz dynamics
-                particle.update(audioModulation, gravAcceleration);
+                // FIX 3: Update Lorenz dynamics with proper parameters
+                const audioMod = {
+                    rmsEnergy: audioEnergy || 0,
+                    frequency: particle.frequency || 440,
+                    phase: Date.now() / 1000
+                };
+                particle.update(audioMod, gravAcceleration);
 
                 // Update 12D dimension
                 const Omega_i = particle.omega || 0;
                 particle.update12thDimension(Omega_i, dt);
+
+                // FIX 3: Update accumulators for PSI
+                const vMag = Math.sqrt(
+                    (particle.velocity.x || 0) ** 2 +
+                    (particle.velocity.y || 0) ** 2 +
+                    (particle.velocity.z || 0) ** 2
+                );
+                particle.total_velocity_integral = (particle.total_velocity_integral || 0) + vMag * dt;
+
+                const dx12 = Math.abs(particle.dx12_dt || 0) * dt;
+                particle.total_x12_variation = (particle.total_x12_variation || 0) + dx12;
 
                 // Check for replication
                 const offspring = particle.checkReplication();
@@ -4712,8 +4824,9 @@ There is NO possibility of audio feedback loop.
                     particles.push(offspring);
                 }
 
-                // Remove dead/unstable particles
-                if (!isFinite(particle.x) || !isFinite(particle.y) || !isFinite(particle.z)) {
+                // FIX 3: Remove unstable particles with bounds check
+                if (!isFinite(particle.x) || !isFinite(particle.y) || !isFinite(particle.z) ||
+                    Math.abs(particle.x) > 1000 || Math.abs(particle.y) > 1000 || Math.abs(particle.z) > 1000) {
                     particles.splice(i, 1);
                 }
             }
