@@ -1,0 +1,37 @@
+[WARNING] matplotlib not available - skipping plots
+
+🚀 Starting ULTRA-EXTENDED training experiment...
+   This will take ~90-120 minutes
+   Training for 10,000 iterations with checkpointing
+
+================================================================================
+ULTRA-EXTENDED TRAINING EXPERIMENT
+10,000 Iterations - Maximum Training Duration
+================================================================================
+
+[DATA] Generating 2,000,000 tokens (ultra-large scale)...
+Generating tokens:   0%|          | 0/2000000 [00:00<?, ?it/s]Generating tokens:   6%|▌         | 115300/2000000 [00:00<00:01, 1152921.38it/s]Generating tokens:  14%|█▎        | 274600/2000000 [00:00<00:01, 1411311.64it/s]Generating tokens:  21%|██▏       | 429700/2000000 [00:00<00:01, 1474521.02it/s]Generating tokens:  30%|██▉       | 591600/2000000 [00:00<00:00, 1531181.56it/s]Generating tokens:  38%|███▊      | 755900/2000000 [00:00<00:00, 1571419.36it/s]Generating tokens:  46%|████▌     | 913100/2000000 [00:00<00:00, 1554073.46it/s]Generating tokens:  53%|█████▎    | 1068600/2000000 [00:00<00:00, 1442069.44it/s]Generating tokens:  61%|██████    | 1214300/2000000 [00:00<00:00, 1426720.69it/s]Generating tokens:  69%|██████▉   | 1378900/2000000 [00:00<00:00, 1491765.75it/s]Generating tokens:  77%|███████▋  | 1538000/2000000 [00:01<00:00, 1521031.58it/s]Generating tokens:  85%|████████▌ | 1702800/2000000 [00:01<00:00, 1558951.55it/s]Generating tokens:  93%|█████████▎| 1864700/2000000 [00:01<00:00, 1576903.33it/s]Generating tokens: 100%|██████████| 2000000/2000000 [00:01<00:00, 1519226.20it/s]
+Building vocabulary from 2000002 tokens...
+Vocabulary size: 3045
+[DATA] Generated in 1.7s (1161581 tok/s)
+[DATA] Train: 1,800,001 tokens
+[DATA] Val: 200,001 tokens
+[DATA] Vocab size: 3045
+
+[MODEL] Creating models...
+[VANILLA] Model initialized with 2.76M parameters
+[12D CST] Model initialized with 2.13M parameters
+[12D CST] φ-optimized dimensions: d_model=196, d_ff=321
+Vanilla: 2,764,416 params
+Cosmic: 2,131,820 params
+
+[TRAIN] Training Vanilla-Ultra for 10000 iterations...
+[TRAIN] Checkpoint interval: 1000 iterations
+[Vanilla-Ultra] Iter     0 | Train Loss: 8.5524 | Val Loss: 8.2675 | LR: 3.00e-04 | Speed: 4221 tok/s
+[Vanilla-Ultra] Iter    50 | Train Loss: 4.9185 | Val Loss: 4.7051 | LR: 3.01e-04 | Speed: 8051 tok/s
+[Vanilla-Ultra] Iter   100 | Train Loss: 3.4006 | Val Loss: 3.1299 | LR: 3.02e-04 | Speed: 6914 tok/s
+[Vanilla-Ultra] Iter   150 | Train Loss: 2.4101 | Val Loss: 2.4751 | LR: 3.03e-04 | Speed: 6997 tok/s
+[Vanilla-Ultra] Iter   200 | Train Loss: 1.8923 | Val Loss: 1.9080 | LR: 3.04e-04 | Speed: 7402 tok/s
+[Vanilla-Ultra] Iter   250 | Train Loss: 1.5995 | Val Loss: 1.8163 | LR: 3.05e-04 | Speed: 7373 tok/s
+[Vanilla-Ultra] Iter   300 | Train Loss: 1.5425 | Val Loss: 1.8088 | LR: 3.06e-04 | Speed: 6900 tok/s
+[Vanilla-Ultra] Iter   350 | Train Loss: 1.4795 | Val Loss: 1.6116 | LR: 3.06e-04 | Speed: 6205 tok/s

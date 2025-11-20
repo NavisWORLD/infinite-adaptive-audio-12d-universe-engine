@@ -25,7 +25,13 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, Tuple, List
 from dataclasses import dataclass, asdict
-import matplotlib.pyplot as plt
+
+try:
+    import matplotlib.pyplot as plt
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
+    print("[WARNING] matplotlib not available - skipping plots")
 
 from cosmic_synapse_transformer import CosmicSynapseTransformer, CosmicConfig
 from benchmark_transformer import (
@@ -236,6 +242,10 @@ def run_ultra_extended_experiment() -> Dict:
 
 def plot_convergence_curves(results: Dict) -> None:
     """Generate convergence plots."""
+
+    if not HAS_MATPLOTLIB:
+        print("\n[PLOT] Skipping plots - matplotlib not available")
+        return
 
     print("\n[PLOT] Generating convergence curves...")
 
