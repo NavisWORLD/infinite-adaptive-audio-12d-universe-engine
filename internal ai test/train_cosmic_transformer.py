@@ -26,7 +26,7 @@ import time
 import math
 from pathlib import Path
 from dataclasses import dataclass, asdict
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple, Any
 import numpy as np
 
 from cosmic_synapse_transformer import (
@@ -60,14 +60,14 @@ class TextDataset(Dataset):
     Loads pre-tokenized data.
     """
     
-    def __init__(self, data_path, block_size):
+    def __init__(self, data_path: str, block_size: int) -> None:
         """
         Args:
             data_path: Path to .bin file containing tokenized data
             block_size: Sequence length
         """
         self.block_size = block_size
-        
+
         # Load data
         if data_path.endswith('.bin'):
             # Memory-mapped numpy array for efficiency
@@ -76,24 +76,24 @@ class TextDataset(Dataset):
             self.data = np.load(data_path)
         else:
             raise ValueError(f"Unsupported data format: {data_path}")
-        
+
         print(f"[DATASET] Loaded {len(self.data):,} tokens from {data_path}")
-    
-    def __len__(self):
+
+    def __len__(self) -> int:
         # Number of complete blocks we can form
         return len(self.data) // self.block_size
-    
-    def __getitem__(self, idx):
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         # Get block
         start = idx * self.block_size
         end = start + self.block_size + 1
-        
+
         chunk = self.data[start:end]
-        
+
         # Input and target (shifted by 1)
         x = torch.from_numpy(chunk[:-1].astype(np.int64))
         y = torch.from_numpy(chunk[1:].astype(np.int64))
-        
+
         return x, y
 
 # ===================================================================
@@ -152,7 +152,7 @@ class TrainingConfig:
 # LEARNING RATE SCHEDULER
 # ===================================================================
 
-def get_lr(it, config: TrainingConfig):
+def get_lr(it: int, config: 'TrainingConfig') -> float:
     """
     Cosine learning rate schedule with warmup.
     Following Chinchilla scaling laws with φ-optimization.
@@ -160,18 +160,18 @@ def get_lr(it, config: TrainingConfig):
     # Warmup
     if it < config.warmup_iters:
         return config.learning_rate * it / config.warmup_iters
-    
+
     # Decay
     if it > config.lr_decay_iters:
         return config.min_lr
-    
+
     # Cosine decay
     decay_ratio = (it - config.warmup_iters) / (config.lr_decay_iters - config.warmup_iters)
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
-    
+
     # φ-modulated decay for resonance
     phi_factor = 1.0 + 0.1 * math.sin(2 * math.pi * decay_ratio * PHI)
-    
+
     return config.min_lr + coeff * (config.learning_rate - config.min_lr) * phi_factor
 
 # ===================================================================
@@ -184,10 +184,10 @@ class CosmicTrainer:
     def __init__(
         self,
         model_config: CosmicConfig,
-        train_config: TrainingConfig,
+        train_config: 'TrainingConfig',
         rank: int = 0,
         world_size: int = 1
-    ):
+    ) -> None:
         self.model_config = model_config
         self.train_config = train_config
         self.rank = rank
@@ -236,7 +236,7 @@ class CosmicTrainer:
         if self.is_master:
             Path(train_config.ckpt_dir).mkdir(parents=True, exist_ok=True)
     
-    def configure_optimizer(self):
+    def configure_optimizer(self) -> torch.optim.Optimizer:
         """
         Configure AdamW optimizer with weight decay.
         Separate params that should/shouldn't have weight decay.
@@ -273,7 +273,7 @@ class CosmicTrainer:
         
         return optimizer
     
-    def setup_logging(self):
+    def setup_logging(self) -> None:
         """Setup wandb and/or tensorboard logging"""
         self.writer = None
         self.wandb_run = None
@@ -300,7 +300,7 @@ class CosmicTrainer:
             self.writer = SummaryWriter(log_dir)
             print(f"[LOGGING] TensorBoard logging to {log_dir}")
     
-    def log_metrics(self, metrics: Dict, step: int):
+    def log_metrics(self, metrics: Dict[str, float], step: int) -> None:
         """Log metrics to wandb and/or tensorboard"""
         if not self.is_master:
             return
@@ -312,7 +312,7 @@ class CosmicTrainer:
             for key, value in metrics.items():
                 self.writer.add_scalar(key, value, step)
     
-    def save_checkpoint(self, filepath: str):
+    def save_checkpoint(self, filepath: str) -> None:
         """Save model checkpoint"""
         if not self.is_master:
             return
@@ -332,7 +332,7 @@ class CosmicTrainer:
         torch.save(checkpoint, filepath)
         print(f"[CHECKPOINT] Saved to {filepath}")
     
-    def load_checkpoint(self, filepath: str):
+    def load_checkpoint(self, filepath: str) -> None:
         """Load model checkpoint"""
         checkpoint = torch.load(filepath, map_location=self.device)
         
@@ -347,7 +347,7 @@ class CosmicTrainer:
         print(f"[CHECKPOINT] Loaded from {filepath} (iter {self.iter_num})")
     
     @torch.no_grad()
-    def estimate_loss(self, data_loader, max_iters=None):
+    def estimate_loss(self, data_loader: DataLoader, max_iters: Optional[int] = None) -> Dict[str, float]:
         """Estimate loss on dataset"""
         self.model.eval()
         losses = []
@@ -375,10 +375,10 @@ class CosmicTrainer:
             'x12_std': np.std(x12_values)
         }
     
-    def train(self, train_loader, val_loader=None):
+    def train(self, train_loader: DataLoader, val_loader: Optional[DataLoader] = None) -> None:
         """
         Main training loop.
-        
+
         Args:
             train_loader: Training data loader
             val_loader: Validation data loader (optional)
@@ -512,17 +512,17 @@ class CosmicTrainer:
 # DISTRIBUTED TRAINING SETUP
 # ===================================================================
 
-def setup_distributed(rank, world_size, backend='nccl'):
+def setup_distributed(rank: int, world_size: int, backend: str = 'nccl') -> None:
     """Initialize distributed training"""
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
     dist.init_process_group(backend, rank=rank, world_size=world_size)
 
-def cleanup_distributed():
+def cleanup_distributed() -> None:
     """Cleanup distributed training"""
     dist.destroy_process_group()
 
-def train_distributed(rank, world_size, model_config, train_config):
+def train_distributed(rank: int, world_size: int, model_config: CosmicConfig, train_config: 'TrainingConfig') -> None:
     """Distributed training worker"""
     setup_distributed(rank, world_size, train_config.backend)
     
@@ -581,7 +581,7 @@ def train_distributed(rank, world_size, model_config, train_config):
 # MAIN TRAINING SCRIPT
 # ===================================================================
 
-def main():
+def main() -> None:
     """Main training entry point"""
     
     # Model configuration

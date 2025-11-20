@@ -61,7 +61,7 @@ class CosmicConfig:
     memory_size: int = 100  # Size of episodic memory buffer
     alpha_memory: float = 0.1  # Memory adaptation rate
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Ensure d_model is φ-optimized
         self.d_model = self._phi_optimize(self.d_model)
         # Compute feed-forward dimension
@@ -84,27 +84,27 @@ class CosmicConfig:
 class LorenzAttractor:
     """Generates chaotic sequences for exploration"""
     
-    def __init__(self, sigma=10.0, rho=28.0, beta=8.0/3.0, dt=0.01):
+    def __init__(self, sigma: float = 10.0, rho: float = 28.0, beta: float = 8.0/3.0, dt: float = 0.01) -> None:
         self.sigma = sigma
         self.rho = rho
         self.beta = beta
         self.dt = dt
         self.state = np.random.randn(3)
-    
-    def step(self, n_steps=10):
+
+    def step(self, n_steps: int = 10) -> np.ndarray:
         """Evolve the Lorenz attractor"""
         for _ in range(n_steps):
             dx = self.sigma * (self.state[1] - self.state[0])
             dy = self.state[0] * (self.rho - self.state[2]) - self.state[1]
             dz = self.state[0] * self.state[1] - self.beta * self.state[2]
-            
+
             self.state[0] += self.dt * dx
             self.state[1] += self.dt * dy
             self.state[2] += self.dt * dz
-        
+
         return self.state.copy()
-    
-    def get_noise(self, shape, device='cpu'):
+
+    def get_noise(self, shape: Tuple[int, ...], device: str = 'cpu') -> torch.Tensor:
         """Generate chaotic noise tensor"""
         self.step()
         # Project 3D Lorenz to desired shape
@@ -128,37 +128,37 @@ class InternalStateDynamics(nn.Module):
     its connectivity to other tokens (Hebbian principle).
     """
     
-    def __init__(self, config: CosmicConfig):
+    def __init__(self, config: CosmicConfig) -> None:
         super().__init__()
         self.k = config.k
         self.gamma = config.gamma
         self.dt = config.dt
-        
+
         # Learnable scaling factors
         self.k_scale = nn.Parameter(torch.ones(1))
         self.gamma_scale = nn.Parameter(torch.ones(1))
-    
-    def forward(self, x12_current, omega_connectivity):
+
+    def forward(self, x12_current: torch.Tensor, omega_connectivity: torch.Tensor) -> torch.Tensor:
         """
         Update internal states based on connectivity.
-        
+
         Args:
             x12_current: Current internal states [batch, seq_len]
             omega_connectivity: Total connectivity per token [batch, seq_len]
-        
+
         Returns:
             Updated x12 states
         """
         # Compute rate of change
         dx12_dt = (self.k * self.k_scale) * omega_connectivity - \
                   (self.gamma * self.gamma_scale) * x12_current
-        
+
         # Euler integration
         x12_new = x12_current + self.dt * dx12_dt
-        
+
         # Bound to [-1, 1] via tanh
         x12_new = torch.tanh(x12_new)
-        
+
         return x12_new
 
 # ===================================================================
@@ -175,49 +175,49 @@ class HebbianMultiHeadAttention(nn.Module):
     where H(x₁₂)ᵢⱼ = exp(-(x₁₂ᵢ - x₁₂ⱼ)²/2σ²)
     """
     
-    def __init__(self, config: CosmicConfig):
+    def __init__(self, config: CosmicConfig) -> None:
         super().__init__()
         self.n_heads = config.n_heads
         self.d_k = config.d_k
         self.d_model = config.d_model
         self.beta = config.beta
         self.sigma = config.sigma
-        
+
         # Q, K, V projections
         self.W_Q = nn.Linear(config.d_model, config.d_model, bias=config.use_bias)
         self.W_K = nn.Linear(config.d_model, config.d_model, bias=config.use_bias)
         self.W_V = nn.Linear(config.d_model, config.d_model, bias=config.use_bias)
-        
+
         # Output projection
         self.W_O = nn.Linear(config.d_model, config.d_model, bias=config.use_bias)
-        
+
         # Dropout
         self.dropout = nn.Dropout(config.dropout)
-        
+
         # Learnable Hebbian weight
         self.beta_scale = nn.Parameter(torch.ones(1))
         self.sigma_scale = nn.Parameter(torch.ones(1))
-    
-    def compute_hebbian_bonus(self, x12, seq_len):
+
+    def compute_hebbian_bonus(self, x12: torch.Tensor, seq_len: int) -> torch.Tensor:
         """
         Compute Hebbian connectivity bonus matrix.
-        
+
         H(x₁₂)ᵢⱼ = exp(-(x₁₂ᵢ - x₁₂ⱼ)²/2σ²)
         """
         # x12: [batch, seq_len]
         x12_i = x12.unsqueeze(2)  # [batch, seq_len, 1]
         x12_j = x12.unsqueeze(1)  # [batch, 1, seq_len]
-        
+
         # Compute squared difference
         x12_diff_sq = (x12_i - x12_j) ** 2
-        
+
         # Gaussian similarity
         sigma_eff = self.sigma * self.sigma_scale
         hebbian_bonus = torch.exp(-x12_diff_sq / (2 * sigma_eff ** 2))
-        
+
         return hebbian_bonus
-    
-    def forward(self, x, x12, mask=None, return_omega=False):
+
+    def forward(self, x: torch.Tensor, x12: torch.Tensor, mask: Optional[torch.Tensor] = None, return_omega: bool = False) -> Tuple[torch.Tensor, ...]:
         """
         Forward pass with Hebbian modulation.
         
@@ -289,14 +289,14 @@ class PhiHarmonicFFN(nn.Module):
     Uses GELU activation for smooth gradients.
     """
     
-    def __init__(self, config: CosmicConfig):
+    def __init__(self, config: CosmicConfig) -> None:
         super().__init__()
         self.W1 = nn.Linear(config.d_model, config.d_ff, bias=config.use_bias)
         self.W2 = nn.Linear(config.d_ff, config.d_model, bias=config.use_bias)
         self.dropout = nn.Dropout(config.dropout)
         self.activation = nn.GELU()
-    
-    def forward(self, x):
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         x: [batch, seq_len, d_model]
         """
@@ -317,12 +317,12 @@ class EpisodicMemory(nn.Module):
     Enables learning from history without explicit external memory.
     """
     
-    def __init__(self, config: CosmicConfig):
+    def __init__(self, config: CosmicConfig) -> None:
         super().__init__()
         self.memory_size = config.memory_size
         self.d_model = config.d_model
         self.alpha = config.alpha_memory
-        
+
         # Memory buffers (non-trainable)
         self.register_buffer(
             'memory_embeddings',
@@ -334,27 +334,27 @@ class EpisodicMemory(nn.Module):
         )
         self.memory_ptr = 0
         self.memory_filled = 0
-    
-    def update_memory(self, embeddings, x12):
+
+    def update_memory(self, embeddings: torch.Tensor, x12: torch.Tensor) -> None:
         """Add current states to memory buffer (during training)"""
         if not self.training:
             return
-        
+
         batch_size = embeddings.shape[0]
         seq_len = embeddings.shape[1]
-        
+
         # Flatten batch dimension
         embeddings_flat = embeddings.view(-1, self.d_model)
         x12_flat = x12.view(-1)
-        
+
         # Add to memory (circular buffer)
         for i in range(min(len(embeddings_flat), self.memory_size)):
             self.memory_embeddings[self.memory_ptr] = embeddings_flat[i].detach()
             self.memory_x12[self.memory_ptr] = x12_flat[i].detach()
             self.memory_ptr = (self.memory_ptr + 1) % self.memory_size
             self.memory_filled = min(self.memory_filled + 1, self.memory_size)
-    
-    def retrieve(self, query_embeddings, query_x12):
+
+    def retrieve(self, query_embeddings: torch.Tensor, query_x12: torch.Tensor) -> torch.Tensor:
         """
         Retrieve from memory based on similarity.
         
@@ -415,32 +415,32 @@ class CosmicSynapseLayer(nn.Module):
     5. Chaos Injection (during training)
     """
     
-    def __init__(self, config: CosmicConfig, layer_idx: int):
+    def __init__(self, config: CosmicConfig, layer_idx: int) -> None:
         super().__init__()
         self.layer_idx = layer_idx
         self.config = config
-        
+
         # Components
         self.attention = HebbianMultiHeadAttention(config)
         self.ffn = PhiHarmonicFFN(config)
         self.state_dynamics = InternalStateDynamics(config)
         self.memory = EpisodicMemory(config)
-        
+
         # Layer norms
         self.ln1 = nn.LayerNorm(config.d_model)
         self.ln2 = nn.LayerNorm(config.d_model)
-        
+
         # Chaos generator (one per layer for diversity)
         self.lorenz = LorenzAttractor()
-    
-    def inject_chaos(self, x):
+
+    def inject_chaos(self, x: torch.Tensor) -> torch.Tensor:
         """Inject Lorenz chaos during training"""
         if self.training and torch.rand(1).item() < self.config.p_chaos:
             chaos_noise = self.lorenz.get_noise(x.shape, device=x.device)
             x = x + self.config.lambda_chaos * chaos_noise
         return x
-    
-    def forward(self, x, x12, mask=None):
+
+    def forward(self, x: torch.Tensor, x12: torch.Tensor, mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             x: [batch, seq_len, d_model]
@@ -490,43 +490,43 @@ class CosmicSynapseTransformer(nn.Module):
     All mathematical principles from the 12D CST theory are implemented.
     """
     
-    def __init__(self, config: CosmicConfig):
+    def __init__(self, config: CosmicConfig) -> None:
         super().__init__()
         self.config = config
-        
+
         # Token + Position Embeddings
         self.token_embedding = nn.Embedding(config.vocab_size, config.d_model)
         self.position_embedding = nn.Embedding(config.max_seq_len, config.d_model)
-        
+
         # Dropout
         self.dropout = nn.Dropout(config.dropout)
-        
+
         # Stack of Cosmic Synapse Layers
         self.layers = nn.ModuleList([
             CosmicSynapseLayer(config, i) for i in range(config.n_layers)
         ])
-        
+
         # Final layer norm
         self.ln_f = nn.LayerNorm(config.d_model)
-        
+
         # Output head
         self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False)
-        
+
         # Tie weights (standard practice)
         self.lm_head.weight = self.token_embedding.weight
-        
+
         # Initialize parameters
         self.apply(self._init_weights)
-        
+
         # Special scaled init for residual projections (GPT-2 style)
         for pn, p in self.named_parameters():
             if pn.endswith('W_O.weight') or pn.endswith('W2.weight'):
                 torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * config.n_layers))
-        
+
         print(f"[12D CST] Model initialized with {self.get_num_params()/1e6:.2f}M parameters")
         print(f"[12D CST] φ-optimized dimensions: d_model={config.d_model}, d_ff={config.d_ff}")
-    
-    def _init_weights(self, module):
+
+    def _init_weights(self, module: nn.Module) -> None:
         """Initialize weights with φ-scaled variance"""
         if isinstance(module, nn.Linear):
             # Use φ for variance scaling
@@ -536,12 +536,12 @@ class CosmicSynapseTransformer(nn.Module):
                 torch.nn.init.zeros_(module.bias)
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
-    
-    def get_num_params(self):
+
+    def get_num_params(self) -> int:
         """Count total parameters"""
         return sum(p.numel() for p in self.parameters())
-    
-    def forward(self, idx, targets=None):
+
+    def forward(self, idx: torch.Tensor, targets: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, ...]:
         """
         Forward pass.
         
@@ -605,16 +605,16 @@ class CosmicSynapseTransformer(nn.Module):
         return logits, loss, metrics
     
     @torch.no_grad()
-    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):
+    def generate(self, idx: torch.Tensor, max_new_tokens: int, temperature: float = 1.0, top_k: Optional[int] = None) -> torch.Tensor:
         """
         Generate text autoregressively.
-        
+
         Args:
             idx: Context tokens [batch, seq_len]
             max_new_tokens: Number of tokens to generate
             temperature: Sampling temperature
             top_k: Top-k sampling
-        
+
         Returns:
             Generated token indices [batch, seq_len + max_new_tokens]
         """
@@ -622,25 +622,25 @@ class CosmicSynapseTransformer(nn.Module):
             # Crop context if too long
             idx_cond = idx if idx.size(1) <= self.config.max_seq_len else \
                        idx[:, -self.config.max_seq_len:]
-            
+
             # Forward pass
             logits, _, _ = self.forward(idx_cond)
-            
+
             # Take last timestep
             logits = logits[:, -1, :] / temperature
-            
+
             # Top-k sampling
             if top_k is not None:
                 v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
                 logits[logits < v[:, [-1]]] = -float('Inf')
-            
+
             # Softmax and sample
             probs = F.softmax(logits, dim=-1)
             idx_next = torch.multinomial(probs, num_samples=1)
-            
+
             # Append
             idx = torch.cat((idx, idx_next), dim=1)
-        
+
         return idx
 
 # ===================================================================
@@ -650,11 +650,11 @@ class CosmicSynapseTransformer(nn.Module):
 class CosmicTrainer:
     """Training utilities for 12D CST Transformer"""
     
-    def __init__(self, model, config, device='cuda'):
+    def __init__(self, model: CosmicSynapseTransformer, config: CosmicConfig, device: str = 'cuda') -> None:
         self.model = model.to(device)
         self.config = config
         self.device = device
-        
+
         # Optimizer with φ-scaled learning rate
         self.lr = 3e-4 * PHI_INV
         self.optimizer = torch.optim.AdamW(
@@ -664,35 +664,35 @@ class CosmicTrainer:
             eps=1e-8,
             weight_decay=0.01
         )
-        
+
         print(f"[TRAINER] Initialized with lr={self.lr:.6f} (φ-scaled)")
-    
-    def train_step(self, batch):
+
+    def train_step(self, batch: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[float, dict]:
         """Single training step"""
         self.model.train()
-        
+
         # Unpack batch
         inputs, targets = batch
         inputs = inputs.to(self.device)
         targets = targets.to(self.device)
-        
+
         # Forward pass
         logits, loss, metrics = self.model(inputs, targets)
-        
+
         # Backward pass
         self.optimizer.zero_grad()
         loss.backward()
-        
+
         # Gradient clipping
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
-        
+
         # Update
         self.optimizer.step()
-        
+
         return loss.item(), metrics
-    
+
     @torch.no_grad()
-    def validate(self, val_loader):
+    def validate(self, val_loader) -> float:
         """Validation loop"""
         self.model.eval()
         total_loss = 0
