@@ -23,7 +23,7 @@ class SyntheticTextGenerator:
     the generate() method.
     """
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: Optional[int] = None) -> None:
         """
         Initialize the generator.
 
@@ -68,7 +68,7 @@ class MarkovGenerator(SyntheticTextGenerator):
     between n-grams.
     """
 
-    def __init__(self, order: int = 2, seed: Optional[int] = None):
+    def __init__(self, order: int = 2, seed: Optional[int] = None) -> None:
         """
         Initialize Markov generator.
 
@@ -129,7 +129,7 @@ class MarkovGenerator(SyntheticTextGenerator):
 class GrammarGenerator(SyntheticTextGenerator):
     """Generate text using context-free grammar rules."""
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: Optional[int] = None) -> None:
         """Initialize grammar generator."""
         super().__init__(seed)
         self.rules = {
@@ -190,7 +190,7 @@ class GrammarGenerator(SyntheticTextGenerator):
 class TemplateGenerator(SyntheticTextGenerator):
     """Generate text by filling in templates."""
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: Optional[int] = None) -> None:
         """Initialize template generator."""
         super().__init__(seed)
         self.templates = [
@@ -234,7 +234,7 @@ class TemplateGenerator(SyntheticTextGenerator):
 class CodeGenerator(SyntheticTextGenerator):
     """Generate simple code snippets."""
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: Optional[int] = None) -> None:
         """Initialize code generator."""
         super().__init__(seed)
         self.functions = ['compute', 'process', 'transform', 'analyze', 'optimize']
@@ -263,7 +263,7 @@ class CodeGenerator(SyntheticTextGenerator):
 class MathGenerator(SyntheticTextGenerator):
     """Generate math problems and solutions."""
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: Optional[int] = None) -> None:
         """Initialize math generator."""
         super().__init__(seed)
 
@@ -297,7 +297,7 @@ class MathGenerator(SyntheticTextGenerator):
 class ConversationGenerator(SyntheticTextGenerator):
     """Generate Q&A pairs and conversations."""
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: Optional[int] = None) -> None:
         """Initialize conversation generator."""
         super().__init__(seed)
         self.qa_pairs = [
