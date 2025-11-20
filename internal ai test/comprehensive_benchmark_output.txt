@@ -1,0 +1,51 @@
+
+🚀 Starting comprehensive real-world-scale benchmark...
+   This will take significant time (~30-60 minutes)
+   Running 3 experiments with multiple model sizes
+
+================================================================================
+COMPREHENSIVE REAL-WORLD-SCALE BENCHMARK
+12D Cosmic Synapse Transformer vs Vanilla Transformer
+================================================================================
+
+[DATA] Generating 1,000,000 tokens (large-scale)...
+Generating tokens:   0%|          | 0/1000000 [00:00<?, ?it/s]Generating tokens:  17%|█▋        | 166700/1000000 [00:00<00:00, 1666675.75it/s]Generating tokens:  34%|███▎      | 336600/1000000 [00:00<00:00, 1685188.43it/s]Generating tokens:  51%|█████     | 505200/1000000 [00:00<00:00, 1680212.19it/s]Generating tokens:  68%|██████▊   | 679200/1000000 [00:00<00:00, 1703644.88it/s]Generating tokens:  85%|████████▌ | 850300/1000000 [00:00<00:00, 1706263.41it/s]Generating tokens: 100%|██████████| 1000000/1000000 [00:00<00:00, 1686056.79it/s]
+Building vocabulary from 1000002 tokens...
+Vocabulary size: 2484
+[DATA] Generated in 0.8s (1266628 tok/s)
+[DATA] Train: 900,001 tokens
+[DATA] Val: 100,001 tokens
+[DATA] Vocab size: 2484
+
+================================================================================
+EXPERIMENT 1: Extended Training (2000 iterations)
+================================================================================
+
+[MODEL] Creating models for extended training...
+[VANILLA] Model initialized with 2.76M parameters
+[12D CST] Model initialized with 2.13M parameters
+[12D CST] φ-optimized dimensions: d_model=196, d_ff=321
+Vanilla: 2,764,416 params
+Cosmic: 2,131,820 params
+
+[TRAIN] Training Vanilla-Extended for 2000 iterations...
+[Vanilla-Extended] Iter    0 | Train Loss: 8.5651 | Val Loss: 8.3211 | Speed: 4365 tok/s
+[Vanilla-Extended] Iter   50 | Train Loss: 4.8482 | Val Loss: 4.8528 | Speed: 7064 tok/s
+[Vanilla-Extended] Iter  100 | Train Loss: 3.3936 | Val Loss: 3.2289 | Speed: 7480 tok/s
+[Vanilla-Extended] Iter  150 | Train Loss: 2.4754 | Val Loss: 2.5600 | Speed: 7159 tok/s
+[Vanilla-Extended] Iter  200 | Train Loss: 2.0618 | Val Loss: 1.9610 | Speed: 8301 tok/s
+[Vanilla-Extended] Iter  250 | Train Loss: 1.8329 | Val Loss: 1.5624 | Speed: 6846 tok/s
+[Vanilla-Extended] Iter  300 | Train Loss: 1.7170 | Val Loss: 1.3484 | Speed: 7639 tok/s
+[Vanilla-Extended] Iter  350 | Train Loss: 1.7238 | Val Loss: 1.7156 | Speed: 7853 tok/s
+[Vanilla-Extended] Iter  400 | Train Loss: 1.5994 | Val Loss: 1.5714 | Speed: 8219 tok/s
+[Vanilla-Extended] Iter  450 | Train Loss: 1.5621 | Val Loss: 1.5216 | Speed: 7667 tok/s
+[Vanilla-Extended] Iter  500 | Train Loss: 1.4955 | Val Loss: 1.3391 | Speed: 7350 tok/s
+[Vanilla-Extended] Iter  550 | Train Loss: 1.3304 | Val Loss: 1.4316 | Speed: 7881 tok/s
+[Vanilla-Extended] Iter  600 | Train Loss: 1.6578 | Val Loss: 1.4876 | Speed: 8130 tok/s
+[Vanilla-Extended] Iter  650 | Train Loss: 1.8641 | Val Loss: 1.6626 | Speed: 7730 tok/s
+[Vanilla-Extended] Iter  700 | Train Loss: 1.7411 | Val Loss: 1.5583 | Speed: 7838 tok/s
+[Vanilla-Extended] Iter  750 | Train Loss: 1.3763 | Val Loss: 1.3704 | Speed: 7464 tok/s
+[Vanilla-Extended] Iter  800 | Train Loss: 1.3186 | Val Loss: 1.3455 | Speed: 7895 tok/s
+[Vanilla-Extended] Iter  850 | Train Loss: 1.4689 | Val Loss: 1.7250 | Speed: 7142 tok/s
+[Vanilla-Extended] Iter  900 | Train Loss: 1.4350 | Val Loss: 1.3497 | Speed: 6198 tok/s
+[Vanilla-Extended] Iter  950 | Train Loss: 1.6956 | Val Loss: 1.5146 | Speed: 7068 tok/s
