@@ -556,9 +556,10 @@ MIT License - see LICENSE file
 ## 📞 Contact
 
 **Cory Shane Davis**  
-Email: cory@cosmicsynapse.ai  
+Email: Pheras.king@gmail.com
 GitHub: [NavisWORLD](https://github.com/NavisWORLD)  
 Theory: [12D Cosmic Synapse Documentation](https://github.com/NavisWORLD/cosmic-synapse-A-lmi-v.2)
+DOI: https://zenodo.org/records/17574447
 
 ---
 
