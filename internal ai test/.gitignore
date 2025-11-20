@@ -193,3 +193,4 @@ Thumbs.db
 # Cache directories
 .cache/
 *.cache/
+data_test/
