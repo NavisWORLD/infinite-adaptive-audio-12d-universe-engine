@@ -10,10 +10,10 @@ ULTRA-EXTENDED TRAINING EXPERIMENT
 ================================================================================
 
 [DATA] Generating 2,000,000 tokens (ultra-large scale)...
-Generating tokens:   0%|          | 0/2000000 [00:00<?, ?it/s]Generating tokens:   6%|▌         | 115300/2000000 [00:00<00:01, 1152921.38it/s]Generating tokens:  14%|█▎        | 274600/2000000 [00:00<00:01, 1411311.64it/s]Generating tokens:  21%|██▏       | 429700/2000000 [00:00<00:01, 1474521.02it/s]Generating tokens:  30%|██▉       | 591600/2000000 [00:00<00:00, 1531181.56it/s]Generating tokens:  38%|███▊      | 755900/2000000 [00:00<00:00, 1571419.36it/s]Generating tokens:  46%|████▌     | 913100/2000000 [00:00<00:00, 1554073.46it/s]Generating tokens:  53%|█████▎    | 1068600/2000000 [00:00<00:00, 1442069.44it/s]Generating tokens:  61%|██████    | 1214300/2000000 [00:00<00:00, 1426720.69it/s]Generating tokens:  69%|██████▉   | 1378900/2000000 [00:00<00:00, 1491765.75it/s]Generating tokens:  77%|███████▋  | 1538000/2000000 [00:01<00:00, 1521031.58it/s]Generating tokens:  85%|████████▌ | 1702800/2000000 [00:01<00:00, 1558951.55it/s]Generating tokens:  93%|█████████▎| 1864700/2000000 [00:01<00:00, 1576903.33it/s]Generating tokens: 100%|██████████| 2000000/2000000 [00:01<00:00, 1519226.20it/s]
+Generating tokens:   0%|          | 0/2000000 [00:00<?, ?it/s]Generating tokens:   8%|▊         | 161800/2000000 [00:00<00:01, 1615478.74it/s]Generating tokens:  16%|█▌        | 323400/2000000 [00:00<00:01, 1576553.94it/s]Generating tokens:  24%|██▍       | 481200/2000000 [00:00<00:00, 1559330.45it/s]Generating tokens:  32%|███▏      | 637200/2000000 [00:00<00:00, 1532687.26it/s]Generating tokens:  40%|███▉      | 793600/2000000 [00:00<00:00, 1543546.75it/s]Generating tokens:  47%|████▋     | 948100/2000000 [00:00<00:00, 1529350.19it/s]Generating tokens:  55%|█████▌    | 1105900/2000000 [00:00<00:00, 1544759.95it/s]Generating tokens:  63%|██████▎   | 1261300/2000000 [00:00<00:00, 1547444.48it/s]Generating tokens:  71%|███████   | 1418900/2000000 [00:00<00:00, 1556150.53it/s]Generating tokens:  79%|███████▊  | 1574600/2000000 [00:01<00:00, 1554572.65it/s]Generating tokens:  87%|████████▋ | 1732900/2000000 [00:01<00:00, 1563197.46it/s]Generating tokens:  95%|█████████▍| 1895100/2000000 [00:01<00:00, 1580386.05it/s]Generating tokens: 100%|██████████| 2000000/2000000 [00:01<00:00, 1562811.51it/s]
 Building vocabulary from 2000002 tokens...
 Vocabulary size: 3045
-[DATA] Generated in 1.7s (1161581 tok/s)
+[DATA] Generated in 1.7s (1192081 tok/s)
 [DATA] Train: 1,800,001 tokens
 [DATA] Val: 200,001 tokens
 [DATA] Vocab size: 3045
@@ -27,50 +27,69 @@ Cosmic: 2,131,820 params
 
 [TRAIN] Training Vanilla-Ultra for 10000 iterations...
 [TRAIN] Checkpoint interval: 1000 iterations
-[Vanilla-Ultra] Iter     0 | Train Loss: 8.5524 | Val Loss: 8.2675 | LR: 3.00e-04 | Speed: 4221 tok/s
-[Vanilla-Ultra] Iter    50 | Train Loss: 4.9185 | Val Loss: 4.7051 | LR: 3.01e-04 | Speed: 8051 tok/s
-[Vanilla-Ultra] Iter   100 | Train Loss: 3.4006 | Val Loss: 3.1299 | LR: 3.02e-04 | Speed: 6914 tok/s
-[Vanilla-Ultra] Iter   150 | Train Loss: 2.4101 | Val Loss: 2.4751 | LR: 3.03e-04 | Speed: 6997 tok/s
-[Vanilla-Ultra] Iter   200 | Train Loss: 1.8923 | Val Loss: 1.9080 | LR: 3.04e-04 | Speed: 7402 tok/s
-[Vanilla-Ultra] Iter   250 | Train Loss: 1.5995 | Val Loss: 1.8163 | LR: 3.05e-04 | Speed: 7373 tok/s
-[Vanilla-Ultra] Iter   300 | Train Loss: 1.5425 | Val Loss: 1.8088 | LR: 3.06e-04 | Speed: 6900 tok/s
-[Vanilla-Ultra] Iter   350 | Train Loss: 1.4795 | Val Loss: 1.6116 | LR: 3.06e-04 | Speed: 6205 tok/s
-[Vanilla-Ultra] Iter   400 | Train Loss: 1.7447 | Val Loss: 1.5212 | LR: 3.07e-04 | Speed: 6676 tok/s
-[Vanilla-Ultra] Iter   450 | Train Loss: 1.4493 | Val Loss: 1.7665 | LR: 3.08e-04 | Speed: 6581 tok/s
-[Vanilla-Ultra] Iter   500 | Train Loss: 1.3777 | Val Loss: 1.3267 | LR: 3.08e-04 | Speed: 7779 tok/s
-[Vanilla-Ultra] Iter   550 | Train Loss: 1.6685 | Val Loss: 1.5048 | LR: 3.09e-04 | Speed: 8264 tok/s
-[Vanilla-Ultra] Iter   600 | Train Loss: 1.4079 | Val Loss: 1.6923 | LR: 3.10e-04 | Speed: 7797 tok/s
-[Vanilla-Ultra] Iter   650 | Train Loss: 1.3154 | Val Loss: 1.4167 | LR: 3.10e-04 | Speed: 6107 tok/s
-[Vanilla-Ultra] Iter   700 | Train Loss: 1.5692 | Val Loss: 1.3221 | LR: 3.10e-04 | Speed: 8051 tok/s
-[Vanilla-Ultra] Iter   750 | Train Loss: 1.5413 | Val Loss: 1.6515 | LR: 3.11e-04 | Speed: 7996 tok/s
-[Vanilla-Ultra] Iter   800 | Train Loss: 1.4010 | Val Loss: 1.4572 | LR: 3.11e-04 | Speed: 8271 tok/s
-[Vanilla-Ultra] Iter   850 | Train Loss: 1.4568 | Val Loss: 1.4226 | LR: 3.11e-04 | Speed: 7429 tok/s
-[Vanilla-Ultra] Iter   900 | Train Loss: 1.3276 | Val Loss: 1.6953 | LR: 3.12e-04 | Speed: 7016 tok/s
-[Vanilla-Ultra] Iter   950 | Train Loss: 1.7680 | Val Loss: 1.5823 | LR: 3.12e-04 | Speed: 7288 tok/s
-[Vanilla-Ultra] Iter  1000 | Train Loss: 1.6187 | Val Loss: 1.5953 | LR: 3.12e-04 | Speed: 7163 tok/s
+[Vanilla-Ultra] Iter     0 | Train Loss: 8.5594 | Val Loss: 8.2689 | LR: 3.00e-04 | Speed: 4305 tok/s
+[Vanilla-Ultra] Iter    50 | Train Loss: 4.9121 | Val Loss: 4.7120 | LR: 3.01e-04 | Speed: 7867 tok/s
+[Vanilla-Ultra] Iter   100 | Train Loss: 3.3881 | Val Loss: 3.1328 | LR: 3.02e-04 | Speed: 7804 tok/s
+[Vanilla-Ultra] Iter   150 | Train Loss: 2.4383 | Val Loss: 2.4835 | LR: 3.03e-04 | Speed: 9060 tok/s
+[Vanilla-Ultra] Iter   200 | Train Loss: 1.8896 | Val Loss: 1.9116 | LR: 3.04e-04 | Speed: 7317 tok/s
+[Vanilla-Ultra] Iter   250 | Train Loss: 1.5905 | Val Loss: 1.8011 | LR: 3.05e-04 | Speed: 8478 tok/s
+[Vanilla-Ultra] Iter   300 | Train Loss: 1.5481 | Val Loss: 1.8191 | LR: 3.06e-04 | Speed: 8663 tok/s
+[Vanilla-Ultra] Iter   350 | Train Loss: 1.4627 | Val Loss: 1.6187 | LR: 3.06e-04 | Speed: 7896 tok/s
+[Vanilla-Ultra] Iter   400 | Train Loss: 1.7279 | Val Loss: 1.5122 | LR: 3.07e-04 | Speed: 8295 tok/s
+[Vanilla-Ultra] Iter   450 | Train Loss: 1.4582 | Val Loss: 1.7598 | LR: 3.08e-04 | Speed: 7931 tok/s
+[Vanilla-Ultra] Iter   500 | Train Loss: 1.3704 | Val Loss: 1.3226 | LR: 3.08e-04 | Speed: 7634 tok/s
+[Vanilla-Ultra] Iter   550 | Train Loss: 1.6820 | Val Loss: 1.5029 | LR: 3.09e-04 | Speed: 7880 tok/s
+[Vanilla-Ultra] Iter   600 | Train Loss: 1.4093 | Val Loss: 1.6891 | LR: 3.10e-04 | Speed: 8347 tok/s
+[Vanilla-Ultra] Iter   650 | Train Loss: 1.3311 | Val Loss: 1.4182 | LR: 3.10e-04 | Speed: 8194 tok/s
+[Vanilla-Ultra] Iter   700 | Train Loss: 1.5634 | Val Loss: 1.3201 | LR: 3.10e-04 | Speed: 7685 tok/s
+[Vanilla-Ultra] Iter   750 | Train Loss: 1.5513 | Val Loss: 1.6483 | LR: 3.11e-04 | Speed: 7819 tok/s
+[Vanilla-Ultra] Iter   800 | Train Loss: 1.4030 | Val Loss: 1.4455 | LR: 3.11e-04 | Speed: 6871 tok/s
+[Vanilla-Ultra] Iter   850 | Train Loss: 1.4600 | Val Loss: 1.4198 | LR: 3.11e-04 | Speed: 7897 tok/s
+[Vanilla-Ultra] Iter   900 | Train Loss: 1.3157 | Val Loss: 1.6840 | LR: 3.12e-04 | Speed: 7148 tok/s
+[Vanilla-Ultra] Iter   950 | Train Loss: 1.7641 | Val Loss: 1.5775 | LR: 3.12e-04 | Speed: 8217 tok/s
+[Vanilla-Ultra] Iter  1000 | Train Loss: 1.6235 | Val Loss: 1.5918 | LR: 3.12e-04 | Speed: 7900 tok/s
 [CHECKPOINT] Saved to ultra_checkpoints/Vanilla-Ultra/checkpoint_1000.pt
-[Vanilla-Ultra] Iter  1050 | Train Loss: 1.4489 | Val Loss: 1.5845 | LR: 3.12e-04 | Speed: 7330 tok/s
-[Vanilla-Ultra] Iter  1100 | Train Loss: 1.5612 | Val Loss: 1.6437 | LR: 3.12e-04 | Speed: 7853 tok/s
-[Vanilla-Ultra] Iter  1150 | Train Loss: 1.3038 | Val Loss: 1.6560 | LR: 3.11e-04 | Speed: 7609 tok/s
-[Vanilla-Ultra] Iter  1200 | Train Loss: 1.4156 | Val Loss: 1.6269 | LR: 3.11e-04 | Speed: 7041 tok/s
-[Vanilla-Ultra] Iter  1250 | Train Loss: 1.3326 | Val Loss: 1.0906 | LR: 3.11e-04 | Speed: 7244 tok/s
-[Vanilla-Ultra] Iter  1300 | Train Loss: 1.6549 | Val Loss: 1.5146 | LR: 3.10e-04 | Speed: 8160 tok/s
-[Vanilla-Ultra] Iter  1350 | Train Loss: 1.4424 | Val Loss: 1.2487 | LR: 3.10e-04 | Speed: 6880 tok/s
-[Vanilla-Ultra] Iter  1400 | Train Loss: 1.6247 | Val Loss: 1.1819 | LR: 3.09e-04 | Speed: 6846 tok/s
-[Vanilla-Ultra] Iter  1450 | Train Loss: 1.3234 | Val Loss: 1.7297 | LR: 3.09e-04 | Speed: 7274 tok/s
-[Vanilla-Ultra] Iter  1500 | Train Loss: 1.5283 | Val Loss: 1.5788 | LR: 3.08e-04 | Speed: 7958 tok/s
-[Vanilla-Ultra] Iter  1550 | Train Loss: 1.3890 | Val Loss: 1.5411 | LR: 3.07e-04 | Speed: 8096 tok/s
-[Vanilla-Ultra] Iter  1600 | Train Loss: 1.3237 | Val Loss: 1.4142 | LR: 3.06e-04 | Speed: 7051 tok/s
-[Vanilla-Ultra] Iter  1650 | Train Loss: 1.5159 | Val Loss: 1.3377 | LR: 3.05e-04 | Speed: 8373 tok/s
-[Vanilla-Ultra] Iter  1700 | Train Loss: 1.3511 | Val Loss: 1.3144 | LR: 3.04e-04 | Speed: 7457 tok/s
-[Vanilla-Ultra] Iter  1750 | Train Loss: 1.4293 | Val Loss: 1.5410 | LR: 3.03e-04 | Speed: 7128 tok/s
-[Vanilla-Ultra] Iter  1800 | Train Loss: 1.7010 | Val Loss: 1.4365 | LR: 3.02e-04 | Speed: 6953 tok/s
-[Vanilla-Ultra] Iter  1850 | Train Loss: 1.4688 | Val Loss: 1.1869 | LR: 3.01e-04 | Speed: 5731 tok/s
-[Vanilla-Ultra] Iter  1900 | Train Loss: 1.2949 | Val Loss: 1.3608 | LR: 3.00e-04 | Speed: 6694 tok/s
-[Vanilla-Ultra] Iter  1950 | Train Loss: 1.1322 | Val Loss: 1.4604 | LR: 2.98e-04 | Speed: 8059 tok/s
-[Vanilla-Ultra] Iter  2000 | Train Loss: 1.3029 | Val Loss: 1.4628 | LR: 2.97e-04 | Speed: 7367 tok/s
+[Vanilla-Ultra] Iter  1050 | Train Loss: 1.4354 | Val Loss: 1.5847 | LR: 3.12e-04 | Speed: 8027 tok/s
+[Vanilla-Ultra] Iter  1100 | Train Loss: 1.5720 | Val Loss: 1.6455 | LR: 3.12e-04 | Speed: 7356 tok/s
+[Vanilla-Ultra] Iter  1150 | Train Loss: 1.3142 | Val Loss: 1.6552 | LR: 3.11e-04 | Speed: 5925 tok/s
+[Vanilla-Ultra] Iter  1200 | Train Loss: 1.4323 | Val Loss: 1.6283 | LR: 3.11e-04 | Speed: 7868 tok/s
+[Vanilla-Ultra] Iter  1250 | Train Loss: 1.3481 | Val Loss: 1.1262 | LR: 3.11e-04 | Speed: 7730 tok/s
+[Vanilla-Ultra] Iter  1300 | Train Loss: 1.6566 | Val Loss: 1.5219 | LR: 3.10e-04 | Speed: 6747 tok/s
+[Vanilla-Ultra] Iter  1350 | Train Loss: 1.4607 | Val Loss: 1.2851 | LR: 3.10e-04 | Speed: 8118 tok/s
+[Vanilla-Ultra] Iter  1400 | Train Loss: 1.6360 | Val Loss: 1.2021 | LR: 3.09e-04 | Speed: 8135 tok/s
+[Vanilla-Ultra] Iter  1450 | Train Loss: 1.3318 | Val Loss: 1.7416 | LR: 3.09e-04 | Speed: 7856 tok/s
+[Vanilla-Ultra] Iter  1500 | Train Loss: 1.5445 | Val Loss: 1.6054 | LR: 3.08e-04 | Speed: 7599 tok/s
+[Vanilla-Ultra] Iter  1550 | Train Loss: 1.3972 | Val Loss: 1.5465 | LR: 3.07e-04 | Speed: 6290 tok/s
+[Vanilla-Ultra] Iter  1600 | Train Loss: 1.3428 | Val Loss: 1.4201 | LR: 3.06e-04 | Speed: 7787 tok/s
+[Vanilla-Ultra] Iter  1650 | Train Loss: 1.5240 | Val Loss: 1.3422 | LR: 3.05e-04 | Speed: 7543 tok/s
+[Vanilla-Ultra] Iter  1700 | Train Loss: 1.3509 | Val Loss: 1.3125 | LR: 3.04e-04 | Speed: 7832 tok/s
+[Vanilla-Ultra] Iter  1750 | Train Loss: 1.4291 | Val Loss: 1.5387 | LR: 3.03e-04 | Speed: 7993 tok/s
+[Vanilla-Ultra] Iter  1800 | Train Loss: 1.6858 | Val Loss: 1.4367 | LR: 3.02e-04 | Speed: 8762 tok/s
+[Vanilla-Ultra] Iter  1850 | Train Loss: 1.4658 | Val Loss: 1.1869 | LR: 3.01e-04 | Speed: 7740 tok/s
+[Vanilla-Ultra] Iter  1900 | Train Loss: 1.2926 | Val Loss: 1.3597 | LR: 3.00e-04 | Speed: 7408 tok/s
+[Vanilla-Ultra] Iter  1950 | Train Loss: 1.1404 | Val Loss: 1.4674 | LR: 2.98e-04 | Speed: 8474 tok/s
+[Vanilla-Ultra] Iter  2000 | Train Loss: 1.3153 | Val Loss: 1.4612 | LR: 2.97e-04 | Speed: 8420 tok/s
 [CHECKPOINT] Saved to ultra_checkpoints/Vanilla-Ultra/checkpoint_2000.pt
-[Vanilla-Ultra] Iter  2050 | Train Loss: 1.4760 | Val Loss: 1.2516 | LR: 2.96e-04 | Speed: 7880 tok/s
-[Vanilla-Ultra] Iter  2100 | Train Loss: 1.3024 | Val Loss: 1.3719 | LR: 2.94e-04 | Speed: 6287 tok/s
-[Vanilla-Ultra] Iter  2150 | Train Loss: 1.2680 | Val Loss: 1.3050 | LR: 2.93e-04 | Speed: 7321 tok/s
-[Vanilla-Ultra] Iter  2200 | Train Loss: 1.3850 | Val Loss: 1.3391 | LR: 2.91e-04 | Speed: 7829 tok/s
+[Vanilla-Ultra] Iter  2050 | Train Loss: 1.4804 | Val Loss: 1.2528 | LR: 2.96e-04 | Speed: 8411 tok/s
+[Vanilla-Ultra] Iter  2100 | Train Loss: 1.3208 | Val Loss: 1.3717 | LR: 2.94e-04 | Speed: 8420 tok/s
+[Vanilla-Ultra] Iter  2150 | Train Loss: 1.2701 | Val Loss: 1.3007 | LR: 2.93e-04 | Speed: 7891 tok/s
+[Vanilla-Ultra] Iter  2200 | Train Loss: 1.3833 | Val Loss: 1.3361 | LR: 2.91e-04 | Speed: 7963 tok/s
+[Vanilla-Ultra] Iter  2250 | Train Loss: 1.2246 | Val Loss: 1.3736 | LR: 2.89e-04 | Speed: 8308 tok/s
+[Vanilla-Ultra] Iter  2300 | Train Loss: 1.4637 | Val Loss: 1.4354 | LR: 2.88e-04 | Speed: 7302 tok/s
+[Vanilla-Ultra] Iter  2350 | Train Loss: 1.5143 | Val Loss: 1.3926 | LR: 2.86e-04 | Speed: 8168 tok/s
+[Vanilla-Ultra] Iter  2400 | Train Loss: 1.2292 | Val Loss: 1.2938 | LR: 2.84e-04 | Speed: 8384 tok/s
+[Vanilla-Ultra] Iter  2450 | Train Loss: 1.1934 | Val Loss: 1.5049 | LR: 2.82e-04 | Speed: 7394 tok/s
+[Vanilla-Ultra] Iter  2500 | Train Loss: 1.3998 | Val Loss: 1.3796 | LR: 2.80e-04 | Speed: 7842 tok/s
+[Vanilla-Ultra] Iter  2550 | Train Loss: 1.3930 | Val Loss: 1.5847 | LR: 2.78e-04 | Speed: 8258 tok/s
+[Vanilla-Ultra] Iter  2600 | Train Loss: 1.6390 | Val Loss: 1.2981 | LR: 2.77e-04 | Speed: 7663 tok/s
+[Vanilla-Ultra] Iter  2650 | Train Loss: 1.3535 | Val Loss: 1.6659 | LR: 2.75e-04 | Speed: 8499 tok/s
+[Vanilla-Ultra] Iter  2700 | Train Loss: 1.3825 | Val Loss: 1.3634 | LR: 2.73e-04 | Speed: 9096 tok/s
+[Vanilla-Ultra] Iter  2750 | Train Loss: 1.1295 | Val Loss: 1.1874 | LR: 2.71e-04 | Speed: 8573 tok/s
+[Vanilla-Ultra] Iter  2800 | Train Loss: 1.5241 | Val Loss: 1.7005 | LR: 2.69e-04 | Speed: 7765 tok/s
+[Vanilla-Ultra] Iter  2850 | Train Loss: 1.0855 | Val Loss: 1.6017 | LR: 2.66e-04 | Speed: 8906 tok/s
+[Vanilla-Ultra] Iter  2900 | Train Loss: 1.3671 | Val Loss: 1.4160 | LR: 2.64e-04 | Speed: 7844 tok/s
+[Vanilla-Ultra] Iter  2950 | Train Loss: 1.4875 | Val Loss: 1.3887 | LR: 2.62e-04 | Speed: 8110 tok/s
+[Vanilla-Ultra] Iter  3000 | Train Loss: 1.5352 | Val Loss: 1.3215 | LR: 2.60e-04 | Speed: 7390 tok/s
+[CHECKPOINT] Saved to ultra_checkpoints/Vanilla-Ultra/checkpoint_3000.pt
+[Vanilla-Ultra] Iter  3050 | Train Loss: 1.5900 | Val Loss: 1.3158 | LR: 2.58e-04 | Speed: 7905 tok/s
+[Vanilla-Ultra] Iter  3100 | Train Loss: 1.4295 | Val Loss: 1.3493 | LR: 2.56e-04 | Speed: 8019 tok/s
