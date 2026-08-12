@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cosmos-music"
+version = "1.0.0"
+description = "Python companion engine for COSMOS Music bio-adaptive instruments"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "GPL-3.0-only"}
+authors = [{name = "Cory Shane Davis"}]
+keywords = ["music", "audio", "biofeedback", "CST", "COSMOS", "12D"]
+classifiers = ["Programming Language :: Python :: 3", "License :: OSI Approved :: GNU General Public License v3 (GPLv3)"]
+
+[project.scripts]
+cosmos-music = "cosmos_music.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

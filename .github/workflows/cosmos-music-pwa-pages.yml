@@ -1,0 +1,28 @@
+name: COSMOS Music Deploy PWA
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['COSMOS_MUSIC_SUITE/**']
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: cosmos-music-pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: node scripts/build-web.mjs
+        working-directory: COSMOS_MUSIC_SUITE
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: {path: COSMOS_MUSIC_SUITE/dist}
+      - uses: actions/deploy-pages@v4
