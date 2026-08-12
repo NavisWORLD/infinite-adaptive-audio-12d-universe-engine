@@ -1,5 +1,11 @@
 name: COSMOS Music Package iOS Project
-on: {workflow_dispatch: {}}
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'COSMOS_MUSIC_SUITE/**'
+      - '.github/workflows/cosmos-music-ios-project.yml'
 jobs:
   ios-source:
     runs-on: macos-latest

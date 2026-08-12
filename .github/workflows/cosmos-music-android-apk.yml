@@ -2,7 +2,11 @@ name: COSMOS Music Build Android APK
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     tags: ['cosmos-music-v*']
+    paths:
+      - 'COSMOS_MUSIC_SUITE/**'
+      - '.github/workflows/cosmos-music-android-apk.yml'
 jobs:
   android:
     runs-on: ubuntu-latest
