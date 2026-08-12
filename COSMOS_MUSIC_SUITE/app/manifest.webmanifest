@@ -1,7 +1,7 @@
 {
   "name": "COSMOS Music — Adaptive Bio Instrument Suite",
   "short_name": "COSMOS Music",
-  "description": "Voice, motion, camera-pulse and CST-inspired adaptive music instruments by Cory Shane Davis.",
+  "description": "Voice, motion, optional pulse timing and CST-inspired adaptive music instruments by Cory Shane Davis.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -13,8 +13,8 @@
     {"src":"icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
   ],
   "shortcuts": [
-    {"name":"Play Along","url":"./COSMOS_PLAY_ALONG.html"},
-    {"name":"Conductor","url":"./COSMOS_MUSIC_CONDUCTOR.html"},
-    {"name":"Bio Instrument","url":"./COSMOS_QUANTUM_BIO_INSTRUMENT.html"}
+    {"name":"Play Along","url":"./index.html?mode=play"},
+    {"name":"Conductor","url":"./index.html?mode=conduct"},
+    {"name":"Bio Instrument","url":"./index.html?mode=bio"}
   ]
 }
