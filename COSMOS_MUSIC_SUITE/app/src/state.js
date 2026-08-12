@@ -1,0 +1,7 @@
+export const STATE_NAMES=['voice energy','pitch lock','phrase flux','tempo coherence','motion energy','tilt x','tilt y','rotation flux','pulse phase','pulse stability','harmonic tension','synaptic memory'];
+const MAJOR=[0,2,4,5,7,9,11],MINOR=[0,2,3,5,7,8,10];
+export function inferKey(points){if(!points?.length)return {root:0,mode:'major',q:0};let best={score:-1e9,root:0,mode:'major'};for(let root=0;root<12;root++)for(const [mode,scale] of [['major',MAJOR],['minor',MINOR]]){const allowed=new Set(scale.map(x=>(root+x)%12));let score=0,total=0;for(const p of points){const w=p.w||1;score+=w*(allowed.has(p.pc)?1:-.55);total+=Math.abs(w)}if(score>best.score)best={score,root,mode,q:Math.max(0,Math.min(1,(score/(total||1)+.55)/1.55))}}return best}
+export class PerformanceState{
+ constructor(leak=.82){this.leak=leak;this.v=new Array(12).fill(0);this.phase=0;this.last=performance.now()/1000}
+ update(x){const now=performance.now()/1000,dt=Math.min(.2,Math.max(.001,now-this.last));this.last=now;if(x.bpm)this.phase=(this.phase+dt*x.bpm/60)%1;else this.phase=0;const target=[x.voiceEnergy||0,x.pitchLock||0,x.phraseFlux||0,x.tempoCoherence||0,x.motionEnergy||0,x.tiltX||0,x.tiltY||0,x.rotationFlux||0,this.phase,x.pulseStability||0,x.harmonicTension||0,0];for(let i=0;i<11;i++)this.v[i]=this.leak*this.v[i]+(1-this.leak)*Math.max(-1,Math.min(1,target[i]));const sal=(Math.abs(this.v[0])+this.v[1]+this.v[4]+this.v[9])/4;this.v[11]=this.leak*this.v[11]+(1-this.leak)*Math.tanh(1.5*sal);this.state=this.v;return this.v}
+}
