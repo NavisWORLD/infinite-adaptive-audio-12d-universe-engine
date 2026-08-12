@@ -1,0 +1,23 @@
+name: COSMOS Music Validate
+on:
+  push:
+    paths: ['COSMOS_MUSIC_SUITE/**']
+  pull_request:
+    paths: ['COSMOS_MUSIC_SUITE/**']
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: COSMOS_MUSIC_SUITE
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: python -m pip install pytest
+      - run: npm run build
+      - run: python -m compileall python/src
+      - run: PYTHONPATH=python/src pytest -q python/tests
+      - run: node scripts/check-html.mjs

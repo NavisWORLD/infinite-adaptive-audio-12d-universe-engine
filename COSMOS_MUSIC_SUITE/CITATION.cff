@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use COSMOS Music, please cite this software and the foundational CST deposit."
+title: "COSMOS Music: Adaptive Bio Instrument Suite"
+type: software
+authors:
+  - family-names: "Davis"
+    given-names: "Cory Shane"
+version: 1.0.0
+date-released: 2026-08-12
+license: GPL-3.0-only
+repository-code: "https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine"
+references:
+  - type: generic
+    title: "12-Dimensional Cosmic Synapse Theory"
+    doi: "10.5281/zenodo.17574447"

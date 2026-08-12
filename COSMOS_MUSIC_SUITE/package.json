@@ -1,0 +1,16 @@
+{
+  "name": "cosmos-music-bio-instrument-suite",
+  "version": "1.0.0",
+  "private": false,
+  "description": "Open-source voice, motion, camera-PPG and CST-inspired adaptive music suite.",
+  "license": "GPL-3.0-only",
+  "scripts": {
+    "build": "node scripts/build-web.mjs",
+    "serve": "python -m http.server 8080 -d app",
+    "native:android": "npm run build && npx cap add android && python scripts/patch-native.py android && npx cap sync android",
+    "native:ios": "npm run build && npx cap add ios && python scripts/patch-native.py ios && npx cap sync ios",
+    "sync": "npm run build && npx cap sync"
+  },
+  "dependencies": {"@capacitor/core":"^8.0.0"},
+  "devDependencies": {"@capacitor/android":"^8.0.0","@capacitor/cli":"^8.0.0","@capacitor/ios":"^8.0.0"}
+}

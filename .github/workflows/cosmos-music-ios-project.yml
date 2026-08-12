@@ -1,0 +1,18 @@
+name: COSMOS Music Package iOS Project
+on: {workflow_dispatch: {}}
+jobs:
+  ios-source:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: COSMOS_MUSIC_SUITE
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm install
+      - run: npm run native:ios
+      - uses: actions/upload-artifact@v4
+        with:
+          name: COSMOS-Music-iOS-Xcode-project
+          path: COSMOS_MUSIC_SUITE/ios/

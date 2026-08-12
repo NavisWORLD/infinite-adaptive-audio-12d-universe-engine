@@ -1,0 +1,8 @@
+{
+  "title": "COSMOS Music: Adaptive Bio Instrument Suite",
+  "description": "Open-source voice, motion, camera-PPG and CST-inspired adaptive music instruments, teaching materials, Python reference engine, PWA and native mobile build scaffolding.",
+  "creators": [{"name": "Davis, Cory Shane"}],
+  "license": "GPL-3.0-only",
+  "keywords": ["COSMOS","Cosmic Synapse Theory","12D","adaptive audio","biofeedback","Web Audio","music technology"],
+  "related_identifiers": [{"identifier":"10.5281/zenodo.17574447","relation":"isDerivedFrom","scheme":"doi"}]
+}
