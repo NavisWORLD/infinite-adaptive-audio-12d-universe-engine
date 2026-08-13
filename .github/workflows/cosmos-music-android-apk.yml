@@ -1,12 +1,10 @@
-name: COSMOS Music Build Android APK
+name: COSMOS Music Build Android APK (Manual)
+
+# Production Android binaries are built by cosmos-music-release.yml.
+# Keep this smaller workflow as an explicit manual fallback for maintainers.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    tags: ['cosmos-music-v*']
-    paths:
-      - 'COSMOS_MUSIC_SUITE/**'
-      - '.github/workflows/cosmos-music-android-apk.yml'
+
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -16,13 +14,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: {node-version: '22'}
+        with:
+          node-version: '22'
       - uses: actions/setup-java@v4
-        with: {distribution: 'temurin', java-version: '21'}
+        with:
+          distribution: 'temurin'
+          java-version: '21'
       - run: npm install
       - run: npm run native:android
-      - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - name: Build community debug APK
+        run: cd android && chmod +x gradlew && ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: COSMOS-Music-Android-debug-apk
           path: COSMOS_MUSIC_SUITE/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
