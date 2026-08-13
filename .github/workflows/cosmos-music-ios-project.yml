@@ -1,11 +1,10 @@
-name: COSMOS Music Package iOS Project
+name: COSMOS Music Package iOS Project (Manual)
+
+# Production iOS artifacts are built by cosmos-music-release.yml.
+# Keep this smaller source-packaging workflow as an explicit manual fallback.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'COSMOS_MUSIC_SUITE/**'
-      - '.github/workflows/cosmos-music-ios-project.yml'
+
 jobs:
   ios-source:
     runs-on: macos-latest
@@ -15,10 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: {node-version: '22'}
+        with:
+          node-version: '22'
       - run: npm install
       - run: npm run native:ios
       - uses: actions/upload-artifact@v4
         with:
           name: COSMOS-Music-iOS-Xcode-project
           path: COSMOS_MUSIC_SUITE/ios/
+          if-no-files-found: error
