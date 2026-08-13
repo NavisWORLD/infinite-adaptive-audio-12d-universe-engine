@@ -1,0 +1,196 @@
+name: COSMOS Music Full Binary Release
+
+on:
+  pull_request:
+    paths:
+      - 'COSMOS_MUSIC_SUITE/**'
+      - '.github/workflows/cosmos-music-release.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'COSMOS_MUSIC_SUITE/VERSION'
+      - '.github/workflows/cosmos-music-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: COSMOS_MUSIC_SUITE
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: npm install
+      - run: npm run build
+      - run: node --check desktop/main.cjs
+      - run: node --check app/src/audio.js
+      - run: node --check app/src/sensors.js
+      - run: node --check app/src/state.js
+      - run: node --check app/src/app.js
+      - run: python -m pip install pytest
+      - run: python -m compileall python/src
+      - run: PYTHONPATH=python/src pytest -q python/tests
+      - run: node scripts/check-html.mjs
+      - run: node -e "JSON.parse(require('fs').readFileSync('app/manifest.webmanifest','utf8')); console.log('manifest ok')"
+
+  windows:
+    needs: validate
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: COSMOS_MUSIC_SUITE
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm install
+      - run: npm run desktop:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cosmos-music-windows
+          path: COSMOS_MUSIC_SUITE/release/*.exe
+          if-no-files-found: error
+
+  macos:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: COSMOS_MUSIC_SUITE
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm install
+      - run: npm run desktop:mac:${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cosmos-music-macos-${{ matrix.arch }}
+          path: |
+            COSMOS_MUSIC_SUITE/release/*.dmg
+            COSMOS_MUSIC_SUITE/release/*.zip
+          if-no-files-found: error
+
+  android:
+    needs: validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: COSMOS_MUSIC_SUITE
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: actions/setup-java@v4
+        with: {distribution: 'temurin', java-version: '21'}
+      - run: npm install
+      - run: npm run native:android
+      - name: Build installable community APK
+        shell: bash
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          cd ..
+          VERSION=$(cat VERSION)
+          cp android/app/build/outputs/apk/debug/app-debug.apk "COSMOS-Music-${VERSION}-Android-Community.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cosmos-music-android
+          path: COSMOS_MUSIC_SUITE/COSMOS-Music-*-Android-Community.apk
+          if-no-files-found: error
+
+  ios:
+    needs: validate
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: COSMOS_MUSIC_SUITE
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm install
+      - run: npm run native:ios
+      - name: Build unsigned iOS Simulator app
+        run: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath ios-build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+      - name: Package iOS app, Xcode project, and iPhone PWA
+        run: |
+          VERSION=$(cat VERSION)
+          ditto -c -k --sequesterRsrc --keepParent \
+            ios-build/Build/Products/Release-iphonesimulator/App.app \
+            "COSMOS-Music-${VERSION}-iOS-Simulator.app.zip"
+          ditto -c -k --sequesterRsrc --keepParent ios \
+            "COSMOS-Music-${VERSION}-iOS-Xcode-Project.zip"
+          npm run build
+          ditto -c -k --sequesterRsrc --keepParent dist \
+            "COSMOS-Music-${VERSION}-iPhone-PWA.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cosmos-music-ios
+          path: |
+            COSMOS_MUSIC_SUITE/COSMOS-Music-*-iOS-Simulator.app.zip
+            COSMOS_MUSIC_SUITE/COSMOS-Music-*-iOS-Xcode-Project.zip
+            COSMOS_MUSIC_SUITE/COSMOS-Music-*-iPhone-PWA.zip
+          if-no-files-found: error
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [windows, macos, android, ios]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-bundle
+          merge-multiple: true
+      - name: Generate checksums and release notes
+        shell: bash
+        run: |
+          VERSION=$(cat COSMOS_MUSIC_SUITE/VERSION)
+          TAG="cosmos-music-v${VERSION}"
+          cd release-bundle
+          find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+          cd ..
+          cp COSMOS_MUSIC_SUITE/RELEASE_NOTES_v1.1.md RELEASE_NOTES.md
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+      - name: Create or refresh GitHub Release
+        shell: bash
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release-bundle/* --clobber
+            gh release edit "$TAG" --title "COSMOS Music v${VERSION}" --notes-file RELEASE_NOTES.md
+          else
+            gh release create "$TAG" release-bundle/* \
+              --target "$GITHUB_SHA" \
+              --title "COSMOS Music v${VERSION}" \
+              --notes-file RELEASE_NOTES.md
+          fi
