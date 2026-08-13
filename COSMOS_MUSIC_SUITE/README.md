@@ -4,33 +4,60 @@
 
 Created by **Cory Shane Davis / NavisWORLD**.
 
+> 🚀 **Finished binaries:** [COSMOS Music v1.1.0](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/tag/cosmos-music-v1.1.0)
+>
 > 📄 Foundational CST research deposit: **[DOI 10.5281/zenodo.17574447](https://doi.org/10.5281/zenodo.17574447)**
 >
-> 🧭 Lost? Go back to the [repository README](../README.md) or the [Project Map](../PROJECT_MAP.md).
+> 🧭 Repository guide: [root README](../README.md) · [Project Map](../PROJECT_MAP.md)
 
 ---
 
-## 🧸 Tiny-human explanation
+# ⬇️ I just want the app
 
-You sing.
+You do **not** need Node, Python, Xcode, or Android Studio to use the prebuilt desktop/Android packages.
 
-You move your phone.
+| Platform | Package |
+|---|---|
+| Windows x64 | [One-click `.exe` installer](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/download/cosmos-music-v1.1.0/COSMOS-Music-1.1.0-Windows-x64-Setup.exe) |
+| macOS Apple Silicon | [`.dmg`](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/download/cosmos-music-v1.1.0/COSMOS-Music-1.1.0-macOS-arm64.dmg) |
+| macOS Intel | [`.dmg`](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/download/cosmos-music-v1.1.0/COSMOS-Music-1.1.0-macOS-x64.dmg) |
+| Android | [Community `.apk`](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/download/cosmos-music-v1.1.0/COSMOS-Music-1.1.0-Android-Community.apk) |
+| iPhone | [PWA package](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/download/cosmos-music-v1.1.0/COSMOS-Music-1.1.0-iPhone-PWA.zip) |
+| iOS developer | [Xcode project](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/download/cosmos-music-v1.1.0/COSMOS-Music-1.1.0-iOS-Xcode-Project.zip) |
 
-Maybe you tap your heartbeat.
-
-The app notices those things and makes music that changes with you.
-
-That is the whole idea.
+For mobile installation details and signing boundaries, read [`docs/MOBILE_INSTALL.md`](./docs/MOBILE_INSTALL.md).
 
 ---
 
-# 🚀 I just want to use it
+# 🧸 Tiny-human explanation
 
-You do **not** need to understand the code first.
+You sing. You move your phone. Maybe you tap a heartbeat. The app notices those things and makes music that changes with you.
 
-### Run it locally
+That is the core idea.
 
-From this folder:
+---
+
+# 🎛️ Three modes
+
+## 🎤 Play Along
+
+The app listens to musical features in your voice and creates accompaniment around them. It tracks signals such as pitch, pitch confidence, energy, phrase movement, and tonal context.
+
+## 🪄 Conductor
+
+Voice and phone motion control the arrangement together. Acceleration, tilt, rotation, vocal energy, and pitch can influence rhythm, density, filtering, harmony, and timbre.
+
+## ❤️ Bio
+
+Pulse timing can also become a performance control through manual beat taps, approximate camera PPG, or an optional native heart event.
+
+> Camera PPG is an expressive approximation for music control, **not a medical measurement**.
+
+---
+
+# 🚀 Run from source
+
+From `COSMOS_MUSIC_SUITE/`:
 
 ```bash
 npm install
@@ -38,111 +65,48 @@ npm run build
 npm run serve
 ```
 
-Then open the address shown in your terminal.
+Then open the local address shown by the server.
 
-### Inside the app
+Inside the app:
 
 1. tap **Enable Audio**
-2. tap **Mic / Voice**
-3. optionally tap **Motion**
+2. enable **Mic / Voice**
+3. optionally enable **Motion**
 4. optionally use **Camera PPG** or **Tap Heartbeat**
-5. choose a mode: **Play Along**, **Conductor**, or **Bio**
+5. choose **Play Along**, **Conductor**, or **Bio**
 6. tap **Play With Me**
 
-If that is all you wanted, you can stop reading here and make music. 💚
-
 ---
 
-# 🎛️ The three modes
-
-## 🎤 Play Along
-
-The app listens to musical features in your voice and creates accompaniment around them.
-
-It looks at things such as pitch, note confidence, energy, phrase movement, and tonal context.
-
-**Simple version:** sing something and the band tries to follow you.
-
----
-
-## 🪄 Conductor
-
-Voice and phone motion control the music together.
-
-Acceleration, tilt, and rotation can influence musical density, filtering, rhythm, harmony, and timbre.
-
-**Simple version:** your phone becomes a conducting wand.
-
----
-
-## ❤️ Bio
-
-Pulse timing can also become a performance control.
-
-The app can use:
-
-- heartbeat taps
-- approximate camera PPG timing
-- a native heart event injected by a mobile bridge
-
-**Simple version:** your beat can help drive the music's beat.
-
-> Camera PPG in this project is an expressive approximation for music control, **not a medical measurement**.
-
----
-
-# 👀 What should I open?
-
-| You are... | Open this |
-|---|---|
-| **A musician / curious user** | [`app/`](./app/) |
-| **A web developer** | [`app/src/`](./app/src/) |
-| **A Python developer** | [`python/`](./python/) |
-| **Building for iPhone / Android** | [`docs/MOBILE_INSTALL.md`](./docs/MOBILE_INSTALL.md) |
-| **Trying to understand the engine** | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) |
-| **A teacher** | [`docs/TEACHER_GUIDE.md`](./docs/TEACHER_GUIDE.md) |
-| **A student** | [`docs/STUDENT_GUIDE.md`](./docs/STUDENT_GUIDE.md) |
-| **A research reader** | [`docs/RESEARCH_LINKS.md`](./docs/RESEARCH_LINKS.md) |
-| **A contributor** | [`CONTRIBUTING.md`](./CONTRIBUTING.md) |
-
----
-
-# 🧩 What every folder does
+# 🧩 Maintained structure
 
 ```text
 COSMOS_MUSIC_SUITE/
-├── app/                   # the actual web / PWA / Capacitor runtime
-│   ├── index.html         # one unified app screen
+├── app/                   # authoritative web / PWA runtime
+│   ├── index.html
 │   ├── src/
-│   │   ├── app.js         # connects UI, sensors, state and music engine
-│   │   ├── audio.js       # synthesis + adaptive accompaniment
-│   │   ├── sensors.js     # microphone, motion and pulse inputs
-│   │   └── state.js       # 12-channel performance state
-│   ├── icons/             # install icons
+│   │   ├── app.js         # UI + controller wiring
+│   │   ├── audio.js       # synthesis + adaptive band
+│   │   ├── sensors.js     # voice / motion / pulse inputs
+│   │   └── state.js       # 12-channel state model
+│   ├── icons/
 │   ├── manifest.webmanifest
-│   └── sw.js              # offline/PWA cache
-├── python/                # Python reference package + tests
-├── native/                # optional native bridge references
-├── docs/                  # every maintained guide
-├── scripts/               # build and native packaging helpers
-├── package.json           # JavaScript dependencies + commands
-├── capacitor.config.ts    # native mobile wrapper config
-├── CITATION.cff           # software citation metadata
-├── LICENSE
-└── README.md              # you are here
+│   └── sw.js
+├── desktop/               # Electron desktop wrapper
+├── python/                # Python companion package + tests
+├── native/                # optional native integration references
+├── docs/                  # maintained guides
+├── scripts/               # build and packaging helpers
+├── package.json
+├── capacitor.config.ts
+└── README.md
 ```
 
-### Important
-
-The **authoritative current app is `app/`**.
-
-You do not need anything in the repository-level archive to run this product.
+The **authoritative current app is `app/`**. Repository-level `archive/` content is historical lineage and is not required to run this product.
 
 ---
 
-# 🧠 How the engine thinks about a performance
-
-The app turns sensor information into a 12-channel performance state.
+# 🧠 The 12-channel performance state
 
 ```text
 VOICE ────> pitch / energy / phrasing ───────┐
@@ -157,174 +121,97 @@ PULSE ────> BPM / phase / stability ─────────┘      
 
 The channels are:
 
-1. **voice energy** — how much vocal energy is present
-2. **pitch lock** — how confident the pitch estimate is
-3. **phrase flux** — how much the vocal phrase is changing
-4. **tempo coherence** — stability of timing information
-5. **motion energy** — how strongly the phone is moving
-6. **X tilt** — horizontal orientation control
-7. **Y tilt** — vertical orientation control
-8. **rotation flux** — rotational movement
-9. **pulse phase** — where the current pulse is in its cycle
-10. **pulse stability** — consistency of recent pulse timing
-11. **harmonic tension** — how strongly the current note pushes against the inferred key
-12. **short-term synaptic memory** — a decaying memory of recent state relationships
+1. voice energy
+2. pitch lock
+3. phrase flux
+4. tempo coherence
+5. motion energy
+6. X tilt
+7. Y tilt
+8. rotation flux
+9. pulse phase
+10. pulse stability
+11. harmonic tension
+12. short-term synaptic memory
 
-Think of those as **12 invisible knobs controlled by the performance**.
-
-The state model is inspired by CST / dyn12, but in this software it is an **operational music-control system**. It is not presented as medical proof, consciousness proof, or literal higher-dimensional physics proof.
-
----
-
-# 🎤 Voice input
-
-The microphone is used to extract performance features.
-
-The maintained path is intentionally **analysis-first**: microphone audio is not intentionally routed straight back to the speaker, which avoids turning the phone into a feedback machine.
-
-The voice layer can provide:
-
-- signal energy
-- pitch estimate
-- pitch confidence
-- pitch-class history
-- phrase movement
-- rough tonal/key inference
-
----
-
-# 📱 Motion input
-
-When supported and permitted by the device/browser, motion signals include:
-
-- acceleration
-- orientation / tilt
-- rotation rate
-
-They become expressive music controls rather than being displayed only as sensor telemetry.
-
----
-
-# ❤️ Pulse input
-
-There are three paths:
-
-### Tap heartbeat
-
-No camera or health integration required. Repeated taps estimate timing and stability.
-
-### Camera PPG
-
-The camera samples optical intensity changes that can approximate pulse timing under good conditions.
-
-This is **not a medical device**.
-
-### Native bridge
-
-A native wrapper can dispatch a heart event into the app:
-
-```js
-window.dispatchEvent(new CustomEvent('cosmos-heart', {
-  detail: { bpm: 72, quality: 1, source: 'native' }
-}));
-```
-
-See [`native/`](./native/) and [`docs/MOBILE_INSTALL.md`](./docs/MOBILE_INSTALL.md).
+The state model is inspired by CST / dyn12, but here it is an **operational music-control system**. It is not presented as medical proof, consciousness proof, or literal higher-dimensional physics proof.
 
 ---
 
 # 🐍 Python companion
-
-The browser app is not the only usable part of the project.
-
-Install the Python package:
 
 ```bash
 cd python
 python -m pip install -e .
 ```
 
-### Calculate a state
+Examples:
 
 ```bash
 cosmos-music state --voice-energy .7 --pitch-lock .9 --motion .25 --bpm 72 --pulse-stability .8
-```
-
-### Create a MIDI file
-
-```bash
 cosmos-music midi --key C --mode major --bpm 72 --out demo.mid
-```
-
-### Serve the app locally
-
-```bash
 cosmos-music serve --app ../app --port 8080
 ```
-
-Python includes reusable reference code for state processing, pitch, harmony, pulse timing, MIDI, and local serving.
 
 Read [`docs/API_AND_PYTHON.md`](./docs/API_AND_PYTHON.md).
 
 ---
 
-# 📱 Mobile builds
+# 📱 Native/mobile packaging
 
-## PWA
-
-The lowest-friction mobile version is the installable web app.
-
-Serve `app/` over HTTPS, open it on the phone, and add/install it from the browser.
-
-## Android
+Capacitor 8 configuration is included.
 
 ```bash
-npm install
 npm run native:android
-cd android
-./gradlew assembleDebug
-```
-
-## iPhone / iOS
-
-```bash
-npm install
 npm run native:ios
 ```
 
-Open the generated iOS project in Xcode.
+Android can be built locally with Gradle. Native installation on a physical iPhone requires Apple signing/provisioning; private signing credentials are intentionally excluded from the public repository.
 
-Native installation on a physical iPhone requires Apple code signing/provisioning. Those credentials are intentionally not stored in this open-source repository.
-
-Full guide: [`docs/MOBILE_INSTALL.md`](./docs/MOBILE_INSTALL.md)
+Full guide: [`docs/MOBILE_INSTALL.md`](./docs/MOBILE_INSTALL.md).
 
 ---
 
 # 🧑‍🏫 Education
 
-This repository ships with a student path and a teacher path.
+- [`docs/STUDENT_GUIDE.md`](./docs/STUDENT_GUIDE.md)
+- [`docs/TEACHER_GUIDE.md`](./docs/TEACHER_GUIDE.md)
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
+- [`docs/README.md`](./docs/README.md)
 
-### Student
+The project can be taught as music technology, signal processing, creative coding, sensor interaction, adaptive-system design, and responsible experimental software practice.
 
-[`docs/STUDENT_GUIDE.md`](./docs/STUDENT_GUIDE.md)
+---
 
-Use it to learn the system by experimenting first and reading implementation details second.
+# ✅ Validation
 
-### Teacher
+```bash
+npm run build
+node --check desktop/main.cjs
+node --check app/src/audio.js
+node --check app/src/sensors.js
+node --check app/src/state.js
+node --check app/src/app.js
+python -m compileall python/src
+PYTHONPATH=python/src pytest -q python/tests
+node scripts/check-html.mjs
+```
 
-[`docs/TEACHER_GUIDE.md`](./docs/TEACHER_GUIDE.md)
+The v1.1.0 release workflow successfully built Windows, Android, iOS, macOS Apple Silicon, and macOS Intel packages after validation.
 
-Use it for lesson sequencing, demonstrations, discussion, assessment, and claim discipline.
+---
 
-### Documentation home
+# 🌐 PWA deployment
 
-[`docs/README.md`](./docs/README.md)
+The PWA source and release ZIP are complete. GitHub Pages is not currently enabled for the repository, so the Pages workflow is intentionally manual. A repository administrator can enable **Settings → Pages → Source: GitHub Actions**, then run **COSMOS Music Deploy PWA**.
+
+Until then, the PWA ZIP can be hosted on any HTTPS static host.
 
 ---
 
 # 🔬 Research lineage and claim boundaries
 
-Related sources:
+Related project sources:
 
 - CST DOI: https://doi.org/10.5281/zenodo.17574447
 - QC67_cosmo: https://huggingface.co/phera-ra/QC67_cosmo
@@ -336,91 +223,33 @@ Read [`docs/RESEARCH_LINKS.md`](./docs/RESEARCH_LINKS.md) before making scientif
 
 ---
 
-# ✅ Validate everything
+# 🔐 Privacy and security
 
-From `COSMOS_MUSIC_SUITE/`:
+Do not commit private recordings, personal health records, API keys, passwords, signing certificates, provisioning profiles, or other people's biometric data.
 
-```bash
-npm run build
-node --check app/src/audio.js
-node --check app/src/sensors.js
-node --check app/src/state.js
-node --check app/src/app.js
-python -m compileall python/src
-PYTHONPATH=python/src pytest -q python/tests
-node scripts/check-html.mjs
-```
+The maintained microphone path is analysis-first and is not intentionally routed directly to the speaker.
 
-CI runs the maintained checks on GitHub as well.
+Read [`PRIVACY.md`](./PRIVACY.md) and [`SECURITY.md`](./SECURITY.md).
 
 ---
 
-# 🔐 Privacy / security rules
+# 🤝 Build on it
 
-Do not commit:
-
-- private recordings
-- personal health records
-- API keys
-- passwords
-- signing certificates
-- provisioning profiles
-- other people's biometric data
-
-Read:
-
-- [`PRIVACY.md`](./PRIVACY.md)
-- [`SECURITY.md`](./SECURITY.md)
-
----
-
-# 🤝 Want to build something with it?
-
-Please do.
-
-Possible extensions include:
-
-- guitar / piano / bass specialty modes
-- DAW integration
-- MIDI input/output
-- new synth engines
-- new motion mappings
-- accessibility controls
-- Apple Watch / HealthKit bridges
-- Android wearable bridges
-- OSC / MIDI bridges
-- recording/export
-- classroom experiments
-- additional visualization layers
+Possible extensions include DAW/MIDI/OSC bridges, new instruments, synth engines, sensor mappings, accessibility controls, wearable bridges, recording/export, classroom experiments, and additional state-vector research tests.
 
 Start with [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ---
 
-# 📚 Citation
+# 📚 Citation and license
 
-Software citation metadata is in [`CITATION.cff`](./CITATION.cff).
-
-For the CST research lineage, use the appropriate primary source and DOI where relevant:
-
-**10.5281/zenodo.17574447**
-
----
-
-# 📜 Open source
+Software citation metadata is in [`CITATION.cff`](./CITATION.cff). For the CST research lineage, cite the appropriate primary source and DOI where relevant.
 
 Licensed **GPL-3.0-only**.
 
-Also see:
-
-- [`OPEN_SOURCE_AGREEMENT.md`](./OPEN_SOURCE_AGREEMENT.md)
-- [`CONTRIBUTING.md`](./CONTRIBUTING.md)
-- [`GOVERNANCE.md`](./GOVERNANCE.md)
-- [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)
-
 ---
 
-## 🌌 One-sentence version
+## 🌌 One sentence
 
 **Your body gives the signals; COSMOS Music turns them into a band that responds.**
 
