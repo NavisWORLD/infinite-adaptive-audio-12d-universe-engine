@@ -1,16 +1,87 @@
 {
   "name": "cosmos-music-bio-instrument-suite",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": false,
   "description": "Open-source voice, motion, camera-PPG and CST-inspired adaptive music suite.",
+  "author": "Cory Shane Davis / NavisWORLD",
   "license": "GPL-3.0-only",
+  "main": "desktop/main.cjs",
   "scripts": {
     "build": "node scripts/build-web.mjs",
     "serve": "python -m http.server 8080 -d app",
     "native:android": "npm run build && npx cap add android && python scripts/patch-native.py android && npx cap sync android",
     "native:ios": "npm run build && npx cap add ios && python scripts/patch-native.py ios && npx cap sync ios",
-    "sync": "npm run build && npx cap sync"
+    "sync": "npm run build && npx cap sync",
+    "desktop": "electron .",
+    "desktop:win": "npm run build && electron-builder --win nsis --x64",
+    "desktop:mac:x64": "npm run build && electron-builder --mac dmg zip --x64",
+    "desktop:mac:arm64": "npm run build && electron-builder --mac dmg zip --arm64"
   },
-  "dependencies": {"@capacitor/core":"^8.0.0"},
-  "devDependencies": {"@capacitor/android":"^8.0.0","@capacitor/cli":"^8.0.0","@capacitor/ios":"^8.0.0"}
+  "dependencies": {
+    "@capacitor/core": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "electron": "43.2.0",
+    "electron-builder": "26.15.7"
+  },
+  "build": {
+    "appId": "world.navis.cosmosmusic",
+    "productName": "COSMOS Music",
+    "asar": true,
+    "compression": "maximum",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "app/**/*",
+      "desktop/**/*",
+      "LICENSE",
+      "NOTICE",
+      "PRIVACY.md",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "app/icons/icon-512.png",
+      "artifactName": "COSMOS-Music-${version}-Windows-${arch}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "shortcutName": "COSMOS Music",
+      "uninstallDisplayName": "COSMOS Music"
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": "app/icons/icon-512.png",
+      "artifactName": "COSMOS-Music-${version}-macOS-${arch}.${ext}",
+      "category": "public.app-category.music",
+      "identity": null,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "COSMOS Music analyzes your microphone locally to adapt accompaniment to your performance.",
+        "NSCameraUsageDescription": "COSMOS Music can optionally use the camera for expressive, non-medical pulse timing.",
+        "NSHumanReadableCopyright": "Copyright © 2026 Cory Shane Davis"
+      }
+    },
+    "dmg": {
+      "title": "COSMOS Music ${version}",
+      "backgroundColor": "#060814",
+      "iconSize": 96,
+      "contents": [
+        {"x": 150, "y": 180, "type": "file"},
+        {"x": 390, "y": 180, "type": "link", "path": "/Applications"}
+      ]
+    }
+  }
 }
