@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://navisworld.github.io/cosmos/schemas/synaptic-v1.schema.json",
+  "title": "COSMOS Synaptic ABI v1 request",
+  "type": "object",
+  "required": ["abi", "previous", "input"],
+  "properties": {
+    "abi": {"const": "cosmos.synaptic.v1"},
+    "leak": {"type": "number", "minimum": 0, "maximum": 0.999, "default": 0.82},
+    "previous": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": {"type": "number"}
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "voice_energy": {"type": "number"},
+        "pitch_lock": {"type": "number"},
+        "phrase_flux": {"type": "number"},
+        "tempo_coherence": {"type": "number"},
+        "motion_energy": {"type": "number"},
+        "tilt_x": {"type": "number"},
+        "tilt_y": {"type": "number"},
+        "rotation_flux": {"type": "number"},
+        "bpm": {"type": "number"},
+        "pulse_stability": {"type": "number"},
+        "harmonic_tension": {"type": "number"},
+        "dt": {"type": "number"}
+      }
+    }
+  },
+  "additionalProperties": false
+}

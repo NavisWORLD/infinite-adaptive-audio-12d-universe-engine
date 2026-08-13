@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cosmos-synaptic"
+version = "1.0.0"
+description = "Cross-language reference implementation of COSMOS Synaptic ABI v1"
+requires-python = ">=3.9"
+license = {text = "GPL-3.0-only"}
+authors = [{name = "Cory Shane Davis / NavisWORLD"}]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
