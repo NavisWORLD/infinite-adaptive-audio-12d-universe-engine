@@ -25,7 +25,8 @@
     "@capacitor/cli": "^8.0.0",
     "@capacitor/ios": "^8.0.0",
     "electron": "43.2.0",
-    "electron-builder": "26.15.7"
+    "electron-builder": "26.15.7",
+    "typescript": "6.0.3"
   },
   "build": {
     "appId": "world.navis.cosmosmusic",
