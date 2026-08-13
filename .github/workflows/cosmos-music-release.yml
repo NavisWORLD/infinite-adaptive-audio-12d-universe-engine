@@ -3,13 +3,20 @@ name: COSMOS Music Full Binary Release
 on:
   pull_request:
     paths:
-      - 'COSMOS_MUSIC_SUITE/**'
+      - 'COSMOS_MUSIC_SUITE/app/**'
+      - 'COSMOS_MUSIC_SUITE/desktop/**'
+      - 'COSMOS_MUSIC_SUITE/python/**'
+      - 'COSMOS_MUSIC_SUITE/native/**'
+      - 'COSMOS_MUSIC_SUITE/scripts/**'
+      - 'COSMOS_MUSIC_SUITE/package.json'
+      - 'COSMOS_MUSIC_SUITE/package-lock.json'
+      - 'COSMOS_MUSIC_SUITE/capacitor.config.ts'
+      - 'COSMOS_MUSIC_SUITE/VERSION'
       - '.github/workflows/cosmos-music-release.yml'
   push:
     branches: [main]
     paths:
       - 'COSMOS_MUSIC_SUITE/VERSION'
-      - '.github/workflows/cosmos-music-release.yml'
   workflow_dispatch:
 
 permissions:
