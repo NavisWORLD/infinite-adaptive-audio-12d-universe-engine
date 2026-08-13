@@ -1,16 +1,21 @@
 name: COSMOS Music Deploy PWA
+
+# GitHub Pages is not enabled for this repository yet.
+# Keeping this workflow manual avoids a misleading red deployment on every push.
+# Once an administrator enables Settings -> Pages -> Source: GitHub Actions,
+# run this workflow from the Actions tab. No source change is required.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ['COSMOS_MUSIC_SUITE/**']
+
 permissions:
   contents: read
   pages: write
   id-token: write
+
 concurrency:
   group: cosmos-music-pages
   cancel-in-progress: true
+
 jobs:
   deploy:
     environment:
@@ -19,10 +24,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: {node-version: '22'}
-      - run: node scripts/build-web.mjs
+        with:
+          node-version: '22'
+      - name: Build maintained PWA
+        run: node scripts/build-web.mjs
         working-directory: COSMOS_MUSIC_SUITE
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with: {path: COSMOS_MUSIC_SUITE/dist}
-      - uses: actions/deploy-pages@v4
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: COSMOS_MUSIC_SUITE/dist
+      - name: Deploy PWA
+        uses: actions/deploy-pages@v4
