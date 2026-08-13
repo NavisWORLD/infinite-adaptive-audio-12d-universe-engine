@@ -1,0 +1,26 @@
+name: COSMOS Synaptic Bindings
+on:
+  pull_request:
+    paths: ['COSMOS_MUSIC_SUITE/bindings/**', '.github/workflows/cosmos-synaptic-bindings.yml']
+  push:
+    paths: ['COSMOS_MUSIC_SUITE/bindings/**', '.github/workflows/cosmos-synaptic-bindings.yml']
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: COSMOS_MUSIC_SUITE
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: python -m pip install -e bindings/python
+      - run: python -m unittest discover -s bindings/python/tests -v
+      - run: npm test --prefix bindings/javascript
+      - run: npm install --prefix bindings/typescript
+      - run: npm run build --prefix bindings/typescript
+      - run: cargo test --manifest-path bindings/rust/Cargo.toml
+      - run: make -C bindings/c test
+      - run: make -C bindings/cpp test
