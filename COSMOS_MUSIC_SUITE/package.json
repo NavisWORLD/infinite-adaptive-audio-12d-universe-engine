@@ -40,8 +40,8 @@
       "app/**/*",
       "desktop/**/*",
       "LICENSE",
-      "../LICENSE_HISTORY.md",
-      "../COMMERCIAL_RIGHTS.md",
+      "LICENSE_HISTORY.md",
+      "COMMERCIAL_RIGHTS.md",
       "NOTICE",
       "PRIVACY.md",
       "package.json"
