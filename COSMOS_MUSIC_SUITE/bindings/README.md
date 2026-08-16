@@ -6,20 +6,18 @@ Read [`SPEC.md`](./SPEC.md) for the canonical algorithm and [`conformance/golden
 
 ## Native reference SDKs included
 
-- Python — `python/` — pip-installable package and conformance test
-- C — `c/` — stable C ABI, static-library build, conformance test
-- C++17 — `cpp/` — header-only API and compile/run smoke test
-- Rust — `rust/` — Cargo crate and conformance test
-- JavaScript — `javascript/` — zero-dependency ES module and conformance test
-- TypeScript — `typescript/` — strict typed implementation and declaration build
+- Python - `python/` - package and conformance test
+- C - `c/` - stable C ABI, static-library build, conformance test
+- C++17 - `cpp/` - header-only API and compile/run smoke test
+- Rust - `rust/` - Cargo crate and conformance test
+- JavaScript - `javascript/` - zero-dependency ES module and conformance test
+- TypeScript - `typescript/` - strict typed implementation and declaration build
 
 ## Compatibility beyond those six
 
-The C ABI is the universal native bridge. Ecosystems with C interoperability can call `cosmos_synaptic_step_v1` while preserving the same 12-double state layout. This covers common paths for Objective-C, Swift, Zig, Nim, Julia, R, Fortran, MATLAB/Octave, LuaJIT, Delphi/FreePascal, JVM native bridges, .NET native bridges and many others.
+The C ABI is the universal native bridge. Ecosystems with C interoperability can call `cosmos_synaptic_step_v1` while preserving the same 12-double state layout. The JSON schema in `protocol/` is the process/service bridge for languages or environments that should not load native code.
 
-The JSON schema in `protocol/` is the process/service bridge for languages or environments that should not load native code.
-
-That is how this project approaches “every language”: one versioned numerical contract, several independently tested reference SDKs, plus C and JSON surfaces that are broadly interoperable. Additional native convenience SDKs can be added without changing ABI v1.
+The design goal is one versioned numerical contract, several independently tested reference SDKs, plus C and JSON surfaces that are broadly interoperable.
 
 ## ABI v1 state order
 
@@ -47,4 +45,10 @@ That is how this project approaches “every language”: one versioned numerica
 
 `.github/workflows/cosmos-synaptic-bindings.yml` validates the native reference family whenever this layer changes.
 
-Licensed GPL-3.0-only with the rest of the repository.
+## Rights
+
+The historical pre-boundary binding generation was distributed with the GPL-3.0-only COSMOS Music generation. Those historical GPL rights remain intact.
+
+Newly authored or materially revised Cory-owned binding material distributed on or after 2026-08-16 is governed by the current COSMOS Music `LICENSE` unless a file expressly states different terms. Public source visibility is not a general reuse grant for that covered current material.
+
+See [`../LICENSE`](../LICENSE), [`../LICENSE_HISTORY.md`](../LICENSE_HISTORY.md), and [`../COMMERCIAL_RIGHTS.md`](../COMMERCIAL_RIGHTS.md).
