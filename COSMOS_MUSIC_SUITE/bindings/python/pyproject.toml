@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cosmos-synaptic"
-version = "1.0.0"
+version = "1.1.0"
 description = "Cross-language reference implementation of COSMOS Synaptic ABI v1"
 requires-python = ">=3.9"
-license = {text = "GPL-3.0-only"}
+license = {text = "Cory Davis Audio / Neural Instrument Research Source Rights Reservation v1.0 - see ../../LICENSE and ../../LICENSE_HISTORY.md"}
 authors = [{name = "Cory Shane Davis / NavisWORLD"}]
 
 [tool.setuptools]
