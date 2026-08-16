@@ -1,13 +1,11 @@
 cff-version: 1.2.0
-message: "If you use COSMOS Music, please cite this software and the foundational CST deposit."
+message: "If you reference COSMOS Music, cite this software and the foundational CST deposit. Rights for the exact version used are governed by LICENSE and LICENSE_HISTORY.md."
 title: "COSMOS Music: Adaptive Bio Instrument Suite"
 type: software
 authors:
   - family-names: "Davis"
     given-names: "Cory Shane"
-version: 1.0.0
-date-released: 2026-08-12
-license: GPL-3.0-only
+version: 1.2.0
 repository-code: "https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine"
 references:
   - type: generic
