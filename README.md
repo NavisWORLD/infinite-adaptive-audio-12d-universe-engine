@@ -1,76 +1,53 @@
 # 🎵 COSMOS Music + Adaptive Audio Research
 
-**Turn your voice, phone movement, and optional heartbeat timing into a live adaptive band.**
+**Turn voice, phone movement, optional pulse timing, and adaptive state into a live responsive musical system.**
 
 Created by **Cory Shane Davis / NavisWORLD**.
 
-[![Release](https://img.shields.io/badge/release-COSMOS%20Music%20v1.1.0-2ea44f)](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/tag/cosmos-music-v1.1.0)
-[![License](https://img.shields.io/badge/license-GPL--3.0--only-blue)](./LICENSE)
+📄 Foundational CST research deposit: **DOI 10.5281/zenodo.17574447**
 
-> 🚀 **Want the app, not the source? Start with the v1.1.0 release:**
-> **[Download COSMOS Music v1.1.0](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/tag/cosmos-music-v1.1.0)**
->
-> 📄 Foundational CST research deposit: **[DOI 10.5281/zenodo.17574447](https://doi.org/10.5281/zenodo.17574447)**
+## 🛡️ Rights and provenance first
 
----
+Copyright © 2026 Cory Shane Davis / NavisWORLD.
 
-# ⬇️ Pick your device
+**Current main-branch rights boundary:** newly authored or materially revised Cory-owned material distributed under the current `LICENSE` on or after **2026-08-16** is governed by the **Cory Davis Audio / Neural Instrument Research Source Rights Reservation v1.0**, unless a file expressly states different terms.
 
-| Device | Download / install path |
-|---|---|
-| 🪟 **Windows 64-bit** | [`COSMOS-Music-1.1.0-Windows-x64-Setup.exe`](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/download/cosmos-music-v1.1.0/COSMOS-Music-1.1.0-Windows-x64-Setup.exe) |
-| 🍎 **Mac — Apple Silicon** | [`COSMOS-Music-1.1.0-macOS-arm64.dmg`](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/download/cosmos-music-v1.1.0/COSMOS-Music-1.1.0-macOS-arm64.dmg) |
-| 🍎 **Mac — Intel** | [`COSMOS-Music-1.1.0-macOS-x64.dmg`](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/download/cosmos-music-v1.1.0/COSMOS-Music-1.1.0-macOS-x64.dmg) |
-| 🤖 **Android** | [`COSMOS-Music-1.1.0-Android-Community.apk`](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/download/cosmos-music-v1.1.0/COSMOS-Music-1.1.0-Android-Community.apk) |
-| 📱 **iPhone — easiest open-source path** | [`COSMOS-Music-1.1.0-iPhone-PWA.zip`](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/download/cosmos-music-v1.1.0/COSMOS-Music-1.1.0-iPhone-PWA.zip) |
-| 🧑‍💻 **iOS developers** | [`COSMOS-Music-1.1.0-iOS-Xcode-Project.zip`](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/download/cosmos-music-v1.1.0/COSMOS-Music-1.1.0-iOS-Xcode-Project.zip) |
-| 🧪 **iOS Simulator** | [`COSMOS-Music-1.1.0-iOS-Simulator.app.zip`](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/download/cosmos-music-v1.1.0/COSMOS-Music-1.1.0-iOS-Simulator.app.zip) |
-| 🔐 **Verify files** | [`SHA256SUMS.txt`](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/download/cosmos-music-v1.1.0/SHA256SUMS.txt) |
+Public visibility is not a general reuse license for that covered current material. Commercial products, hosted services, OEM integration, paid deployments, commercial AI/ML development, commercial redistribution, derivative implementations based on protected expression, and other commercial exploitation require separate written authorization where the current `LICENSE` states so.
 
-### Signing note
+**Historical open-source boundary:** the published **COSMOS Music v1.1.0** release and repository state through commit `eb1d84d500bd5bb0a2c3128b457b8a03f1f3c32f` were distributed under **GPL-3.0-only**. Valid GPL rights for those historical copies remain intact. They are not revoked or rewritten.
 
-The Windows/macOS files are community builds and may show OS trust prompts because commercial signing certificates are not stored in this public repository. The Android APK is a directly installable community build. A native physical-device iPhone `.ipa` requires an Apple Developer signing identity and provisioning profile; the repository intentionally does not contain private Apple signing credentials.
+See:
 
-See [`COSMOS_MUSIC_SUITE/docs/MOBILE_INSTALL.md`](./COSMOS_MUSIC_SUITE/docs/MOBILE_INSTALL.md) for the mobile paths.
+- [`LICENSE`](LICENSE) - current prospective rights reservation
+- [`LICENSE_HISTORY.md`](LICENSE_HISTORY.md) - exact historical licensing boundary
+- [`COMMERCIAL_RIGHTS.md`](COMMERCIAL_RIGHTS.md) - commercial licensing path
+- [`CORY_DAVIS_IP_AND_ACCESS_NOTICE.md`](CORY_DAVIS_IP_AND_ACCESS_NOTICE.md) - IP/access notice
 
----
+Copyright protects original expression, not abstract ideas, systems, algorithms, mathematical principles, scientific laws, or methods by themselves. Third-party and contributor-owned code, libraries, frameworks, SDKs, samples, recordings, datasets, models, and other materials remain under their own licenses and rights.
 
-# 🧸 Explain it like I am 5
+## ⬇️ Historical COSMOS Music v1.1.0 release
 
-You make a sound. Your phone listens to the sound, feels how you move it, and can optionally follow a heartbeat-like rhythm. Then the computer says:
+The existing **COSMOS Music v1.1.0** binaries remain available from the GitHub release history. That release keeps its historical GPL-3.0-only terms.
 
-**“Cool. I am going to play music with you.”**
+Published targets include Windows x64, macOS Apple Silicon, macOS Intel, Android, iPhone PWA, iOS developer project, and iOS Simulator packages. Publisher signing credentials are intentionally not stored in this public repository.
 
-It is not just a prerecorded backing track. The software continuously measures performance signals and uses them to change the music it creates.
+If you need the exact historical source and rights, use the release/tag or the pre-boundary commit recorded in `LICENSE_HISTORY.md` rather than assuming current-main terms apply retroactively.
 
-- 🎤 voice controls musical features
-- 📱 movement becomes expression
-- ❤️ optional pulse timing can influence rhythm
-- 🎛️ the system turns those inputs into a live 12-channel control state
+## 🧸 What it does
 
----
+You sing or make musical sounds. Your device can also observe movement and optional pulse-like timing. The software continuously maps those signals into musical control state and adapts generated music around the performance.
 
-# 🎛️ Three instrument modes
+Three primary modes are maintained:
 
-## 🎤 Play Along
+- **Play Along** - voice-driven musical accompaniment
+- **Conductor** - voice and phone motion reshape arrangement, rhythm, harmony, density and timbre
+- **Bio** - optional pulse timing becomes an expressive music-control signal
 
-Sing or make musical sounds and the app estimates pitch, confidence, energy, phrase movement, and tonal context. The adaptive band responds around the performance.
+Camera PPG is an expressive approximation for music control, **not a medical measurement**.
 
-## 🪄 Conductor
+## 🧠 12-channel performance state
 
-Voice and phone motion work together. Tilt, rotation, movement strength, vocal energy, and pitch can reshape rhythm, harmony, density, filtering, and timbre.
-
-## ❤️ Bio
-
-Pulse timing can be supplied by heartbeat tapping, approximate camera PPG, or an optional native bridge.
-
-> Camera PPG is an expressive music-control input, **not a medical heart-rate monitor**.
-
----
-
-# 🧠 What “12D” means in this software
-
-The maintained engine summarizes the performance into 12 operational control channels:
+The maintained engine summarizes performance into 12 operational control channels:
 
 1. voice energy
 2. pitch lock
@@ -96,32 +73,24 @@ PULSE ────> BPM / phase / stability ─────────┘      
                                                     generated music
 ```
 
-The 12-channel state is an **operational music-control representation inspired by CST / dyn12**. It is not presented as medical proof, proof of consciousness, or proof of literal higher-dimensional physics.
+The state is an operational music-control representation inspired by CST / dyn12. It is not presented as medical proof, consciousness proof, or literal higher-dimensional physics proof.
 
----
+## 👋 Start here
 
-# 👋 New here? Pick a path
-
-| I want to… | Start here |
+| Goal | Path |
 |---|---|
-| **Download the finished builds** | [COSMOS Music v1.1.0 release](https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine/releases/tag/cosmos-music-v1.1.0) |
-| **Explore the maintained product source** | [`COSMOS_MUSIC_SUITE/`](./COSMOS_MUSIC_SUITE/) |
-| **Install on iPhone or Android** | [`MOBILE_INSTALL.md`](./COSMOS_MUSIC_SUITE/docs/MOBILE_INSTALL.md) |
-| **Understand the engine** | [`ARCHITECTURE.md`](./COSMOS_MUSIC_SUITE/docs/ARCHITECTURE.md) |
-| **Use the Python tools** | [`API_AND_PYTHON.md`](./COSMOS_MUSIC_SUITE/docs/API_AND_PYTHON.md) |
-| **Teach it** | [`TEACHER_GUIDE.md`](./COSMOS_MUSIC_SUITE/docs/TEACHER_GUIDE.md) |
-| **Learn it as a student** | [`STUDENT_GUIDE.md`](./COSMOS_MUSIC_SUITE/docs/STUDENT_GUIDE.md) |
-| **Follow research / DOI / lineage** | [`RESEARCH_LINKS.md`](./COSMOS_MUSIC_SUITE/docs/RESEARCH_LINKS.md) |
-| **Understand every folder** | [`PROJECT_MAP.md`](./PROJECT_MAP.md) |
-| **Study older experiments** | [`archive/README.md`](./archive/README.md) |
+| Explore maintained source | [`COSMOS_MUSIC_SUITE/`](./COSMOS_MUSIC_SUITE/) |
+| Understand current rights | [`LICENSE`](./LICENSE) and [`LICENSE_HISTORY.md`](./LICENSE_HISTORY.md) |
+| Commercial licensing | [`COMMERCIAL_RIGHTS.md`](./COMMERCIAL_RIGHTS.md) |
+| Mobile installation | [`COSMOS_MUSIC_SUITE/docs/MOBILE_INSTALL.md`](./COSMOS_MUSIC_SUITE/docs/MOBILE_INSTALL.md) |
+| Architecture | [`COSMOS_MUSIC_SUITE/docs/ARCHITECTURE.md`](./COSMOS_MUSIC_SUITE/docs/ARCHITECTURE.md) |
+| Python/API | [`COSMOS_MUSIC_SUITE/docs/API_AND_PYTHON.md`](./COSMOS_MUSIC_SUITE/docs/API_AND_PYTHON.md) |
+| Teacher guide | [`COSMOS_MUSIC_SUITE/docs/TEACHER_GUIDE.md`](./COSMOS_MUSIC_SUITE/docs/TEACHER_GUIDE.md) |
+| Student guide | [`COSMOS_MUSIC_SUITE/docs/STUDENT_GUIDE.md`](./COSMOS_MUSIC_SUITE/docs/STUDENT_GUIDE.md) |
+| Research lineage | [`COSMOS_MUSIC_SUITE/docs/RESEARCH_LINKS.md`](./COSMOS_MUSIC_SUITE/docs/RESEARCH_LINKS.md) |
+| Older experiments | [`archive/`](./archive/) |
 
-If you only want the current product, stay inside **`COSMOS_MUSIC_SUITE/`** and the current **GitHub Release**.
-
----
-
-# ⚡ Build from source
-
-Requirements: Node.js and Python.
+## ⚡ Build current source
 
 ```bash
 git clone https://github.com/NavisWORLD/infinite-adaptive-audio-12d-universe-engine.git
@@ -131,127 +100,72 @@ npm run build
 npm run serve
 ```
 
-Inside the app:
+Building or viewing current source does not expand the rights granted by the current `LICENSE`.
 
-1. **Enable Audio**
-2. enable **Mic / Voice**
-3. optionally enable **Motion**
-4. optionally use **Camera PPG** or **Tap Heartbeat**
-5. choose **Play Along**, **Conductor**, or **Bio**
-6. tap **Play With Me**
-
----
-
-# 🐍 Python companion
+## 🐍 Python companion
 
 ```bash
 cd COSMOS_MUSIC_SUITE/python
 python -m pip install -e .
 ```
 
-Examples:
-
-```bash
-cosmos-music state --voice-energy .7 --pitch-lock .9 --motion .25 --bpm 72 --pulse-stability .8
-cosmos-music midi --key C --mode major --bpm 72 --out demo.mid
-cosmos-music serve --app ../app --port 8080
-```
-
 The Python package includes reference tooling for the 12-channel state, pitch estimation, tonal/key inference, harmony helpers, pulse timing, MIDI generation, and local serving.
 
----
-
-# 🗺️ Repository map
+## 🗺️ Repository map
 
 ```text
 .
 ├── README.md
-├── PROJECT_MAP.md
 ├── LICENSE
-├── COSMOS_MUSIC_SUITE/        # ✅ maintained product
-│   ├── app/                   # web / PWA runtime
-│   ├── desktop/               # Electron desktop shell
-│   ├── python/                # Python companion package + tests
-│   ├── native/                # native integration references
-│   ├── docs/                  # maintained documentation
-│   ├── scripts/               # build / packaging helpers
-│   ├── package.json
-│   └── capacitor.config.ts
+├── LICENSE_HISTORY.md
+├── COMMERCIAL_RIGHTS.md
+├── CORY_DAVIS_IP_AND_ACCESS_NOTICE.md
+├── COSMOS_MUSIC_SUITE/        # maintained current product/source
+│   ├── app/
+│   ├── desktop/
+│   ├── python/
+│   ├── native/
+│   ├── docs/
+│   ├── scripts/
+│   ├── LICENSE
+│   ├── LICENSE_HISTORY.md
+│   ├── COMMERCIAL_RIGHTS.md
+│   └── package.json
 ├── docs/                      # research / developer records
 └── archive/                   # older experiments and ancestry
 ```
 
----
+## 🧪 Validation
 
-# 🧪 Validation and release engineering
+The maintained project includes build and validation commands for web runtime, Python source/tests, and packaging workflows. Historical release-validation records remain part of the provenance chain, but a historical successful build is not a blanket claim about every later revision.
 
-The maintained project is checked in GitHub Actions before release. The v1.1.0 binary pipeline validated the web runtime and Python package, then built Windows, Android, iOS, macOS Apple Silicon, and macOS Intel packages before publishing the release.
+## 🔬 Research lineage
 
-From `COSMOS_MUSIC_SUITE/`:
+Related primary project sources include:
 
-```bash
-npm run build
-node --check desktop/main.cjs
-node --check app/src/audio.js
-node --check app/src/sensors.js
-node --check app/src/state.js
-node --check app/src/app.js
-python -m compileall python/src
-PYTHONPATH=python/src pytest -q python/tests
-node scripts/check-html.mjs
-```
+- CST Zenodo DOI: `10.5281/zenodo.17574447`
+- QC67_cosmo
+- COSMOS
+- CST theory
+- 12D Hebbian Transformer lineage
 
----
+Use `COSMOS_MUSIC_SUITE/docs/RESEARCH_LINKS.md` for claim boundaries and primary-source mapping.
 
-# 🌐 PWA hosting status
+## 🔐 Privacy and safety
 
-The PWA source is complete and packaged in the v1.1.0 release. This repository's GitHub Pages site is **not currently enabled**, so the Pages workflow is kept manual rather than leaving a misleading failing deployment on every push.
+The maintained app is designed around local-first sensor processing. Do not commit API keys, passwords, signing certificates, private recordings, personal health records, or private biometric data.
 
-A repository administrator can enable **Settings → Pages → Source: GitHub Actions**, then run **COSMOS Music Deploy PWA** from the Actions tab. No source-code change is required after Pages is enabled.
+Software rights do not grant rights in a person's voice, performance, biometric or physiological data.
 
----
+## 🤝 Contributions
 
-# 🔬 Research and lineage
+Current contribution rules differ from the historical GPL generation. Read [`COSMOS_MUSIC_SUITE/CONTRIBUTING.md`](./COSMOS_MUSIC_SUITE/CONTRIBUTING.md) and the current license before submitting copyrightable material.
 
-Related primary project sources:
+The prior GPL contribution policy is preserved as a historical record rather than silently rewritten.
 
-- **CST Zenodo DOI:** https://doi.org/10.5281/zenodo.17574447
-- **QC67_cosmo:** https://huggingface.co/phera-ra/QC67_cosmo
-- **COSMOS:** https://github.com/NavisWORLD/Cosmos
-- **CST theory:** https://github.com/NavisWORLD/The-theory-of-CST
-- **12D Hebbian Transformer:** https://github.com/NavisWORLD/The-Cosmic-Davis-12D-Hebbian-Transformer-
+## 📚 Citation
 
-For what each source does and does **not** establish, read [`COSMOS_MUSIC_SUITE/docs/RESEARCH_LINKS.md`](./COSMOS_MUSIC_SUITE/docs/RESEARCH_LINKS.md).
-
-Historical validation reports remain under [`docs/research/`](./docs/research/) for traceability rather than being treated as automatic proof of every later claim.
-
----
-
-# 🔐 Privacy and safety
-
-The maintained app is designed around **local-first sensor processing**. Do not commit API keys, passwords, Apple signing certificates, private recordings, personal health records, or private biometric data.
-
-The browser microphone is used for analysis and is not intentionally routed straight back to the speakers, reducing feedback risk.
-
-Read [`PRIVACY.md`](./COSMOS_MUSIC_SUITE/PRIVACY.md) and [`SECURITY.md`](./COSMOS_MUSIC_SUITE/SECURITY.md).
-
----
-
-# 🧑‍🏫 Education and contribution
-
-Teacher guide: [`TEACHER_GUIDE.md`](./COSMOS_MUSIC_SUITE/docs/TEACHER_GUIDE.md)  
-Student guide: [`STUDENT_GUIDE.md`](./COSMOS_MUSIC_SUITE/docs/STUDENT_GUIDE.md)  
-Contributing: [`CONTRIBUTING.md`](./COSMOS_MUSIC_SUITE/CONTRIBUTING.md)
-
-Good extensions include new instruments, MIDI/OSC/DAW bridges, synthesis voices, sensor mappings, accessibility controls, visualization modes, wearable bridges, recording/export, classroom experiments, and new state-vector research tests.
-
----
-
-# 📚 Citation and license
-
-If your work depends on the CST research lineage, cite the appropriate primary source and DOI. Software citation metadata is in [`COSMOS_MUSIC_SUITE/CITATION.cff`](./COSMOS_MUSIC_SUITE/CITATION.cff).
-
-**License: GPL-3.0-only.** See [`LICENSE`](./LICENSE).
+If work depends on the CST research lineage, cite the appropriate primary source and DOI. Citation does not itself grant reuse or commercial rights beyond the license governing the exact material used.
 
 ---
 
