@@ -1,10 +1,10 @@
 {
   "name": "cosmos-music-bio-instrument-suite",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": false,
-  "description": "Open-source voice, motion, camera-PPG and CST-inspired adaptive music suite.",
+  "description": "Source-available voice, motion, camera-PPG and CST-inspired adaptive music suite.",
   "author": "Cory Shane Davis / NavisWORLD",
-  "license": "GPL-3.0-only",
+  "license": "SEE LICENSE IN LICENSE",
   "main": "desktop/main.cjs",
   "scripts": {
     "build": "node scripts/build-web.mjs",
@@ -40,6 +40,8 @@
       "app/**/*",
       "desktop/**/*",
       "LICENSE",
+      "../LICENSE_HISTORY.md",
+      "../COMMERCIAL_RIGHTS.md",
       "NOTICE",
       "PRIVACY.md",
       "package.json"
