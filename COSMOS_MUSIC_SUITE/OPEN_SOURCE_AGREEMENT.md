@@ -1,14 +1,26 @@
-# Open-source participation agreement
+# Historical Open-Source Participation Record
 
-This repository is released under the **GNU General Public License version 3 (GPL-3.0-only)**, matching the existing license of the music-engine repository.
+This file preserves the contribution and licensing policy that applied to the historical GPL generation of COSMOS Music.
 
-By submitting a contribution, you represent that you have the right to submit it and agree that your contribution may be distributed under the repository's GPL-3.0-only license. Contributors retain copyright in their original contributions; this policy does not require copyright assignment.
+## Historical policy
 
-Contributions should:
-1. preserve source availability required by the GPL;
-2. identify third-party code/assets and their licenses;
-3. avoid committing API keys, signing certificates, private health data, raw personal recordings or private conversations;
-4. label scientific claims as implementation, observation, measurement, null result, hypothesis or metaphor where relevant;
-5. include tests or a reproducible manual test for functional changes.
+Through the pre-boundary repository state identified in `LICENSE_HISTORY.md`, including the published **COSMOS Music v1.1.0** release, the project was distributed under **GNU GPL version 3 (GPL-3.0-only)**.
 
-For substantial changes, describe the mapping or mechanism changed, the evidence used to evaluate it, and any known failure modes.
+For that historical generation, contributors represented that they had the right to submit their work and agreed that accepted contributions could be distributed under GPL-3.0-only. Contributors retained copyright in their original contributions; the historical policy did not require copyright assignment.
+
+Those historical licenses and contributor rights are not revoked or rewritten by the current licensing boundary.
+
+## Current generation
+
+Beginning 2026-08-16, this file is **not** the contribution agreement for newly protected current-generation material.
+
+The current protected generation is governed by:
+
+- `LICENSE`
+- `LICENSE_HISTORY.md`
+- `CONTRIBUTING.md`
+- `COMMERCIAL_RIGHTS.md`
+
+No new copyrightable contribution will be incorporated into protected current-generation material without an appropriate written contribution, assignment, or licensing agreement sufficient to establish the rights needed for incorporation and future licensing.
+
+This historical record exists so that old open-source permissions and new rights-reserved permissions are not conflated.
