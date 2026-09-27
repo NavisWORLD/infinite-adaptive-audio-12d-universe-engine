@@ -27,3 +27,7 @@ Third-party code, dependencies, frameworks, SDKs, samples, datasets, models, pub
 ## Purpose
 
 The purpose of this record is provenance and clarity: preserve the historical open-source release exactly as it existed while establishing a prospective rights boundary for new Cory-owned generations.
+
+## Prospective GPL-3.0-only open-source restoration (2026-09-27)
+
+When the revision adopting the new root and COSMOS_MUSIC_SUITE GPLv3 LICENSE files is released, original Cory-owned covered code in that distribution is licensed GPL-3.0-only, except individually identified separate-license components. Historical GPL v1.1.0 rights and the intervening source-available rights boundary remain valid as originally issued. Third-party code, recordings, models, papers and data retain independent licenses. This prospective grant cannot revoke earlier valid grants.

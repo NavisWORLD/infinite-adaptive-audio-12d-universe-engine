@@ -6,24 +6,11 @@ Created by **Cory Shane Davis / NavisWORLD**.
 
 📄 Foundational CST research deposit: **DOI 10.5281/zenodo.17574447**
 
-## 🛡️ Rights and provenance first
+## 🛡️ Open-source rights and provenance
 
 Copyright © 2026 Cory Shane Davis / NavisWORLD.
 
-**Current main-branch rights boundary:** newly authored or materially revised Cory-owned material distributed under the current `LICENSE` on or after **2026-08-16** is governed by the **Cory Davis Audio / Neural Instrument Research Source Rights Reservation v1.0**, unless a file expressly states different terms.
-
-Public visibility is not a general reuse license for that covered current material. Commercial products, hosted services, OEM integration, paid deployments, commercial AI/ML development, commercial redistribution, derivative implementations based on protected expression, and other commercial exploitation require separate written authorization where the current `LICENSE` states so.
-
-**Historical open-source boundary:** the published **COSMOS Music v1.1.0** release and repository state through commit `eb1d84d500bd5bb0a2c3128b457b8a03f1f3c32f` were distributed under **GPL-3.0-only**. Valid GPL rights for those historical copies remain intact. They are not revoked or rewritten.
-
-See:
-
-- [`LICENSE`](LICENSE) - current prospective rights reservation
-- [`LICENSE_HISTORY.md`](LICENSE_HISTORY.md) - exact historical licensing boundary
-- [`COMMERCIAL_RIGHTS.md`](COMMERCIAL_RIGHTS.md) - commercial licensing path
-- [`CORY_DAVIS_IP_AND_ACCESS_NOTICE.md`](CORY_DAVIS_IP_AND_ACCESS_NOTICE.md) - IP/access notice
-
-Copyright protects original expression, not abstract ideas, systems, algorithms, mathematical principles, scientific laws, or methods by themselves. Third-party and contributor-owned code, libraries, frameworks, SDKs, samples, recordings, datasets, models, and other materials remain under their own licenses and rights.
+Original Cory-owned current-generation code is open source under **GNU GPL version 3 (GPL-3.0-only)**, except any clearly marked components subject to separate terms. GPLv3 permits copying, modification, redistribution and commercial use, but redistribution of derivative GPL-covered programs must comply with its copyleft and source-provision conditions. Copyright remains with the original author. Previously released COSMOS Music v1.1.0 was also GPLv3; the subsequent source-available era remains recorded in the history. Third-party components, datasets, model weights, private recordings and external provider services retain their own terms. See [LICENSE_HISTORY.md](LICENSE_HISTORY.md) and [OPEN_SOURCE_SCOPE.md](OPEN_SOURCE_SCOPE.md).
 
 ## ⬇️ Historical COSMOS Music v1.1.0 release
 

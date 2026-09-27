@@ -17,3 +17,7 @@ Beginning 2026-08-16, newly authored or materially revised Cory Shane Davis / Na
 This does not retroactively restrict identical material validly obtained under the historical GPL release. Contributor-owned or third-party material remains governed by its controlling license.
 
 For the full repository history, see `../LICENSE_HISTORY.md`.
+
+## Prospective GPL-3.0-only open-source restoration (2026-09-27)
+
+When the revision adopting the new root and COSMOS_MUSIC_SUITE GPLv3 LICENSE files is released, original Cory-owned covered code in that distribution is licensed GPL-3.0-only, except individually identified separate-license components. Historical GPL v1.1.0 rights and the intervening source-available rights boundary remain valid as originally issued. Third-party code, recordings, models, papers and data retain independent licenses. This prospective grant cannot revoke earlier valid grants.

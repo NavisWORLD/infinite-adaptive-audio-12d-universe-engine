@@ -1,23 +1,7 @@
-# Commercial Rights and Provenance Notice
+# Commercial permissions — COSMOS Music open-source generation
 
-Copyright © 2026 Cory Shane Davis / NavisWORLD.
+Copyright 2026 Cory Shane Davis / NavisWORLD.
 
-## Current protected generation
+Original code expressly released under the current GPL-3.0-only LICENSE allows commercial and noncommercial use under the GPLv3 license. GPLv3 grants commercial rights subject to its obligations, including applicable source delivery and copyleft conditions on distribution. No separate Cory license is required for GPL-compliant activities. The project owner may also offer separate services and material they own, without narrowing rights already granted to GPLv3 recipients.
 
-Beginning 2026-08-16, newly authored or materially revised Cory-owned material distributed under the current repository `LICENSE` is rights-reserved unless a file expressly states different terms. Public visibility is not a general commercial or noncommercial reuse grant for that covered current material.
-
-Commercial products, paid deployments, OEM integrations, hosted services, commercial research and development, commercial AI/ML training or model development, commercial sample/preset products, commercial voice/style cloning from covered material, or other commercial exploitation of currently covered material require a separate written agreement signed by Cory Shane Davis where the current `LICENSE` states so.
-
-Hiring, contracting, collaboration, repository access, a fork, a download, a pull request, email, direct message, or verbal discussion does not by itself transfer ownership or grant additional commercial rights.
-
-## Historical permissions remain historical
-
-The published **COSMOS Music v1.1.0** release and earlier copies validly distributed under GPL-3.0-only retain the rights granted by GPL-3.0-only. The current policy does not revoke or restrict those grants. See `LICENSE_HISTORY.md` for the exact pre-boundary commit.
-
-## IP boundary
-
-No new patent license is granted by the current rights reservation. Copyright protects covered original expression, not abstract ideas, systems, algorithms, methods, mathematical principles, or discoveries. Third-party and contributor-owned materials remain subject to their own rights and licenses.
-
-Related COSMOS/CST research provenance: DOI `10.5281/zenodo.17574447`.
-
-Commercial licensing: Cory Shane Davis / @NavisWORLD.
+Valid previous GPLv3 grants and the intermediate rights-reserved license era are preserved for their respective copies. Third-party code, external recordings, other contributors' material, provider SDKs, models, datasets and privacy-sensitive data are not blanket relicensed. See LICENSE, LICENSE_HISTORY.md and OPEN_SOURCE_SCOPE.md.
