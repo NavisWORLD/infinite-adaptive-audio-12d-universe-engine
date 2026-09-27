@@ -8,24 +8,11 @@ Created by **Cory Shane Davis / NavisWORLD**.
 > Foundational CST research deposit: **DOI 10.5281/zenodo.17574447**  
 > Current main-branch package generation: **1.2.0**
 
-## 🛡️ Current rights boundary
+## 🛡️ Current GPLv3 open-source generation
 
 Copyright © 2026 Cory Shane Davis / NavisWORLD.
 
-Newly authored or materially revised Cory-owned material distributed under the current `LICENSE` on or after **2026-08-16** is governed by the **Cory Davis Audio / Neural Instrument Research Source Rights Reservation v1.0**, unless a file expressly states different terms.
-
-Public visibility is not a general reuse license for covered current material. Commercial products, paid deployments, OEM integrations, hosted services, commercial AI/ML development, commercial redistribution, and derivative implementations based on protected expression require separate written authorization where the current `LICENSE` states so.
-
-The published **COSMOS Music v1.1.0** generation was distributed under **GPL-3.0-only**. Valid GPL rights in those historical copies remain intact and are not revoked.
-
-Read these before reuse or distribution:
-
-- [`LICENSE`](./LICENSE)
-- [`LICENSE_HISTORY.md`](./LICENSE_HISTORY.md)
-- [`COMMERCIAL_RIGHTS.md`](./COMMERCIAL_RIGHTS.md)
-- [`../LICENSE_HISTORY.md`](../LICENSE_HISTORY.md) for the repository-wide chronology
-
-Copyright protects original expression, not abstract ideas, systems, algorithms, mathematical principles, or methods by themselves. Third-party and contributor-owned material remains subject to its own licenses and rights.
+Original Cory-owned current-generation code is open source under **GNU GPL version 3 (GPL-3.0-only)**, except any clearly marked components subject to separate terms. GPLv3 permits copying, modification, redistribution and commercial use, but redistribution of derivative GPL-covered programs must comply with its copyleft and source-provision conditions. Copyright remains with the original author. Previously released COSMOS Music v1.1.0 was also GPLv3; the subsequent source-available era remains recorded in the history. Third-party components, datasets, model weights, private recordings and external provider services retain their own terms. See [LICENSE_HISTORY.md](../LICENSE_HISTORY.md) and [OPEN_SOURCE_SCOPE.md](../OPEN_SOURCE_SCOPE.md).
 
 ## ⬇️ Historical v1.1.0 binaries
 
