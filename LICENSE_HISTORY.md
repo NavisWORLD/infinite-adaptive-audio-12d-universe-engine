@@ -12,7 +12,7 @@ The historical root license can be inspected at:
 
 The published `COSMOS Music v1.1.0` release and copies validly received under GPL-3.0-only keep the rights that license granted. This repository does not attempt to revoke, restrict, or rewrite those historical grants.
 
-## Prospective rights boundary
+## Former source-available rights boundary
 
 Beginning 2026-08-16, newly authored or materially revised Cory Shane Davis / NavisWORLD material that is distributed under the current root or `COSMOS_MUSIC_SUITE` `LICENSE` is subject to the **Cory Davis Audio / Neural Instrument Research Source Rights Reservation v1.0**, unless a file expressly states different terms.
 
@@ -27,3 +27,7 @@ Third-party code, dependencies, frameworks, SDKs, samples, datasets, models, pub
 ## Purpose
 
 The purpose of this record is provenance and clarity: preserve the historical open-source release exactly as it existed while establishing a prospective rights boundary for new Cory-owned generations.
+
+## Prospective GPLv3 restoration (2026-09-26)
+
+On adoption of the renewed GPL-3.0-only root LICENSE, copyrightable original Cory-owned source and documentation first distributed with that new release are licensed GPL version 3, except expressly marked independent components. Earlier GPLv3 copies keep their licenses; intervening source-available versions keep their previously issued terms. Contributors and third-party assets retain their own copyright and license provenance. The new grant takes effect upon adoption/release, not on `main` when a draft PR opens.

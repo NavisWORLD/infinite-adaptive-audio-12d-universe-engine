@@ -1,6 +1,6 @@
 # 🎵 COSMOS Music - Adaptive Bio Instrument Suite
 
-**A local-first, source-available music system that listens to your voice, observes how you move your phone, can optionally follow pulse timing, and turns those signals into adaptive music.**
+**A local-first, open-source music system that listens to your voice, observes how you move your phone, can optionally follow pulse timing, and turns those signals into adaptive music.**
 
 Created by **Cory Shane Davis / NavisWORLD**.
 
@@ -8,24 +8,13 @@ Created by **Cory Shane Davis / NavisWORLD**.
 > Foundational CST research deposit: **DOI 10.5281/zenodo.17574447**  
 > Current main-branch package generation: **1.2.0**
 
-## 🛡️ Current rights boundary
+## GPLv3 open-source rights and provenance
 
-Copyright © 2026 Cory Shane Davis / NavisWORLD.
+Copyright © 2026 Cory Shane Davis / NavisWORLD in his original contributions.
 
-Newly authored or materially revised Cory-owned material distributed under the current `LICENSE` on or after **2026-08-16** is governed by the **Cory Davis Audio / Neural Instrument Research Source Rights Reservation v1.0**, unless a file expressly states different terms.
+Original Cory-owned COSMOS Music suite software and documentation newly released with the restored root and suite [GNU GPL version 3 LICENSE](LICENSE) are offered under GPL-3.0-only, except separately marked components. GPLv3 permits modification, redistribution and commercial sale under its conditions, including corresponding-source requirements when they apply. Third-party packages, separately licensed media/samples, external models, datasets and private sensor recordings remain governed by their own rights.
 
-Public visibility is not a general reuse license for covered current material. Commercial products, paid deployments, OEM integrations, hosted services, commercial AI/ML development, commercial redistribution, and derivative implementations based on protected expression require separate written authorization where the current `LICENSE` states so.
-
-The published **COSMOS Music v1.1.0** generation was distributed under **GPL-3.0-only**. Valid GPL rights in those historical copies remain intact and are not revoked.
-
-Read these before reuse or distribution:
-
-- [`LICENSE`](./LICENSE)
-- [`LICENSE_HISTORY.md`](./LICENSE_HISTORY.md)
-- [`COMMERCIAL_RIGHTS.md`](./COMMERCIAL_RIGHTS.md)
-- [`../LICENSE_HISTORY.md`](../LICENSE_HISTORY.md) for the repository-wide chronology
-
-Copyright protects original expression, not abstract ideas, systems, algorithms, mathematical principles, or methods by themselves. Third-party and contributor-owned material remains subject to its own licenses and rights.
+The historical **v1.1.0** GPL-3.0-only release keeps its original GPL license; intervening source-available releases remain under their historically issued terms. See [LICENSE_HISTORY.md](LICENSE_HISTORY.md), [COMMERCIAL_RIGHTS.md](COMMERCIAL_RIGHTS.md) and [../LICENSE_HISTORY.md](../LICENSE_HISTORY.md).
 
 ## ⬇️ Historical v1.1.0 binaries
 

@@ -12,12 +12,10 @@ node scripts/check-html.mjs
 
 Do not submit secrets, copyrighted samples without redistribution rights, private sensor recordings, medical claims, proprietary datasets, or other material you do not have the right to provide.
 
-## Rights boundary for new contributions
+## Rights and requirements for new open-source contributions
 
-The published **COSMOS Music v1.1.0** generation and pre-boundary repository copies were distributed under GPL-3.0-only. Those historical rights remain intact.
+The published v1.1.0 release and historical repository copies remain under their original GPLv3 grants; the intervening source-available period remains documented in LICENSE_HISTORY.md.
 
-Beginning 2026-08-16, the current protected generation is not accepting outside copyrightable code, documentation, audio assets, designs, mappings, or other substantive authorship for incorporation unless Cory Shane Davis and the contributor first execute a written contribution, assignment, or licensing agreement sufficient to establish the rights required for incorporation and future licensing.
+For new changes to the restored GPL-3.0-only suite, submit only code or documentation that you own or are authorized to submit under GPL-3.0-only. By submitting material for acceptance under this contribution policy, identify the license/provenance of every third-party portion; contributors retain their copyright. The project may separately request a contributor agreement if additional rights are needed for later independently licensed versions, but such an agreement is not implied merely by submitting a PR. Opening a PR by itself does not assign copyright.
 
-Opening a pull request does not transfer copyright ownership and does not grant the project additional rights beyond those independently provided by law or a separate written agreement.
-
-The prior GPL participation policy is preserved in `OPEN_SOURCE_AGREEMENT.md` as a historical record. Current contributions are governed by this file, `LICENSE`, and `LICENSE_HISTORY.md`.
+Do not submit secret credentials, copyrighted samples without authorization, sensitive sensor recordings or external datasets without documented rights. Preserve all original third-party notices.

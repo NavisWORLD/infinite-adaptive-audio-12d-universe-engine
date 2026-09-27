@@ -6,24 +6,13 @@ Created by **Cory Shane Davis / NavisWORLD**.
 
 📄 Foundational CST research deposit: **DOI 10.5281/zenodo.17574447**
 
-## 🛡️ Rights and provenance first
+## Open-source rights and provenance
 
-Copyright © 2026 Cory Shane Davis / NavisWORLD.
+Copyright © 2026 Cory Shane Davis / NavisWORLD for original contributions.
 
-**Current main-branch rights boundary:** newly authored or materially revised Cory-owned material distributed under the current `LICENSE` on or after **2026-08-16** is governed by the **Cory Davis Audio / Neural Instrument Research Source Rights Reservation v1.0**, unless a file expressly states different terms.
+Original Cory-owned COSMOS Music source and documentation in prospective versions adopting the restored [GPL-3.0-only root LICENSE](LICENSE) are open-source under GPL version 3, unless a file states different rights. Commercial sales and services are allowed by GPLv3, but redistributing covered GPLv3 derivatives generally triggers its source and licensing requirements. Third-party dependencies, separately licensed models, media, sample libraries and private sensor recordings are not automatically relicensed.
 
-Public visibility is not a general reuse license for that covered current material. Commercial products, hosted services, OEM integration, paid deployments, commercial AI/ML development, commercial redistribution, derivative implementations based on protected expression, and other commercial exploitation require separate written authorization where the current `LICENSE` states so.
-
-**Historical open-source boundary:** the published **COSMOS Music v1.1.0** release and repository state through commit `eb1d84d500bd5bb0a2c3128b457b8a03f1f3c32f` were distributed under **GPL-3.0-only**. Valid GPL rights for those historical copies remain intact. They are not revoked or rewritten.
-
-See:
-
-- [`LICENSE`](LICENSE) - current prospective rights reservation
-- [`LICENSE_HISTORY.md`](LICENSE_HISTORY.md) - exact historical licensing boundary
-- [`COMMERCIAL_RIGHTS.md`](COMMERCIAL_RIGHTS.md) - commercial licensing path
-- [`CORY_DAVIS_IP_AND_ACCESS_NOTICE.md`](CORY_DAVIS_IP_AND_ACCESS_NOTICE.md) - IP/access notice
-
-Copyright protects original expression, not abstract ideas, systems, algorithms, mathematical principles, scientific laws, or methods by themselves. Third-party and contributor-owned code, libraries, frameworks, SDKs, samples, recordings, datasets, models, and other materials remain under their own licenses and rights.
+The historical **COSMOS Music v1.1.0** GPLv3 release retains its previous grant. Versions distributed during the later source-available period retain their distinct historic rights. See [LICENSE_HISTORY.md](LICENSE_HISTORY.md) and [COMMERCIAL_RIGHTS.md](COMMERCIAL_RIGHTS.md) for this chronology.
 
 ## ⬇️ Historical COSMOS Music v1.1.0 release
 
