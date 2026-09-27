@@ -1,11 +1,7 @@
-# COSMOS Music Commercial Rights and Provenance Notice
+# Commercial permissions — COSMOS Music open-source generation
 
-Copyright © 2026 Cory Shane Davis / NavisWORLD.
+Copyright 2026 Cory Shane Davis / NavisWORLD.
 
-Newly authored or materially revised Cory-owned material distributed under the current suite `LICENSE` on or after 2026-08-16 is rights-reserved unless a file expressly states different terms. Commercial products, paid deployments, OEM integrations, hosted services, commercial R&D, commercial AI/ML development, commercial sample/preset products, and other commercial exploitation of that covered current material require a separate written agreement signed by Cory Shane Davis where the current `LICENSE` states so.
+Original code expressly released under the current GPL-3.0-only LICENSE allows commercial and noncommercial use under the GPLv3 license. GPLv3 grants commercial rights subject to its obligations, including applicable source delivery and copyleft conditions on distribution. No separate Cory license is required for GPL-compliant activities. The project owner may also offer separate services and material they own, without narrowing rights already granted to GPLv3 recipients.
 
-The published **COSMOS Music v1.1.0** release and earlier copies validly distributed under GPL-3.0-only retain their GPL rights. Those rights are not revoked. See `LICENSE_HISTORY.md`.
-
-No new patent license is granted by the current rights reservation. Copyright protects original expression, not abstract ideas, systems, algorithms, methods, mathematical principles, or discoveries. Third-party and contributor-owned material remains under its controlling license.
-
-Commercial licensing: Cory Shane Davis / @NavisWORLD.
+Valid previous GPLv3 grants and the intermediate rights-reserved license era are preserved for their respective copies. Third-party code, external recordings, other contributors' material, provider SDKs, models, datasets and privacy-sensitive data are not blanket relicensed. See LICENSE, LICENSE_HISTORY.md and ../OPEN_SOURCE_SCOPE.md.
